@@ -29,6 +29,25 @@ export function createRoutes(supabase: SupabaseClient): Router {
     next();
   };
 
+  // ─── Audit Log Helper ──────────────────────────────────────────
+  async function logAudit(req: Request, action: string, targetType: string, targetId: string, details: any = {}) {
+    try {
+      const user = (req as any).user;
+      await supabase.from('audit_logs').insert({
+        user_id: user?.id || null,
+        user_email: user?.email || 'sistema',
+        user_name: user?.user_metadata?.name || user?.email || 'Sistema (Webhook)',
+        action,
+        target_type: targetType,
+        target_id: targetId,
+        details,
+        ip_address: req.headers['x-forwarded-for'] as string || req.ip || ''
+      });
+    } catch (err) {
+      console.error('[Audit] Erro ao salvar log:', err);
+    }
+  }
+
   // ─── Zendesk Webhook (BEFORE auth middleware — uses its own token) ──
   router.post('/api/webhooks/zendesk', async (req: Request, res: Response) => {
     try {
@@ -61,13 +80,25 @@ export function createRoutes(supabase: SupabaseClient): Router {
       };
 
       try {
-        await syncSingleTicket(zendeskConfig, supabase, ticketId);
+        const result = await syncSingleTicket(zendeskConfig, supabase, ticketId);
+        
+        // Registrar a sincronização na tabela sync_log para refletir na dashboard
+        await supabase.from('sync_log').insert([{
+          status: 'completed',
+          phase: 'concluído via webhook',
+          tickets_synced: 1,
+          comments_synced: result.commentsSynced,
+          completed_at: new Date().toISOString()
+        }]);
+
+        logAudit(req, 'webhook_sync', 'ticket', String(ticketId), { message: 'Ticket sincronizado via webhook' });
 
         // Trigger AI analysis for this specific ticket
         const apiKey = process.env.GEMINI_API_KEY || process.env.OPENAI_API_KEY || '';
         if (apiKey) {
           await analyzeSingleTicket(apiKey, supabase, ticketId);
           console.log(`[Webhook] Ticket #${ticketId} analisado pela IA com sucesso.`);
+          logAudit(req, 'webhook_analyze', 'ticket', String(ticketId), { message: 'Ticket analisado via webhook' });
         }
       } catch (bgErr: any) {
         console.error(`[Webhook] Erro ao processar ticket #${ticketId} em background:`, bgErr.message);
@@ -83,25 +114,6 @@ export function createRoutes(supabase: SupabaseClient): Router {
 
   // Apply middleware to all /api routes except login/health (login is already handled client side, no backend route)
   router.use('/api', requireAuth);
-
-  // ─── Audit Log Helper ──────────────────────────────────────────
-  async function logAudit(req: Request, action: string, targetType: string, targetId: string, details: any = {}) {
-    try {
-      const user = (req as any).user;
-      await supabase.from('audit_logs').insert({
-        user_id: user?.id || null,
-        user_email: user?.email || 'sistema',
-        user_name: user?.user_metadata?.name || user?.email || 'Sistema',
-        action,
-        target_type: targetType,
-        target_id: targetId,
-        details,
-        ip_address: req.headers['x-forwarded-for'] as string || req.ip || ''
-      });
-    } catch (err) {
-      console.error('[Audit] Erro ao salvar log:', err);
-    }
-  }
 
   // ─── Audit Logs Routes ─────────────────────────────────────────
 
@@ -1036,6 +1048,76 @@ export function createRoutes(supabase: SupabaseClient): Router {
       res.json({ success: true, insights });
     } catch (err: any) {
       console.error('[Radar Analyze API] Caught error:', err);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ─── Calendar Events ───────────────────────────────────────────
+  router.get('/api/calendar/events', async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const userId = user?.id;
+
+      let query = supabase.from('calendar_events').select('*');
+      
+      const { data, error } = await query;
+      if (error) throw error;
+      
+      // Filter out 'personal' events not belonging to current user
+      const filtered = (data || []).filter(e => e.event_type === 'global' || e.created_by === userId);
+      
+      res.json(filtered);
+    } catch (err: any) {
+      console.error('[Calendar API] GET error:', err);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  router.post('/api/calendar/events', async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const payload = {
+        ...req.body,
+        created_by: user?.id,
+        end_date: req.body.end_date || null,
+        end_time: req.body.end_time || null
+      };
+      
+      const { data, error } = await supabase.from('calendar_events').insert([payload]).select().single();
+      if (error) throw error;
+      res.json(data);
+    } catch (err: any) {
+      console.error('[Calendar API] POST error:', err);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  router.put('/api/calendar/events/:id', async (req, res) => {
+    try {
+      const { id } = req.params;
+      const payload = {
+        ...req.body
+      };
+      if (payload.end_date === '') payload.end_date = null;
+      if (payload.end_time === '') payload.end_time = null;
+
+      const { data, error } = await supabase.from('calendar_events').update(payload).eq('id', id).select().single();
+      if (error) throw error;
+      res.json(data);
+    } catch (err: any) {
+      console.error('[Calendar API] PUT error:', err);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  router.delete('/api/calendar/events/:id', async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { error } = await supabase.from('calendar_events').delete().eq('id', id);
+      if (error) throw error;
+      res.json({ success: true });
+    } catch (err: any) {
+      console.error('[Calendar API] DELETE error:', err);
       res.status(500).json({ error: err.message });
     }
   });

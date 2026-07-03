@@ -435,7 +435,7 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({ ticket: in
                     ) : (
                       <span className="modal__info-value" style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
                         {(ticket.category || '—').split(' | ').map((cat, i) => (
-                          <span key={i} className="badge badge--neutral" style={{ fontSize: 11 }}>{cat.trim()}</span>
+                          <span key={i} className="badge badge--neutral" style={{ fontSize: 11, whiteSpace: 'normal', textAlign: 'left', wordBreak: 'break-word' }}>{cat.trim()}</span>
                         ))}
                       </span>
                     )}

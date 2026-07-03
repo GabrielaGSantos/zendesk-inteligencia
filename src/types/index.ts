@@ -17,6 +17,7 @@ export interface Ticket {
   created_at: string;
   updated_at: string;
   solved_at: string | null;
+  due_date?: string | null;
   zendesk_url: string;
 
   // Analysis fields (from JOIN with ticket_analysis)
@@ -199,4 +200,17 @@ export interface RadarInsight {
   level: 'critical' | 'high' | 'medium' | 'low';
   created_at: string;
   is_active: boolean;
+}
+
+export interface CalendarEvent {
+  id?: string;
+  title: string;
+  description: string;
+  event_type: 'personal' | 'global';
+  created_by?: string;
+  start_date: string;
+  start_time: string;
+  end_date?: string;
+  end_time?: string;
+  created_at?: string;
 }

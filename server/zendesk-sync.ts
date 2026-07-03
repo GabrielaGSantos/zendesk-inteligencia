@@ -209,7 +209,7 @@ export async function syncSingleTicket(
   config: ZendeskConfig,
   supabase: SupabaseClient,
   ticketId: number
-): Promise<void> {
+): Promise<{ commentsSynced: number }> {
   console.log(`[Webhook Sync] Sincronizando ticket #${ticketId}...`);
 
   // Fetch ticket data from Zendesk
@@ -259,6 +259,7 @@ export async function syncSingleTicket(
   // Sync comments
   const commentCount = await syncTicketComments(config, supabase, ticketId);
   console.log(`[Webhook Sync] Ticket #${ticketId} sincronizado com ${commentCount} comentários.`);
+  return { commentsSynced: commentCount };
 }
 
 export async function startSync(

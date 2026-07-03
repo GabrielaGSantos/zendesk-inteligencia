@@ -189,5 +189,21 @@ export const api = {  // Tickets
 
   logLogin: (): Promise<{ success: boolean }> => {
     return request('/api/audit-logs/login', { method: 'POST' });
+  },
+
+  // Calendar
+  calendar: {
+    list: (): Promise<any[]> => request('/api/calendar/events'),
+    create: (data: any): Promise<any> => request('/api/calendar/events', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    }),
+    update: (id: string, data: any): Promise<any> => request(`/api/calendar/events/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data)
+    }),
+    delete: (id: string): Promise<any> => request(`/api/calendar/events/${id}`, {
+      method: 'DELETE'
+    })
   }
 };

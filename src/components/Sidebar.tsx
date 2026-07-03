@@ -5,7 +5,12 @@ import {
   BookOpen, 
   Brain,
   Activity,
-  LogOut
+  LogOut,
+  LayoutDashboard,
+  TicketIcon,
+  Network,
+  Radar,
+  Calendar
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
@@ -26,7 +31,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, setCurrentTab }) =
     {
       group: 'Operação',
       items: [
-        { id: 'radar', label: 'Radar Operacional', icon: Activity },
+        { id: 'radar', label: 'Radar Operacional', icon: Radar },
+        { id: 'calendar', label: 'Calendário e Lembretes', icon: Calendar },
       ]
     },
     {

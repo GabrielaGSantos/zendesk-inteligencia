@@ -13,6 +13,8 @@ import { AgentsManager } from './components/AgentsManager';
 import { OperationalRadar } from './components/OperationalRadar';
 import { UsersManager } from './components/UsersManager';
 import { AuditLogs } from './components/AuditLogs';
+import { CalendarScreen } from './components/CalendarScreen';
+import { NotificationManager } from './components/NotificationManager';
 import { Login } from './components/Login';
 import { api } from './services/api';
 import { supabase } from './lib/supabase';
@@ -348,6 +350,8 @@ function App() {
         <UsersManager />
       ) : currentTab === 'logs' ? (
         <AuditLogs />
+      ) : currentTab === 'calendar' ? (
+        <CalendarScreen />
       ) : (
         <>
           {/* Page Header */}
@@ -462,6 +466,9 @@ function App() {
           filterOptions={filterOptions}
         />
       )}
+      
+      {/* Global Notifications for Reminders */}
+      <NotificationManager />
     </Layout>
   );
 }
