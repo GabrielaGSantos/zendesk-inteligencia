@@ -361,28 +361,38 @@ export const CalendarScreen: React.FC = () => {
                   </div>
                 ))}
 
-                {dayTickets.map(t => (
+                {dayTickets.map(t => {
+                  const isOverdue = t.due_date ? new Date(t.due_date) < new Date() : false;
+                  return (
                   <div 
                     key={t.zendesk_id} 
                     style={{ 
                       fontSize: '0.75rem', 
                       padding: '4px 6px', 
                       borderRadius: 4, 
-                      background: '#FEE2E2',
-                      color: '#991B1B',
-                      borderLeft: `3px solid #DC2626`,
+                      background: isOverdue ? '#FEE2E2' : '#EFF6FF',
+                      color: isOverdue ? '#991B1B' : '#1E40AF',
+                      borderLeft: `3px solid ${isOverdue ? '#DC2626' : '#3B82F6'}`,
                       cursor: 'pointer',
                       whiteSpace: 'nowrap',
                       overflow: 'hidden',
-                      textOverflow: 'ellipsis'
+                      textOverflow: 'ellipsis',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 2
                     }}
-                    title={`Ticket #${t.zendesk_id} vence hoje: ${t.subject}`}
+                    title={`Ticket #${t.zendesk_id} vence dia ${format(date, 'dd/MM')}: ${t.subject}`}
                     onClick={(e) => { e.stopPropagation(); window.open(t.zendesk_url, '_blank'); }}
                   >
-                    <AlertCircle size={10} style={{ display: 'inline', marginRight: 4, verticalAlign: 'middle' }} />
-                    #{t.zendesk_id} Vence {t.due_date?.includes('T') ? t.due_date.split('T')[1].substring(0,5) : ''}
+                    <div>
+                      <AlertCircle size={10} style={{ display: 'inline', marginRight: 4, verticalAlign: 'middle' }} />
+                      <strong>#{t.zendesk_id}</strong> Vence {t.due_date?.includes('T') ? t.due_date.split('T')[1].substring(0,5) : ''}
+                    </div>
+                    <div style={{ fontSize: '0.7rem', opacity: 0.85, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {t.assignee_name || 'Sem atribuição'}
+                    </div>
                   </div>
-                ))}
+                )})}
               </div>
             </div>
           );
