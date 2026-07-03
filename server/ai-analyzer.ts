@@ -138,10 +138,14 @@ async function callGemini(apiKey: string, prompt: string, model: string = 'gemin
     } catch (err: any) {
       lastError = err;
       if (err.message === 'RATE_LIMIT') {
-        throw err;
+        console.warn(`[Gemini] Quota Excedida / Rate Limit no attempt ${attempt}. Aguardando 30s antes de tentar novamente...`);
+        if (attempt >= 3) throw err;
+        await new Promise(resolve => setTimeout(resolve, 30000));
+      } else {
+        console.warn(`[Gemini] Attempt ${attempt} failed: ${err.message}. Retrying in 3s...`);
+        if (attempt >= 3) throw err;
+        await new Promise(resolve => setTimeout(resolve, 3000));
       }
-      console.warn(`Attempt ${attempt} failed for Gemini API: ${err.message}. Retrying in 3s...`);
-      await new Promise(resolve => setTimeout(resolve, 3000));
     }
   }
   throw lastError;
@@ -149,33 +153,57 @@ async function callGemini(apiKey: string, prompt: string, model: string = 'gemin
 
 async function callOpenAI(apiKey: string, prompt: string, model: string = 'gpt-4o-mini'): Promise<AIResponse> {
   const openai = new OpenAI({ apiKey });
-  const response = await openai.chat.completions.create({
-    model: model,
-    temperature: 0.3,
-    max_tokens: 2048,
-    response_format: { type: 'json_object' },
-    messages: [
-      {
-        role: 'system',
-        content: 'Você é um assistente especialista em suporte ao cliente. Responda apenas com o JSON válido e exato solicitado nas instruções.'
-      },
-      {
-        role: 'user',
-        content: prompt
+  let lastError;
+  
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      const response = await openai.chat.completions.create({
+        model: model,
+        temperature: 0.3,
+        max_tokens: 2048,
+        response_format: { type: 'json_object' },
+        messages: [
+          {
+            role: 'system',
+            content: 'Você é um assistente especialista em suporte ao cliente. Responda apenas com o JSON válido e exato solicitado nas instruções.'
+          },
+          {
+            role: 'user',
+            content: prompt
+          }
+        ]
+      });
+      
+      const usage = {
+        prompt: response.usage?.prompt_tokens || 0,
+        completion: response.usage?.completion_tokens || 0,
+        total: response.usage?.total_tokens || 0
+      };
+      
+      if (response.usage) {
+        console.log(`[Tokens OpenAI] Prompt: ${usage.prompt} | Resposta: ${usage.completion} | Total: ${usage.total}`);
       }
-    ]
-  });
-  
-  const usage = {
-    prompt: response.usage?.prompt_tokens || 0,
-    completion: response.usage?.completion_tokens || 0,
-    total: response.usage?.total_tokens || 0
-  };
-  
-  return {
-    text: response.choices[0]?.message?.content || '',
-    usage
-  };
+      
+      return {
+        text: response.choices[0]?.message?.content || '',
+        usage
+      };
+    } catch (err: any) {
+      lastError = err;
+      const isRateLimit = err.status === 429 || err.message?.includes('429') || err.message?.includes('rate_limit');
+      
+      if (isRateLimit) {
+        console.warn(`[OpenAI] Rate Limit no attempt ${attempt}. Aguardando 30s antes de tentar novamente...`);
+        if (attempt >= 3) throw new Error('RATE_LIMIT');
+        await new Promise(resolve => setTimeout(resolve, 30000));
+      } else {
+        console.warn(`[OpenAI] Attempt ${attempt} failed: ${err.message}. Retrying in 3s...`);
+        if (attempt >= 3) throw err;
+        await new Promise(resolve => setTimeout(resolve, 3000));
+      }
+    }
+  }
+  throw lastError;
 }
 
 export interface SimilarTicketContext {
