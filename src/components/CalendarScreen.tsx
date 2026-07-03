@@ -42,7 +42,7 @@ export const CalendarScreen: React.FC = () => {
     setLoading(true);
     try {
       const [tRes, evRes, aRes] = await Promise.allSettled([
-        api.getTickets(1, 1000),
+        api.getTickets({ page: 1, limit: 1000 }),
         api.calendar.list(),
         api.getAgents()
       ]);
