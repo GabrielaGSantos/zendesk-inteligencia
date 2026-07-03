@@ -7,13 +7,14 @@ export const AuditLogs: React.FC = () => {
   const [logs, setLogs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
   const [totalPages, setTotalPages] = useState(1);
   const [actionFilter, setActionFilter] = useState('');
 
   const fetchLogs = async () => {
     setLoading(true);
     try {
-      const data = await api.getAuditLogs({ page, limit: 50, action: actionFilter });
+      const data = await api.getAuditLogs({ page, limit, action: actionFilter });
       setLogs(data.logs);
       setTotalPages(data.totalPages);
     } catch (err) {
@@ -25,7 +26,7 @@ export const AuditLogs: React.FC = () => {
 
   useEffect(() => {
     fetchLogs();
-  }, [page, actionFilter]);
+  }, [page, limit, actionFilter]);
 
   const getActionLabel = (action: string) => {
     switch (action) {
@@ -48,7 +49,7 @@ export const AuditLogs: React.FC = () => {
         </p>
       </div>
 
-      <div className="filter-bar" style={{ marginBottom: 20 }}>
+      <div className="filter-bar" style={{ marginBottom: 20, display: 'flex', gap: '20px', alignItems: 'center' }}>
         <div className="filter-bar__group" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <label style={{ fontSize: '0.85rem', fontWeight: 500 }}>Filtrar por Ação:</label>
           <select 
@@ -63,6 +64,20 @@ export const AuditLogs: React.FC = () => {
             <option value="analyze_start">Análise em Massa</option>
             <option value="webhook_sync">Zendesk: Novo/Atualizado (Webhook)</option>
             <option value="webhook_analyze">IA via Webhook</option>
+          </select>
+        </div>
+        
+        <div className="filter-bar__group" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <label style={{ fontSize: '0.85rem', fontWeight: 500 }}>Exibir:</label>
+          <select 
+            className="filter-bar__select" 
+            value={limit} 
+            onChange={e => { setLimit(Number(e.target.value)); setPage(1); }}
+          >
+            <option value={10}>10 por página</option>
+            <option value={20}>20 por página</option>
+            <option value={50}>50 por página</option>
+            <option value={100}>100 por página</option>
           </select>
         </div>
       </div>
@@ -168,21 +183,23 @@ export const AuditLogs: React.FC = () => {
         )}
       </div>
 
-      {totalPages > 1 && (
-        <div className="pagination" style={{ marginTop: 20 }}>
-          <div className="pagination__info">
+      {logs.length > 0 && (
+        <div className="pagination" style={{ marginTop: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div className="pagination__info" style={{ fontSize: '0.9rem', color: 'var(--color-text-secondary)' }}>
             Página {page} de {totalPages}
           </div>
-          <div className="pagination__controls">
+          <div className="pagination__controls" style={{ display: 'flex', gap: '8px' }}>
             <button 
-              className="pagination__button" 
-              disabled={page === 1}
+              className="btn btn--secondary" 
+              style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '6px 12px' }}
+              disabled={page <= 1}
               onClick={() => setPage(p => Math.max(1, p - 1))}
             >
               <ChevronLeft size={16} /> Anterior
             </button>
             <button 
-              className="pagination__button" 
+              className="btn btn--secondary" 
+              style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '6px 12px' }}
               disabled={page >= totalPages}
               onClick={() => setPage(p => p + 1)}
             >
