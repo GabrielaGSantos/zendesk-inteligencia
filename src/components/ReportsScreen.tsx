@@ -252,7 +252,7 @@ export const ReportsScreen: React.FC = () => {
               </div>
               <div style={{ fontSize: '2rem', fontWeight: 700, color: 'var(--color-text-primary)' }}>{summary.backlog}</div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
-                <span style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)' }}>Tickets em aberto agorass</span>
+                <span style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)' }}>Tickets em aberto agora</span>
               </div>
             </div>
 
