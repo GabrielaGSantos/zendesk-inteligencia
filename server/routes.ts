@@ -1161,7 +1161,7 @@ export function createRoutes(supabase: SupabaseClient): Router {
         // Fallback se não existir
         data = {
           ai_provider: 'gemini',
-          ai_model: 'gemini-1.5-flash',
+          ai_model: 'gemini-2.5-flash',
           auto_analyze_webhooks: true
         };
       }

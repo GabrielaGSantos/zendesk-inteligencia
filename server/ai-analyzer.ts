@@ -87,7 +87,7 @@ export interface AIResponse {
   };
 }
 
-async function callGemini(apiKey: string, prompt: string, model: string = 'gemini-1.5-flash'): Promise<AIResponse> {
+async function callGemini(apiKey: string, prompt: string, model: string = 'gemini-2.5-flash'): Promise<AIResponse> {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
   const options = {
     method: 'POST',
@@ -521,7 +521,7 @@ export async function startAnalysis(apiKey: string, supabase: SupabaseClient): P
 
       const { data: settings } = await supabase.from('system_settings').select('*').eq('id', 1).single();
       const provider = settings?.ai_provider || 'gemini';
-      const model = settings?.ai_model || 'gemini-1.5-flash';
+      const model = settings?.ai_model || 'gemini-2.5-flash';
 
       const batchSize = 5;
       
@@ -725,10 +725,10 @@ function calculateCost(provider: string, model: string, usage: { prompt: number,
   let completionPricePerM = 0;
 
   if (provider === 'gemini') {
-    if (model.includes('gemini-1.5-flash')) {
+    if (model.includes('flash')) {
       promptPricePerM = 0.075;
       completionPricePerM = 0.30;
-    } else if (model.includes('gemini-1.5-pro')) {
+    } else if (model.includes('pro')) {
       promptPricePerM = 3.50;
       completionPricePerM = 10.50;
     }
@@ -807,7 +807,7 @@ export async function analyzeSingleTicket(apiKey: string, supabase: SupabaseClie
 
   const { data: settings } = await supabase.from('system_settings').select('*').eq('id', 1).single();
   const provider = settings?.ai_provider || 'gemini';
-  const model = settings?.ai_model || 'gemini-1.5-flash';
+  const model = settings?.ai_model || 'gemini-2.5-flash';
 
   const prompt = buildAnalysisPrompt(ticketData, similarContext, knowledgeRules, agentExpertise, existingAnalysis);
 

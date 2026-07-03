@@ -67,7 +67,20 @@ export function SettingsScreen() {
     );
   }
 
-  const geminiModels = ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-1.0-pro'];
+  const geminiModels = [
+    'gemini-3.5-flash',
+    'gemini-3.1-pro-preview',
+    'gemini-3.1-flash-lite',
+    'gemini-3-pro-preview',
+    'gemini-3-flash-preview',
+    'gemini-2.5-flash',
+    'gemini-2.5-pro',
+    'gemini-2.5-flash-lite',
+    'gemini-2.0-flash',
+    'gemini-2.0-flash-lite',
+    'gemini-flash-latest',
+    'gemini-pro-latest'
+  ];
   const openaiModels = ['gpt-4o-mini', 'gpt-4o', 'gpt-3.5-turbo'];
   const currentModels = settings.ai_provider === 'gemini' ? geminiModels : openaiModels;
 
@@ -111,7 +124,7 @@ export function SettingsScreen() {
                 onChange={(e) => {
                   const newProvider = e.target.value as 'gemini' | 'openai';
                   handleChange('ai_provider', newProvider);
-                  handleChange('ai_model', newProvider === 'gemini' ? 'gemini-1.5-flash' : 'gpt-4o-mini');
+                  handleChange('ai_model', newProvider === 'gemini' ? 'gemini-2.5-flash' : 'gpt-4o-mini');
                 }}
                 style={{ width: '100%', borderRadius: '8px', border: '1px solid var(--color-border)', backgroundColor: 'var(--color-bg-primary)', padding: '10px 16px', color: 'var(--color-text-primary)', outline: 'none' }}
               >
