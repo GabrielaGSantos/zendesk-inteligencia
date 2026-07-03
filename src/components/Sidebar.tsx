@@ -11,7 +11,8 @@ import {
   Network,
   Radar,
   Calendar,
-  Settings
+  Settings,
+  TrendingUp
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
@@ -33,6 +34,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, setCurrentTab }) =
       group: 'Operação',
       items: [
         { id: 'radar', label: 'Radar Operacional', icon: Radar },
+        { id: 'reports', label: 'Relatórios Gerenciais', icon: TrendingUp },
         { id: 'calendar', label: 'Calendário e Lembretes', icon: Calendar },
       ]
     },

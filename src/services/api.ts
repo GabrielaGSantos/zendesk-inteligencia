@@ -207,6 +207,14 @@ export const api = {  // Tickets
     })
   },
 
+  // Reports
+  reports: {
+    getDashboard: (filters: any): Promise<any> => request('/api/reports/dashboard', {
+      method: 'POST',
+      body: JSON.stringify(filters)
+    })
+  },
+
   // Settings
   settings: {
     get: (): Promise<any> => request('/api/settings'),

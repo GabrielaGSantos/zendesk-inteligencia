@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import path from 'path';
 import { getDatabase, getAdminDatabase, initializeDatabase } from './database.js';
 import { createRoutes } from './routes.js';
+import { registerReportRoutes } from './reports.js';
 
 // Load environment variables from project root
 dotenv.config({ path: path.join(process.cwd(), '.env'), override: true });
@@ -53,6 +54,7 @@ app.use(express.json());
 
 // Routes
 app.use(createRoutes(db));
+app.use(registerReportRoutes(db));
 
 // Health check
 app.get('/api/health', (_req, res) => {

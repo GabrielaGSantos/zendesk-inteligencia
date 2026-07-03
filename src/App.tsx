@@ -15,6 +15,7 @@ import { UsersManager } from './components/UsersManager';
 import { AuditLogs } from './components/AuditLogs';
 import { CalendarScreen } from './components/CalendarScreen';
 import { SettingsScreen } from './components/SettingsScreen';
+import { ReportsScreen } from './components/ReportsScreen';
 import { NotificationManager } from './components/NotificationManager';
 import { Login } from './components/Login';
 import { api } from './services/api';
@@ -355,6 +356,8 @@ function App() {
         <CalendarScreen />
       ) : currentTab === 'settings' ? (
         <SettingsScreen />
+      ) : currentTab === 'reports' ? (
+        <ReportsScreen />
       ) : (
         <>
           {/* Page Header */}
