@@ -35,7 +35,7 @@ export function createRoutes(supabase: SupabaseClient): Router {
       // Validate webhook secret (configured only as environment variable on Render)
       const webhookSecret = process.env.ZENDESK_WEBHOOK_SECRET;
       if (webhookSecret) {
-        const providedToken = req.headers['x-zendesk-webhook-token'] as string;
+        const providedToken = req.headers['x-webhook-secret'] as string;
         if (providedToken !== webhookSecret) {
           console.warn('[Webhook] Token inválido recebido.');
           return res.status(401).json({ error: 'Token inválido' });
