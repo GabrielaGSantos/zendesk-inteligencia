@@ -4,7 +4,7 @@ import type {
   SyncProgress, AnalysisProgress, FilterOptions, PatternGroup
 } from '../types';
 
-const API_BASE = 'http://localhost:3002';
+const API_BASE = window.location.hostname === 'localhost' ? 'http://localhost:3002' : '';
 
 async function request<T>(endpoint: string, options?: RequestInit): Promise<T> {
   const { data: { session } } = await supabase.auth.getSession();
