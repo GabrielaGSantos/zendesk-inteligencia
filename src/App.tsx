@@ -14,6 +14,7 @@ import { OperationalRadar } from './components/OperationalRadar';
 import { UsersManager } from './components/UsersManager';
 import { AuditLogs } from './components/AuditLogs';
 import { CalendarScreen } from './components/CalendarScreen';
+import { SettingsScreen } from './components/SettingsScreen';
 import { NotificationManager } from './components/NotificationManager';
 import { Login } from './components/Login';
 import { api } from './services/api';
@@ -352,6 +353,8 @@ function App() {
         <AuditLogs />
       ) : currentTab === 'calendar' ? (
         <CalendarScreen />
+      ) : currentTab === 'settings' ? (
+        <SettingsScreen />
       ) : (
         <>
           {/* Page Header */}

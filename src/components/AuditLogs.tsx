@@ -112,19 +112,50 @@ export const AuditLogs: React.FC = () => {
                       {log.target_id ? <div style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>#{log.target_id}</div> : null}
                     </td>
                     <td style={{ padding: '16px', verticalAlign: 'top', minWidth: '250px' }}>
-                      <pre style={{ 
-                        margin: 0, 
-                        padding: '8px', 
-                        background: 'var(--color-background-soft)', 
-                        borderRadius: '4px',
-                        fontSize: '11px',
-                        whiteSpace: 'pre-wrap',
-                        wordBreak: 'break-word',
-                        color: 'var(--color-text-secondary)',
-                        fontFamily: 'monospace'
-                      }}>
-                        {JSON.stringify(log.details, null, 2)}
-                      </pre>
+                      <div style={{ marginBottom: 4, fontWeight: 500, color: 'var(--color-text-primary)' }}>
+                        {log.details?.message || ''}
+                      </div>
+                      
+                      {log.details?.metrics ? (
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginTop: '12px', padding: '12px', backgroundColor: 'var(--color-bg-tertiary, rgba(59, 130, 246, 0.1))', borderRadius: '8px', border: '1px solid rgba(59, 130, 246, 0.2)', fontSize: '0.75rem' }}>
+                          <div style={{ display: 'flex', flexDirection: 'column' }}>
+                            <span style={{ color: 'var(--color-text-secondary)' }}>Modelo</span>
+                            <span style={{ fontWeight: 500, color: 'var(--color-text-primary)' }}>{log.details.metrics.provider} {log.details.metrics.model}</span>
+                          </div>
+                          <div style={{ display: 'flex', flexDirection: 'column' }}>
+                            <span style={{ color: 'var(--color-text-secondary)' }}>Tokens Totais</span>
+                            <span style={{ fontWeight: 500, color: 'var(--color-text-primary)' }}>{log.details.metrics.total_tokens?.toLocaleString()}</span>
+                          </div>
+                          <div style={{ display: 'flex', flexDirection: 'column' }}>
+                            <span style={{ color: 'var(--color-text-secondary)' }}>Custo Estimado</span>
+                            <span style={{ fontWeight: 500, color: 'var(--color-text-primary)' }}>${(log.details.metrics.estimated_cost || 0).toFixed(5)}</span>
+                          </div>
+                          <div style={{ display: 'flex', flexDirection: 'column' }}>
+                            <span style={{ color: 'var(--color-text-secondary)' }}>Status API</span>
+                            <span style={{ fontWeight: 500 }}>
+                              {log.details.metrics.error_429 > 0 ? (
+                                <span style={{ color: '#ef4444' }}>{log.details.metrics.error_429} erros 429</span>
+                              ) : (
+                                <span style={{ color: '#10b981' }}>{log.details.metrics.api_calls} chamadas (OK)</span>
+                              )}
+                            </span>
+                          </div>
+                        </div>
+                      ) : (
+                        <pre style={{ 
+                          margin: '8px 0 0 0', 
+                          padding: '8px', 
+                          background: 'var(--color-background-soft)', 
+                          borderRadius: '4px',
+                          fontSize: '11px',
+                          whiteSpace: 'pre-wrap',
+                          wordBreak: 'break-word',
+                          color: 'var(--color-text-secondary)',
+                          fontFamily: 'monospace'
+                        }}>
+                          {JSON.stringify(log.details, null, 2)}
+                        </pre>
+                      )}
                     </td>
                     <td style={{ padding: '16px', fontSize: 12, color: 'var(--color-text-secondary)', verticalAlign: 'top' }}>
                       {log.ip_address?.split(',')[0]}

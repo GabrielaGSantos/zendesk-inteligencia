@@ -91,14 +91,45 @@ export function createRoutes(supabase: SupabaseClient): Router {
           completed_at: new Date().toISOString()
         }]);
 
-        logAudit(req, 'webhook_sync', 'ticket', String(ticketId), { message: 'Ticket sincronizado via webhook' });
+        await logAudit(req, 'webhook_sync', 'ticket', String(ticketId), { message: 'Ticket sincronizado via webhook' });
+
+        // Check settings to see if auto-analyze is enabled
+        const { data: settings } = await supabase.from('system_settings').select('auto_analyze_webhooks').eq('id', 1).single();
+        const autoAnalyze = settings ? settings.auto_analyze_webhooks : true;
+
+        if (!autoAnalyze) {
+          console.log(`[Webhook] Auto-análise desativada nas configurações para o ticket #${ticketId}.`);
+          return;
+        }
 
         // Trigger AI analysis for this specific ticket
         const apiKey = process.env.GEMINI_API_KEY || process.env.OPENAI_API_KEY || '';
         if (apiKey) {
-          await analyzeSingleTicket(apiKey, supabase, ticketId);
-          console.log(`[Webhook] Ticket #${ticketId} analisado pela IA com sucesso.`);
-          logAudit(req, 'webhook_analyze', 'ticket', String(ticketId), { message: 'Ticket analisado via webhook' });
+          try {
+            const aiResult = await analyzeSingleTicket(apiKey, supabase, ticketId);
+            console.log(`[Webhook] Ticket #${ticketId} analisado pela IA com sucesso.`);
+            await logAudit(req, 'webhook_analyze', 'ticket', String(ticketId), { 
+              message: 'Ticket analisado via webhook',
+              metrics: {
+                api_calls: 1,
+                input_tokens: aiResult.usage?.prompt || 0,
+                output_tokens: aiResult.usage?.completion || 0,
+                total_tokens: aiResult.usage?.total || 0,
+                estimated_cost: aiResult.cost || 0,
+                model: aiResult.model || 'Desconhecido',
+                provider: aiResult.provider || 'Desconhecido',
+                error_429: 0
+              }
+            });
+          } catch (aiErr: any) {
+            const is429 = aiErr.message === 'RATE_LIMIT' || aiErr.message.includes('429');
+            console.error(`[Webhook] Erro da IA no ticket #${ticketId}:`, aiErr.message);
+            await logAudit(req, 'webhook_analyze', 'ticket', String(ticketId), { 
+              message: 'Falha na análise da IA', 
+              error: aiErr.message,
+              metrics: { error_429: is429 ? 1 : 0 }
+            });
+          }
         }
       } catch (bgErr: any) {
         console.error(`[Webhook] Erro ao processar ticket #${ticketId} em background:`, bgErr.message);
@@ -1118,6 +1149,48 @@ export function createRoutes(supabase: SupabaseClient): Router {
       res.json({ success: true });
     } catch (err: any) {
       console.error('[Calendar API] DELETE error:', err);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ─── System Settings ───────────────────────────────────────────
+  router.get('/api/settings', async (req, res) => {
+    try {
+      let { data, error } = await supabase.from('system_settings').select('*').eq('id', 1).single();
+      if (error || !data) {
+        // Fallback se não existir
+        data = {
+          ai_provider: 'gemini',
+          ai_model: 'gemini-1.5-flash',
+          auto_analyze_webhooks: true
+        };
+      }
+      res.json(data);
+    } catch (err: any) {
+      console.error('[Settings API] GET error:', err);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  router.put('/api/settings', async (req, res) => {
+    try {
+      const payload = {
+        ai_provider: req.body.ai_provider,
+        ai_model: req.body.ai_model,
+        auto_analyze_webhooks: req.body.auto_analyze_webhooks,
+        updated_at: new Date().toISOString()
+      };
+      const { data, error } = await supabase.from('system_settings').upsert({ id: 1, ...payload }, { onConflict: 'id' }).select().single();
+      if (error) throw error;
+      
+      await logAudit(req, 'edit_settings', 'system', '1', { 
+        message: 'Configurações de IA atualizadas', 
+        details: payload 
+      });
+
+      res.json(data);
+    } catch (err: any) {
+      console.error('[Settings API] PUT error:', err);
       res.status(500).json({ error: err.message });
     }
   });

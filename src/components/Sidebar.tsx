@@ -10,7 +10,8 @@ import {
   TicketIcon,
   Network,
   Radar,
-  Calendar
+  Calendar,
+  Settings
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
@@ -45,6 +46,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, setCurrentTab }) =
     {
       group: 'Configurações',
       items: [
+        { id: 'settings', label: 'Configurações Globais', icon: Settings },
         { id: 'users', label: 'Usuários do Sistema', icon: BookOpen },
         { id: 'logs', label: 'Logs de Auditoria', icon: Activity },
       ]

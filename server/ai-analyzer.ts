@@ -78,8 +78,17 @@ interface AnalysisResult {
   predicted_resolution_time_hours?: number | null;
 }
 
-async function callGemini(apiKey: string, prompt: string): Promise<string> {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${apiKey}`;
+export interface AIResponse {
+  text: string;
+  usage: {
+    prompt: number;
+    completion: number;
+    total: number;
+  };
+}
+
+async function callGemini(apiKey: string, prompt: string, model: string = 'gemini-1.5-flash'): Promise<AIResponse> {
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
   const options = {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -114,10 +123,18 @@ async function callGemini(apiKey: string, prompt: string): Promise<string> {
       }
 
       const data = await response.json();
+      const usage = {
+        prompt: data.usageMetadata?.promptTokenCount || 0,
+        completion: data.usageMetadata?.candidatesTokenCount || 0,
+        total: data.usageMetadata?.totalTokenCount || 0
+      };
       if (data.usageMetadata) {
-        console.log(`[Tokens] Prompt: ${data.usageMetadata.promptTokenCount} | Resposta: ${data.usageMetadata.candidatesTokenCount} | Total: ${data.usageMetadata.totalTokenCount}`);
+        console.log(`[Tokens] Prompt: ${usage.prompt} | Resposta: ${usage.completion} | Total: ${usage.total}`);
       }
-      return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+      return {
+        text: data.candidates?.[0]?.content?.parts?.[0]?.text || '',
+        usage
+      };
     } catch (err: any) {
       lastError = err;
       if (err.message === 'RATE_LIMIT') {
@@ -130,10 +147,10 @@ async function callGemini(apiKey: string, prompt: string): Promise<string> {
   throw lastError;
 }
 
-async function callOpenAI(apiKey: string, prompt: string): Promise<string> {
+async function callOpenAI(apiKey: string, prompt: string, model: string = 'gpt-4o-mini'): Promise<AIResponse> {
   const openai = new OpenAI({ apiKey });
   const response = await openai.chat.completions.create({
-    model: 'gpt-4o-mini',
+    model: model,
     temperature: 0.3,
     max_tokens: 2048,
     response_format: { type: 'json_object' },
@@ -149,7 +166,16 @@ async function callOpenAI(apiKey: string, prompt: string): Promise<string> {
     ]
   });
   
-  return response.choices[0]?.message?.content || '';
+  const usage = {
+    prompt: response.usage?.prompt_tokens || 0,
+    completion: response.usage?.completion_tokens || 0,
+    total: response.usage?.total_tokens || 0
+  };
+  
+  return {
+    text: response.choices[0]?.message?.content || '',
+    usage
+  };
 }
 
 export interface SimilarTicketContext {
@@ -465,8 +491,17 @@ export async function startAnalysis(apiKey: string, supabase: SupabaseClient): P
       const knowledgeRules = await fetchActiveRules(supabase);
       const agentExpertise = await fetchAgentExpertise(supabase);
 
-      const provider = 'gemini';
+      const { data: settings } = await supabase.from('system_settings').select('*').eq('id', 1).single();
+      const provider = settings?.ai_provider || 'gemini';
+      const model = settings?.ai_model || 'gemini-1.5-flash';
+
       const batchSize = 5;
+      
+      let batchInputTokens = 0;
+      let batchOutputTokens = 0;
+      let batchApiCalls = 0;
+      let batchCost = 0;
+      let batchErrors = 0;
 
       for (let i = 0; i < unanalyzedTickets.length; i += batchSize) {
         if (isAnalysisPaused) {
@@ -490,16 +525,23 @@ export async function startAnalysis(apiKey: string, supabase: SupabaseClient): P
             const similarContext = await findSimilarResolvedTickets(supabase, ticketData.subject, ticketData.zendesk_id);
             const prompt = buildAnalysisPrompt(ticketData, similarContext, knowledgeRules, agentExpertise);
 
-            let responseText = '';
+            let responseObj: AIResponse;
             if (provider === 'openai') {
               const openaiKey = process.env.OPENAI_API_KEY;
-              if (!openaiKey) throw new Error('Chave da API da OpenAI não configurada no .env');
-              responseText = await callOpenAI(openaiKey, prompt);
+              if (!openaiKey) throw new Error('Chave da API da OpenAI não configurada nas variáveis de ambiente');
+              responseObj = await callOpenAI(openaiKey, prompt, model);
             } else {
-              responseText = await callGemini(apiKey, prompt);
+              const geminiKey = process.env.GEMINI_API_KEY || apiKey;
+              responseObj = await callGemini(geminiKey, prompt, model);
             }
             
-            const parsed: AnalysisResult = JSON.parse(responseText);
+            batchApiCalls++;
+            batchInputTokens += responseObj.usage.prompt;
+            batchOutputTokens += responseObj.usage.completion;
+            batchCost += calculateCost(provider, model, responseObj.usage);
+            
+            let cleanText = responseObj.text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+            const parsed: AnalysisResult = JSON.parse(cleanText);
 
             let patternGroupId = null;
             if (parsed.pattern_group) {
@@ -578,6 +620,7 @@ export async function startAnalysis(apiKey: string, supabase: SupabaseClient): P
           } catch (err: any) {
             console.error(`Error analyzing ticket ${ticket.zendesk_id}:`, err.message);
             if (err.message.includes('429') || err.message.includes('Quota') || err.message.includes('RESOURCE_EXHAUSTED') || err.message.includes('rate limit') || err.message.includes('Too Many Requests') || err.message === 'RATE_LIMIT') {
+              batchErrors++;
               console.warn('[AI] Limite de API atingido. Interrompendo lote atual para aguardar recarga.');
               throw new Error('RATE_LIMIT');
             }
@@ -612,6 +655,34 @@ export async function startAnalysis(apiKey: string, supabase: SupabaseClient): P
     if (keepRunning) {
       await new Promise(resolve => setTimeout(resolve, 2000));
     }
+  } // Fim do while(keepRunning)
+
+  if (globalSuccessCount > 0 || batchErrors > 0) {
+    try {
+      await supabase.from('audit_logs').insert({
+        user_id: null,
+        user_email: 'sistema',
+        user_name: 'Sistema (Análise em Massa)',
+        action: 'analyze_end',
+        target_type: 'system',
+        target_id: '',
+        details: {
+          message: `Análise em massa concluída. ${globalSuccessCount} tickets processados.`,
+          metrics: {
+            api_calls: batchApiCalls,
+            input_tokens: batchInputTokens,
+            output_tokens: batchOutputTokens,
+            total_tokens: batchInputTokens + batchOutputTokens,
+            estimated_cost: batchCost,
+            error_429: batchErrors,
+            provider: 'configurado', // fallback
+            model: 'configurado' // fallback
+          }
+        }
+      });
+    } catch (logErr) {
+      console.error('Erro ao salvar métricas finais de análise:', logErr);
+    }
   }
 
   } catch (err: any) {
@@ -619,6 +690,35 @@ export async function startAnalysis(apiKey: string, supabase: SupabaseClient): P
     analysisProgress.status = 'error';
     analysisProgress.phase = err.message || 'Erro desconhecido na análise.';
   }
+}
+
+function calculateCost(provider: string, model: string, usage: { prompt: number, completion: number, total: number }): number {
+  let promptPricePerM = 0;
+  let completionPricePerM = 0;
+
+  if (provider === 'gemini') {
+    if (model.includes('gemini-1.5-flash')) {
+      promptPricePerM = 0.075;
+      completionPricePerM = 0.30;
+    } else if (model.includes('gemini-1.5-pro')) {
+      promptPricePerM = 3.50;
+      completionPricePerM = 10.50;
+    }
+  } else if (provider === 'openai') {
+    if (model.includes('gpt-4o-mini')) {
+      promptPricePerM = 0.15;
+      completionPricePerM = 0.60;
+    } else if (model.includes('gpt-4o')) {
+      promptPricePerM = 5.00;
+      completionPricePerM = 15.00;
+    } else if (model.includes('gpt-3.5')) {
+      promptPricePerM = 0.50;
+      completionPricePerM = 1.50;
+    }
+  }
+
+  const cost = (usage.prompt / 1000000) * promptPricePerM + (usage.completion / 1000000) * completionPricePerM;
+  return cost;
 }
 
 export async function analyzeSingleTicket(apiKey: string, supabase: SupabaseClient, zendeskId: number): Promise<any> {
@@ -677,26 +777,32 @@ export async function analyzeSingleTicket(apiKey: string, supabase: SupabaseClie
     }
   }
 
+  const { data: settings } = await supabase.from('system_settings').select('*').eq('id', 1).single();
+  const provider = settings?.ai_provider || 'gemini';
+  const model = settings?.ai_model || 'gemini-1.5-flash';
+
   const prompt = buildAnalysisPrompt(ticketData, similarContext, knowledgeRules, agentExpertise, existingAnalysis);
 
-  let responseText = '';
-  const provider = 'gemini';
+  let responseObj: AIResponse;
 
   if (provider === 'openai') {
     const openaiKey = process.env.OPENAI_API_KEY;
-    if (!openaiKey) throw new Error('Chave da API da OpenAI não configurada no .env');
-    responseText = await callOpenAI(openaiKey, prompt);
+    if (!openaiKey) throw new Error('Chave da API da OpenAI não configurada nas variáveis de ambiente');
+    responseObj = await callOpenAI(openaiKey, prompt, model);
   } else {
-    responseText = await callGemini(apiKey, prompt);
+    const geminiKey = process.env.GEMINI_API_KEY || apiKey;
+    responseObj = await callGemini(geminiKey, prompt, model);
   }
   
   let parsed: AnalysisResult;
   try {
-    let cleanText = responseText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+    let cleanText = responseObj.text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
     parsed = JSON.parse(cleanText);
   } catch (e: any) {
-    throw new Error(`JSON parse error: ${e.message} in response: ${responseText}`);
+    throw new Error(`JSON parse error: ${e.message} in response: ${responseObj.text}`);
   }
+  
+  const estimatedCost = calculateCost(provider, model, responseObj.usage);
 
   let patternGroupId = null;
   if (parsed.pattern_group) {
@@ -755,7 +861,13 @@ export async function analyzeSingleTicket(apiKey: string, supabase: SupabaseClie
 
   if (analysisError) throw analysisError;
 
-  return analysisResult;
+  return {
+    analysisResult,
+    usage: responseObj.usage,
+    cost: estimatedCost,
+    provider,
+    model
+  };
 }
 
 export async function generateRadarInsights(apiKey: string, supabase: SupabaseClient): Promise<any> {

@@ -2,6 +2,14 @@
 // Types for Zendesk Intelligence Central
 // ─────────────────────────────────────────────────────────────
 
+export interface SystemSettings {
+  id?: number;
+  ai_provider: 'gemini' | 'openai';
+  ai_model: string;
+  auto_analyze_webhooks: boolean;
+  updated_at?: string;
+}
+
 export interface Ticket {
   zendesk_id: number;
   ticket_number: number;

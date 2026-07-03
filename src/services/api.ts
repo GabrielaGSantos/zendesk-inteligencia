@@ -205,5 +205,14 @@ export const api = {  // Tickets
     delete: (id: string): Promise<any> => request(`/api/calendar/events/${id}`, {
       method: 'DELETE'
     })
+  },
+
+  // Settings
+  settings: {
+    get: (): Promise<any> => request('/api/settings'),
+    update: (data: any): Promise<any> => request('/api/settings', {
+      method: 'PUT',
+      body: JSON.stringify(data)
+    })
   }
 };
