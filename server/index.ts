@@ -63,6 +63,15 @@ app.get('/api/health', (_req, res) => {
   });
 });
 
+// Serve static frontend files in production
+const distPath = path.join(process.cwd(), 'dist');
+app.use(express.static(distPath));
+
+// Fallback for React Router (catch-all)
+app.get('*', (req, res) => {
+  res.sendFile(path.join(distPath, 'index.html'));
+});
+
 // Start server
 app.listen(PORT, () => {
   console.log(`🚀 Servidor local rodando em http://localhost:${PORT}`);

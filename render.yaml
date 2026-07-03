@@ -1,0 +1,25 @@
+services:
+  - type: web
+    name: zendesk-inteligencia
+    env: node
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: VITE_SUPABASE_URL
+        sync: false
+      - key: VITE_SUPABASE_ANON_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: ZENDESK_SUBDOMAIN
+        sync: false
+      - key: ZENDESK_EMAIL
+        sync: false
+      - key: ZENDESK_API_TOKEN
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
