@@ -205,6 +205,62 @@ async function syncAgents(
   }
 }
 
+export async function syncSingleTicket(
+  config: ZendeskConfig,
+  supabase: SupabaseClient,
+  ticketId: number
+): Promise<void> {
+  console.log(`[Webhook Sync] Sincronizando ticket #${ticketId}...`);
+
+  // Fetch ticket data from Zendesk
+  const ticketData = await zendeskGet(config, `/api/v2/tickets/${ticketId}.json`);
+  const ticket = ticketData.ticket;
+
+  if (!ticket) {
+    throw new Error(`Ticket #${ticketId} não encontrado no Zendesk.`);
+  }
+
+  // Resolve related entities
+  const requester = await resolveEntity(config, supabase, 'user', ticket.requester_id);
+  const assignee = await resolveEntity(config, supabase, 'user', ticket.assignee_id);
+  const group = await resolveEntity(config, supabase, 'group', ticket.group_id);
+  const organization = await resolveEntity(config, supabase, 'organization', ticket.organization_id);
+
+  // Upsert ticket
+  await supabase.from('tickets').upsert({
+    zendesk_id: ticket.id,
+    ticket_number: ticket.id,
+    subject: ticket.subject,
+    description: ticket.description,
+    status: ticket.status,
+    priority: ticket.priority,
+    ticket_type: ticket.type,
+    requester_id: ticket.requester_id,
+    requester_name: requester?.name || '',
+    requester_email: requester?.email || '',
+    organization_id: ticket.organization_id,
+    organization_name: organization?.name || '',
+    assignee_id: ticket.assignee_id,
+    assignee_name: assignee?.name || '',
+    group_id: ticket.group_id,
+    group_name: group?.name || '',
+    tags: JSON.stringify(ticket.tags || []),
+    custom_fields: JSON.stringify(ticket.custom_fields || []),
+    form_id: ticket.ticket_form_id,
+    created_at: ticket.created_at,
+    updated_at: ticket.updated_at,
+    solved_at: ticket.status === 'solved' || ticket.status === 'closed' ? ticket.updated_at : null,
+    due_date: ticket.due_at,
+    zendesk_url: `https://${config.subdomain}.zendesk.com/agent/tickets/${ticket.id}`,
+    raw_json: JSON.stringify(ticket),
+    synced_at: new Date().toISOString()
+  }, { onConflict: 'zendesk_id' });
+
+  // Sync comments
+  const commentCount = await syncTicketComments(config, supabase, ticketId);
+  console.log(`[Webhook Sync] Ticket #${ticketId} sincronizado com ${commentCount} comentários.`);
+}
+
 export async function startSync(
   config: ZendeskConfig, 
   supabase: SupabaseClient, 

@@ -1,7 +1,7 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { getAdminDatabase } from './database.js';
-import { startSync, getSyncProgress } from './zendesk-sync.js';
+import { startSync, getSyncProgress, syncSingleTicket } from './zendesk-sync.js';
 import { startAnalysis, getAnalysisStatus, pauseAnalysis, analyzeSingleTicket, generateRadarInsights } from './ai-analyzer.js';
 
 export function createRoutes(supabase: SupabaseClient): Router {
@@ -28,6 +28,57 @@ export function createRoutes(supabase: SupabaseClient): Router {
     (req as any).user = data.user;
     next();
   };
+
+  // ─── Zendesk Webhook (BEFORE auth middleware — uses its own token) ──
+  router.post('/api/webhooks/zendesk', async (req: Request, res: Response) => {
+    try {
+      // Validate webhook secret (configured only as environment variable on Render)
+      const webhookSecret = process.env.ZENDESK_WEBHOOK_SECRET;
+      if (webhookSecret) {
+        const providedToken = req.headers['x-zendesk-webhook-token'] as string;
+        if (providedToken !== webhookSecret) {
+          console.warn('[Webhook] Token inválido recebido.');
+          return res.status(401).json({ error: 'Token inválido' });
+        }
+      }
+
+      const ticketId = parseInt(req.body?.ticket_id);
+      if (!ticketId || isNaN(ticketId)) {
+        return res.status(400).json({ error: 'ticket_id é obrigatório' });
+      }
+
+      console.log(`[Webhook] Recebido evento para ticket #${ticketId}`);
+
+      // Respond immediately (Zendesk expects a fast response)
+      res.status(200).json({ received: true, ticket_id: ticketId });
+
+      // Process in background: sync ticket + analyze
+      const zendeskConfig = {
+        subdomain: process.env.ZENDESK_SUBDOMAIN || '',
+        email: process.env.ZENDESK_EMAIL || '',
+        apiToken: process.env.ZENDESK_API_TOKEN || ''
+      };
+
+      try {
+        await syncSingleTicket(zendeskConfig, supabase, ticketId);
+
+        // Trigger AI analysis for this specific ticket
+        const apiKey = process.env.GEMINI_API_KEY || process.env.OPENAI_API_KEY || '';
+        if (apiKey) {
+          await analyzeSingleTicket(apiKey, supabase, ticketId);
+          console.log(`[Webhook] Ticket #${ticketId} analisado pela IA com sucesso.`);
+        }
+      } catch (bgErr: any) {
+        console.error(`[Webhook] Erro ao processar ticket #${ticketId} em background:`, bgErr.message);
+      }
+
+    } catch (err: any) {
+      console.error('[Webhook] Erro:', err.message);
+      if (!res.headersSent) {
+        res.status(500).json({ error: err.message });
+      }
+    }
+  });
 
   // Apply middleware to all /api routes except login/health (login is already handled client side, no backend route)
   router.use('/api', requireAuth);
