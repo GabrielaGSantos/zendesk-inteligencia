@@ -12,6 +12,7 @@ import { KnowledgeManager } from './components/KnowledgeManager';
 import { AgentsManager } from './components/AgentsManager';
 import { OperationalRadar } from './components/OperationalRadar';
 import { UsersManager } from './components/UsersManager';
+import { AuditLogs } from './components/AuditLogs';
 import { Login } from './components/Login';
 import { api } from './services/api';
 import { supabase } from './lib/supabase';
@@ -345,6 +346,8 @@ function App() {
         <OperationalRadar onTicketClick={setSelectedTicket} />
       ) : currentTab === 'users' ? (
         <UsersManager />
+      ) : currentTab === 'logs' ? (
+        <AuditLogs />
       ) : (
         <>
           {/* Page Header */}

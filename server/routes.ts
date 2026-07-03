@@ -84,6 +84,67 @@ export function createRoutes(supabase: SupabaseClient): Router {
   // Apply middleware to all /api routes except login/health (login is already handled client side, no backend route)
   router.use('/api', requireAuth);
 
+  // ─── Audit Log Helper ──────────────────────────────────────────
+  async function logAudit(req: Request, action: string, targetType: string, targetId: string, details: any = {}) {
+    try {
+      const user = (req as any).user;
+      await supabase.from('audit_logs').insert({
+        user_id: user?.id || null,
+        user_email: user?.email || 'sistema',
+        user_name: user?.user_metadata?.name || user?.email || 'Sistema',
+        action,
+        target_type: targetType,
+        target_id: targetId,
+        details,
+        ip_address: req.headers['x-forwarded-for'] as string || req.ip || ''
+      });
+    } catch (err) {
+      console.error('[Audit] Erro ao salvar log:', err);
+    }
+  }
+
+  // ─── Audit Logs Routes ─────────────────────────────────────────
+
+  router.get('/api/audit-logs', async (req, res) => {
+    try {
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 50;
+      const action = req.query.action as string;
+      const offset = (page - 1) * limit;
+
+      let query = supabase
+        .from('audit_logs')
+        .select('*', { count: 'exact' })
+        .order('created_at', { ascending: false })
+        .range(offset, offset + limit - 1);
+
+      if (action) {
+        query = query.eq('action', action);
+      }
+
+      const { data, error, count } = await query;
+      if (error) throw error;
+
+      res.json({
+        logs: data || [],
+        total: count || 0,
+        page,
+        totalPages: Math.ceil((count || 0) / limit)
+      });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  router.post('/api/audit-logs/login', async (req, res) => {
+    try {
+      await logAudit(req, 'login', 'user', (req as any).user?.id || '', { message: 'Usuário realizou login' });
+      res.json({ success: true });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   // ─── Users (Admin only in production) ──────────────────────────
   
   router.get('/api/users', async (_req, res) => {
@@ -314,6 +375,7 @@ export function createRoutes(supabase: SupabaseClient): Router {
 
       if (error) throw error;
       
+      await logAudit(req, 'edit_analysis', 'ticket', String(zendesk_id), { fields_changed: Object.keys(updates) });
       res.json({ success: true });
     } catch (err: any) {
       res.status(500).json({ error: err.message });
@@ -562,6 +624,7 @@ export function createRoutes(supabase: SupabaseClient): Router {
       console.error('Sync error:', err);
     });
 
+    logAudit(req, 'sync_start', 'system', '', { startDate, endDate });
     res.json({ message: 'Sincronização iniciada', status: getSyncProgress() });
   });
 
@@ -616,6 +679,7 @@ export function createRoutes(supabase: SupabaseClient): Router {
         console.error('Analysis error:', err);
       });
 
+      logAudit(req, 'analyze_start', 'system', '', { reanalyze: !!reanalyze });
       res.json({ message: 'Análise iniciada', status: getAnalysisStatus() });
     } catch (err: any) {
       res.status(500).json({ error: err.message });

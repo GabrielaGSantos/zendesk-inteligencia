@@ -176,5 +176,18 @@ export const api = {  // Tickets
     return request('/api/radar/analyze', {
       method: 'POST'
     });
+  },
+
+  // Audit Logs
+  getAuditLogs: (params: { page?: number; limit?: number; action?: string }): Promise<{ logs: any[]; total: number; page: number; totalPages: number }> => {
+    const searchParams = new URLSearchParams();
+    if (params.page) searchParams.set('page', String(params.page));
+    if (params.limit) searchParams.set('limit', String(params.limit));
+    if (params.action) searchParams.set('action', params.action);
+    return request(`/api/audit-logs?${searchParams.toString()}`);
+  },
+
+  logLogin: (): Promise<{ success: boolean }> => {
+    return request('/api/audit-logs/login', { method: 'POST' });
   }
 };

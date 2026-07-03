@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { Mail, KeyRound } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
+import { api } from '../services/api';
+
 export const Login: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -29,6 +31,12 @@ export const Login: React.FC = () => {
 
       if (error) {
         throw error;
+      }
+      
+      try {
+        await api.logLogin();
+      } catch (logErr) {
+        console.error('Failed to log login:', logErr);
       }
       
       // On success, App.tsx's onAuthStateChange listener will automatically detect the login and render the dashboard.

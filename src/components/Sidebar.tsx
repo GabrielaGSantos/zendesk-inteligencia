@@ -40,6 +40,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, setCurrentTab }) =
       group: 'Configurações',
       items: [
         { id: 'users', label: 'Usuários do Sistema', icon: BookOpen },
+        { id: 'logs', label: 'Logs de Auditoria', icon: Activity },
       ]
     }
   ];
