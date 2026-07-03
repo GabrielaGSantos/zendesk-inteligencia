@@ -80,41 +80,54 @@ export const AuditLogs: React.FC = () => {
             <div className="empty-state__text">Não há registros para os filtros selecionados.</div>
           </div>
         ) : (
-          <div className="table-responsive">
-            <table className="users-table">
+          <div className="table-responsive" style={{ padding: '10px 0' }}>
+            <table className="users-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr>
-                  <th>Data / Hora</th>
-                  <th>Usuário</th>
-                  <th>Ação</th>
-                  <th>Alvo / Recurso</th>
-                  <th>Detalhes</th>
-                  <th>IP</th>
+                  <th style={{ padding: '16px', textAlign: 'left', borderBottom: '1px solid var(--color-border)' }}>Data / Hora</th>
+                  <th style={{ padding: '16px', textAlign: 'left', borderBottom: '1px solid var(--color-border)' }}>Usuário</th>
+                  <th style={{ padding: '16px', textAlign: 'left', borderBottom: '1px solid var(--color-border)' }}>Ação</th>
+                  <th style={{ padding: '16px', textAlign: 'left', borderBottom: '1px solid var(--color-border)' }}>Alvo / Recurso</th>
+                  <th style={{ padding: '16px', textAlign: 'left', borderBottom: '1px solid var(--color-border)' }}>Detalhes</th>
+                  <th style={{ padding: '16px', textAlign: 'left', borderBottom: '1px solid var(--color-border)' }}>IP</th>
                 </tr>
               </thead>
               <tbody>
                 {logs.map(log => (
-                  <tr key={log.id}>
-                    <td style={{ whiteSpace: 'nowrap' }}>
+                  <tr key={log.id} style={{ borderBottom: '1px solid var(--color-border)' }}>
+                    <td style={{ padding: '16px', whiteSpace: 'nowrap', verticalAlign: 'top' }}>
                       {format(new Date(log.created_at), "dd/MM/yyyy HH:mm:ss")}
                     </td>
-                    <td>
-                      <div><strong>{log.user_name}</strong></div>
+                    <td style={{ padding: '16px', verticalAlign: 'top' }}>
+                      <div style={{ fontWeight: 500 }}>{log.user_name}</div>
                       <div style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>{log.user_email}</div>
                     </td>
-                    <td>
-                      <span className={`status-badge ${log.action === 'login' ? 'status-badge--closed' : 'status-badge--open'}`}>
+                    <td style={{ padding: '16px', verticalAlign: 'top' }}>
+                      <span className={`status-badge ${log.action.includes('webhook') ? 'status-badge--closed' : 'status-badge--open'}`}>
                         {getActionLabel(log.action)}
                       </span>
                     </td>
-                    <td>
-                      {log.target_type} {log.target_id ? `#${log.target_id}` : ''}
+                    <td style={{ padding: '16px', verticalAlign: 'top', whiteSpace: 'nowrap' }}>
+                      <strong>{log.target_type}</strong>
+                      {log.target_id ? <div style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>#{log.target_id}</div> : null}
                     </td>
-                    <td style={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {JSON.stringify(log.details)}
+                    <td style={{ padding: '16px', verticalAlign: 'top', minWidth: '250px' }}>
+                      <pre style={{ 
+                        margin: 0, 
+                        padding: '8px', 
+                        background: 'var(--color-background-soft)', 
+                        borderRadius: '4px',
+                        fontSize: '11px',
+                        whiteSpace: 'pre-wrap',
+                        wordBreak: 'break-word',
+                        color: 'var(--color-text-secondary)',
+                        fontFamily: 'monospace'
+                      }}>
+                        {JSON.stringify(log.details, null, 2)}
+                      </pre>
                     </td>
-                    <td style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>
-                      {log.ip_address}
+                    <td style={{ padding: '16px', fontSize: 12, color: 'var(--color-text-secondary)', verticalAlign: 'top' }}>
+                      {log.ip_address?.split(',')[0]}
                     </td>
                   </tr>
                 ))}
