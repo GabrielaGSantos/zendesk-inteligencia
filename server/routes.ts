@@ -42,7 +42,8 @@ export function createRoutes(supabase: SupabaseClient): Router {
         }
       }
 
-      const ticketId = parseInt(req.body?.ticket_id);
+      // Support both formats: { ticket: { id } } and { ticket_id }
+      const ticketId = parseInt(req.body?.ticket?.id || req.body?.ticket_id);
       if (!ticketId || isNaN(ticketId)) {
         return res.status(400).json({ error: 'ticket_id é obrigatório' });
       }
