@@ -32,7 +32,9 @@ export const AuditLogs: React.FC = () => {
       case 'login': return 'Login';
       case 'edit_analysis': return 'Edição de Análise';
       case 'sync_start': return 'Sincronização';
-      case 'analyze_start': return 'Análise de IA';
+      case 'analyze_start': return 'Análise em Massa';
+      case 'webhook_sync': return 'Zendesk: Novo/Atualizado';
+      case 'webhook_analyze': return 'IA via Webhook';
       default: return action;
     }
   };
@@ -47,20 +49,21 @@ export const AuditLogs: React.FC = () => {
       </div>
 
       <div className="filter-bar" style={{ marginBottom: 20 }}>
-        <div className="filter-bar__group">
-          <div className="filter-bar__item">
-            <label>Filtrar por Ação</label>
-            <div className="filter-bar__select-wrapper">
-              <Filter size={14} className="filter-bar__icon" />
-              <select value={actionFilter} onChange={e => { setActionFilter(e.target.value); setPage(1); }}>
-                <option value="">Todas as Ações</option>
-                <option value="login">Login</option>
-                <option value="edit_analysis">Edição de Análise</option>
-                <option value="sync_start">Sincronização</option>
-                <option value="analyze_start">Análise em Massa</option>
-              </select>
-            </div>
-          </div>
+        <div className="filter-bar__group" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <label style={{ fontSize: '0.85rem', fontWeight: 500 }}>Filtrar por Ação:</label>
+          <select 
+            className="filter-bar__select" 
+            value={actionFilter} 
+            onChange={e => { setActionFilter(e.target.value); setPage(1); }}
+          >
+            <option value="">Todas as Ações</option>
+            <option value="login">Login</option>
+            <option value="edit_analysis">Edição de Análise</option>
+            <option value="sync_start">Sincronização Manual</option>
+            <option value="analyze_start">Análise em Massa</option>
+            <option value="webhook_sync">Zendesk: Novo/Atualizado (Webhook)</option>
+            <option value="webhook_analyze">IA via Webhook</option>
+          </select>
         </div>
       </div>
 
