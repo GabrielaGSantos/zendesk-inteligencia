@@ -575,8 +575,6 @@ export const ReportsScreen: React.FC = () => {
               </div>
             </div>
 
-              </div>
-            </div>
           </div>
 
           {/* Saúde Geral da Operação e Métricas Core */}
