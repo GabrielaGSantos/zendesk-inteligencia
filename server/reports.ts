@@ -1,6 +1,9 @@
 import { Router } from 'express';
 import { SupabaseClient } from '@supabase/supabase-js';
+import OpenAI from 'openai';
 import { startOfDay, endOfDay, subDays, startOfWeek, endOfWeek, subWeeks, startOfMonth, endOfMonth, subMonths } from 'date-fns';
+
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY || '' });
 
 export function registerReportRoutes(supabase: SupabaseClient) {
   const router = Router();
@@ -87,7 +90,8 @@ export function registerReportRoutes(supabase: SupabaseClient) {
       const currentRange = getDateRange(period, customStart, customEnd);
       const prevRange = getPreviousDateRange(period, customStart, customEnd);
 
-      const applyFilters = (query: any) => {
+      const joinType = (category || product) ? '!inner' : '!left';
+      const applyFiltersSafe = (query) => {
         if (client) query = query.eq('organization_name', client);
         if (group) query = query.eq('group_name', group);
         if (assignee) query = query.eq('assignee_name', assignee);
@@ -97,41 +101,11 @@ export function registerReportRoutes(supabase: SupabaseClient) {
         return query;
       };
 
-      // 1. Entradas & Resolvidos & Backlog
-      let qEntradas = supabase.from('tickets').select('id, ticket_analysis!inner(category, product)', { count: 'exact', head: true })
-        .gte('created_at', currentRange.start).lte('created_at', currentRange.end);
-      let qEntradasPrev = supabase.from('tickets').select('id, ticket_analysis!inner(category, product)', { count: 'exact', head: true })
-        .gte('created_at', prevRange.start).lte('created_at', prevRange.end);
-      
-      let qResolvidos = supabase.from('tickets').select('id, ticket_analysis!inner(category, product)', { count: 'exact', head: true })
-        .in('status', ['solved', 'closed'])
-        .gte('solved_at', currentRange.start).lte('solved_at', currentRange.end);
-      let qResolvidosPrev = supabase.from('tickets').select('id, ticket_analysis!inner(category, product)', { count: 'exact', head: true })
-        .in('status', ['solved', 'closed'])
-        .gte('solved_at', prevRange.start).lte('solved_at', prevRange.end);
-
-      let qBacklog = supabase.from('tickets').select('id, ticket_analysis!inner(category, product)', { count: 'exact', head: true })
-        .not('status', 'in', '("solved","closed")');
-
-      // Note: !inner forces the join so we can filter by it, but if no analysis exists it might drop the row.
-      // Since we just need it to not fail when filtering by category/product, we will conditionally use !inner vs !left
-      const joinType = (category || product) ? '!inner' : '!left';
-      
-      const applyFiltersSafe = (query: any, tableName: string) => {
-        if (client) query = query.eq('organization_name', client);
-        if (group) query = query.eq('group_name', group);
-        if (assignee) query = query.eq('assignee_name', assignee);
-        if (priority) query = query.eq('priority', priority);
-        if (category) query = query.eq(`ticket_analysis.category`, category);
-        if (product) query = query.eq(`ticket_analysis.product`, product);
-        return query;
-      };
-
-      qEntradas = applyFiltersSafe(supabase.from('tickets').select(`id, ticket_analysis${joinType}(category, product)`, { count: 'exact', head: true }).gte('created_at', currentRange.start).lte('created_at', currentRange.end), 'tickets');
-      qEntradasPrev = applyFiltersSafe(supabase.from('tickets').select(`id, ticket_analysis${joinType}(category, product)`, { count: 'exact', head: true }).gte('created_at', prevRange.start).lte('created_at', prevRange.end), 'tickets');
-      qResolvidos = applyFiltersSafe(supabase.from('tickets').select(`id, ticket_analysis${joinType}(category, product)`, { count: 'exact', head: true }).in('status', ['solved', 'closed']).gte('solved_at', currentRange.start).lte('solved_at', currentRange.end), 'tickets');
-      qResolvidosPrev = applyFiltersSafe(supabase.from('tickets').select(`id, ticket_analysis${joinType}(category, product)`, { count: 'exact', head: true }).in('status', ['solved', 'closed']).gte('solved_at', prevRange.start).lte('solved_at', prevRange.end), 'tickets');
-      qBacklog = applyFiltersSafe(supabase.from('tickets').select(`id, ticket_analysis${joinType}(category, product)`, { count: 'exact', head: true }).not('status', 'in', '("solved","closed")'), 'tickets');
+      let qEntradas = applyFiltersSafe(supabase.from('tickets').select(`id, ticket_analysis${joinType}(category, product)`, { count: 'exact', head: true }).gte('created_at', currentRange.start).lte('created_at', currentRange.end));
+      let qEntradasPrev = applyFiltersSafe(supabase.from('tickets').select(`id, ticket_analysis${joinType}(category, product)`, { count: 'exact', head: true }).gte('created_at', prevRange.start).lte('created_at', prevRange.end));
+      let qResolvidos = applyFiltersSafe(supabase.from('tickets').select(`id, ticket_analysis${joinType}(category, product)`, { count: 'exact', head: true }).in('status', ['solved', 'closed']).gte('solved_at', currentRange.start).lte('solved_at', currentRange.end));
+      let qResolvidosPrev = applyFiltersSafe(supabase.from('tickets').select(`id, ticket_analysis${joinType}(category, product)`, { count: 'exact', head: true }).in('status', ['solved', 'closed']).gte('solved_at', prevRange.start).lte('solved_at', prevRange.end));
+      let qBacklog = applyFiltersSafe(supabase.from('tickets').select(`id, ticket_analysis${joinType}(category, product)`, { count: 'exact', head: true }).not('status', 'in', '("solved","closed")'));
 
       const [entradasRes, entradasPrevRes, resolvidosRes, resolvidosPrevRes, backlogRes] = await Promise.all([
         qEntradas, qEntradasPrev, qResolvidos, qResolvidosPrev, qBacklog
@@ -142,91 +116,111 @@ export function registerReportRoutes(supabase: SupabaseClient) {
       const resolvidos = resolvidosRes.count || 0;
       const resolvidosPrev = resolvidosPrevRes.count || 0;
       const backlog = backlogRes.count || 0;
-
       const saldo = entradas - resolvidos;
-      
+      const backlogPrev = backlog - saldo;
+
       // SLA
-      let qSla = supabase.from('tickets').select(`id, created_at, solved_at, priority, ticket_analysis${joinType}(category, product)`)
-        .in('status', ['solved', 'closed'])
-        .gte('solved_at', currentRange.start).lte('solved_at', currentRange.end);
-      qSla = applyFiltersSafe(qSla, 'tickets');
-      
+      let qSla = applyFiltersSafe(supabase.from('tickets').select(`id, created_at, solved_at, priority, ticket_analysis${joinType}(category, product)`).in('status', ['solved', 'closed']).gte('solved_at', currentRange.start).lte('solved_at', currentRange.end));
       const { data: slaTickets } = await qSla;
       
-      let slaCumprido = 0;
-      let slaVencido = 0;
-      let totalResolutionTimeHours = 0;
-      
+      let slaCumprido = 0; let slaVencido = 0; let totalResolutionTimeHours = 0;
       if (slaTickets) {
-        slaTickets.forEach((t: any) => {
+        slaTickets.forEach((t) => {
           if (!t.solved_at || !t.created_at) return;
-          const created = new Date(t.created_at).getTime();
-          const solved = new Date(t.solved_at).getTime();
-          const hours = (solved - created) / (1000 * 60 * 60);
+          const hours = (new Date(t.solved_at).getTime() - new Date(t.created_at).getTime()) / 3600000;
           totalResolutionTimeHours += hours;
-          
-          let limit = 24; 
+          let limit = 24;
           if (t.priority === 'low') limit = 48;
-          else if (t.priority === 'normal') limit = 24;
           else if (t.priority === 'high') limit = 8;
           else if (t.priority === 'urgent') limit = 4;
-          else if (t.priority === 'complex') limit = 120; // Alta complexidade (+5 dias)
-          
-          if (hours <= limit) slaCumprido++;
-          else slaVencido++;
+          else if (t.priority === 'complex') limit = 120;
+          if (hours <= limit) slaCumprido++; else slaVencido++;
         });
       }
-      
       const avgResolutionTime = slaTickets && slaTickets.length > 0 ? (totalResolutionTimeHours / slaTickets.length).toFixed(1) : '0.0';
       
-      // Volumes by Dims
-      let qAllCreated = supabase.from('tickets').select(`organization_name, priority, group_name, ticket_analysis${joinType}(category, product)`)
-        .gte('created_at', currentRange.start).lte('created_at', currentRange.end);
-      qAllCreated = applyFiltersSafe(qAllCreated, 'tickets');
-      
+      let qSlaPrev = applyFiltersSafe(supabase.from('tickets').select(`id, created_at, solved_at, priority, ticket_analysis${joinType}(category, product)`).in('status', ['solved', 'closed']).gte('solved_at', prevRange.start).lte('solved_at', prevRange.end));
+      const { data: slaTicketsPrev } = await qSlaPrev;
+      let totalResolutionTimeHoursPrev = 0;
+      if (slaTicketsPrev) {
+        slaTicketsPrev.forEach((t) => {
+          if (!t.solved_at || !t.created_at) return;
+          totalResolutionTimeHoursPrev += (new Date(t.solved_at).getTime() - new Date(t.created_at).getTime()) / 3600000;
+        });
+      }
+      const avgResolutionTimePrev = slaTicketsPrev && slaTicketsPrev.length > 0 ? (totalResolutionTimeHoursPrev / slaTicketsPrev.length).toFixed(1) : '0.0';
+
+      // Advanced Volumes
+      let qAllCreated = applyFiltersSafe(supabase.from('tickets').select(`organization_name, priority, group_name, created_at, solved_at, status, ticket_analysis${joinType}(category, product, was_reopened)`).gte('created_at', currentRange.start).lte('created_at', currentRange.end));
       const { data: createdTickets } = await qAllCreated;
       
-      const volumeByClient: Record<string, number> = {};
-      const volumeByProduct: Record<string, number> = {};
-      const volumeByCategory: Record<string, number> = {};
-      const volumeByGroup: Record<string, number> = {};
-      const volumeByPriority: Record<string, number> = {};
+      let qAllActive = applyFiltersSafe(supabase.from('tickets').select(`organization_name, priority, group_name, created_at, solved_at, status, ticket_analysis${joinType}(category, product, was_reopened)`).or(`created_at.gte.${currentRange.start},solved_at.gte.${currentRange.start}`));
+      const { data: activeTickets } = await qAllActive;
+      
+      const groupData = {};
+      const clientData = {};
+      const volumeByProduct = {};
+      const volumeByCategory = {};
 
-      if (createdTickets) {
-        createdTickets.forEach((t: any) => {
-          if (t.organization_name) volumeByClient[t.organization_name] = (volumeByClient[t.organization_name] || 0) + 1;
-          if (t.group_name) volumeByGroup[t.group_name] = (volumeByGroup[t.group_name] || 0) + 1;
+      if (activeTickets) {
+        activeTickets.forEach((t) => {
+          const isCreated = new Date(t.created_at).getTime() >= new Date(currentRange.start).getTime() && new Date(t.created_at).getTime() <= new Date(currentRange.end).getTime();
+          const isSolved = t.status === 'solved' || t.status === 'closed' ? (new Date(t.solved_at).getTime() >= new Date(currentRange.start).getTime() && new Date(t.solved_at).getTime() <= new Date(currentRange.end).getTime()) : false;
+          const isPending = t.status !== 'solved' && t.status !== 'closed';
+
+          if (t.group_name) {
+            if (!groupData[t.group_name]) groupData[t.group_name] = { entradas: 0, resolvidos: 0, pendentes: 0, totalHours: 0, solvedCount: 0 };
+            if (isCreated) groupData[t.group_name].entradas++;
+            if (isSolved) {
+               groupData[t.group_name].resolvidos++;
+               groupData[t.group_name].totalHours += (new Date(t.solved_at).getTime() - new Date(t.created_at).getTime()) / 3600000;
+               groupData[t.group_name].solvedCount++;
+            }
+            if (isPending) groupData[t.group_name].pendentes++;
+          }
+
+          if (t.organization_name) {
+            if (!clientData[t.organization_name]) clientData[t.organization_name] = { entradas: 0, reaberturas: 0, totalHours: 0, solvedCount: 0 };
+            if (isCreated) clientData[t.organization_name].entradas++;
+            if (t.ticket_analysis && t.ticket_analysis.length > 0 && t.ticket_analysis[0].was_reopened && isCreated) clientData[t.organization_name].reaberturas++;
+            if (isSolved) {
+              clientData[t.organization_name].totalHours += (new Date(t.solved_at).getTime() - new Date(t.created_at).getTime()) / 3600000;
+              clientData[t.organization_name].solvedCount++;
+            }
+          }
           
-          let prio = t.priority || 'Não definida';
-          if (prio === 'low') prio = 'Baixa';
-          else if (prio === 'normal') prio = 'Normal';
-          else if (prio === 'high') prio = 'Alta';
-          else if (prio === 'urgent') prio = 'Urgente';
-          else if (prio === 'complex') prio = 'Alta complexidade';
-          volumeByPriority[prio] = (volumeByPriority[prio] || 0) + 1;
-          
-          if (t.ticket_analysis && t.ticket_analysis.length > 0) {
-            const prod = t.ticket_analysis[0].product;
-            const cat = t.ticket_analysis[0].category;
-            if (prod) volumeByProduct[prod] = (volumeByProduct[prod] || 0) + 1;
-            if (cat) volumeByCategory[cat] = (volumeByCategory[cat] || 0) + 1;
+          if (isCreated && t.ticket_analysis && t.ticket_analysis.length > 0) {
+             const prod = t.ticket_analysis[0].product;
+             const cat = t.ticket_analysis[0].category;
+             if (prod) volumeByProduct[prod] = (volumeByProduct[prod] || 0) + 1;
+             if (cat) volumeByCategory[cat] = (volumeByCategory[cat] || 0) + 1;
           }
         });
       }
       
+      const groupStats = Object.keys(groupData).map(k => ({
+        name: k,
+        entradas: groupData[k].entradas,
+        resolvidos: groupData[k].resolvidos,
+        pendentes: groupData[k].pendentes,
+        avgTime: groupData[k].solvedCount > 0 ? (groupData[k].totalHours / groupData[k].solvedCount).toFixed(1) : '-'
+      })).sort((a,b) => b.entradas - a.entradas);
+
+      const clientStats = Object.keys(clientData).map(k => ({
+        name: k,
+        entradas: clientData[k].entradas,
+        reopenRate: clientData[k].entradas > 0 ? ((clientData[k].reaberturas / clientData[k].entradas) * 100).toFixed(0) : '0',
+        avgTime: clientData[k].solvedCount > 0 ? (clientData[k].totalHours / clientData[k].solvedCount).toFixed(1) : '-'
+      })).sort((a,b) => b.entradas - a.entradas);
+
       // Prev Volumes for trends
-      let qAllPrevCreated = supabase.from('tickets').select(`organization_name, ticket_analysis${joinType}(category, product)`)
-        .gte('created_at', prevRange.start).lte('created_at', prevRange.end);
-      qAllPrevCreated = applyFiltersSafe(qAllPrevCreated, 'tickets');
-      
+      let qAllPrevCreated = applyFiltersSafe(supabase.from('tickets').select(`organization_name, ticket_analysis${joinType}(category, product)`).gte('created_at', prevRange.start).lte('created_at', prevRange.end));
       const { data: prevCreatedTickets } = await qAllPrevCreated;
-      const prevVolumeByClient: Record<string, number> = {};
-      const prevVolumeByProduct: Record<string, number> = {};
-      const prevVolumeByCategory: Record<string, number> = {};
+      const prevVolumeByProduct = {};
+      const prevVolumeByCategory = {};
       
       if (prevCreatedTickets) {
-        prevCreatedTickets.forEach((t: any) => {
-          if (t.organization_name) prevVolumeByClient[t.organization_name] = (prevVolumeByClient[t.organization_name] || 0) + 1;
+        prevCreatedTickets.forEach((t) => {
           if (t.ticket_analysis && t.ticket_analysis.length > 0) {
             const prod = t.ticket_analysis[0].product;
             const cat = t.ticket_analysis[0].category;
@@ -236,7 +230,7 @@ export function registerReportRoutes(supabase: SupabaseClient) {
         });
       }
       
-      const calcGrowth = (current: Record<string, number>, prev: Record<string, number>) => {
+      const calcGrowth = (current, prev) => {
         return Object.keys(current).map(key => {
           const currVal = current[key] || 0;
           const prevVal = prev[key] || 0;
@@ -245,67 +239,80 @@ export function registerReportRoutes(supabase: SupabaseClient) {
         }).sort((a, b) => b.growth - a.growth).filter(x => x.current > 0);
       };
       
-      const clientGrowth = calcGrowth(volumeByClient, prevVolumeByClient);
       const productGrowth = calcGrowth(volumeByProduct, prevVolumeByProduct);
       const categoryGrowth = calcGrowth(volumeByCategory, prevVolumeByCategory);
       
       // Evolution chart data
       let evolutionData = [];
-      const diffDays = (new Date(currentRange.end).getTime() - new Date(currentRange.start).getTime()) / (1000 * 60 * 60 * 24);
+      const diffDays = (new Date(currentRange.end).getTime() - new Date(currentRange.start).getTime()) / 86400000;
       let bucketCount = diffDays <= 14 ? Math.ceil(diffDays) : 7;
       if (bucketCount < 1) bucketCount = 1;
-      
       const bucketSize = (new Date(currentRange.end).getTime() - new Date(currentRange.start).getTime()) / bucketCount;
       
       let qEvolCreated = supabase.from('tickets').select('created_at').gte('created_at', currentRange.start).lte('created_at', currentRange.end);
       let qEvolSolved = supabase.from('tickets').select('solved_at').in('status', ['solved', 'closed']).gte('solved_at', currentRange.start).lte('solved_at', currentRange.end);
-      
       const [evolC, evolS] = await Promise.all([qEvolCreated, qEvolSolved]);
       
       if (evolC.data && evolS.data) {
         for (let i = 0; i < bucketCount; i++) {
           const bStart = new Date(currentRange.start).getTime() + i * bucketSize;
           const bEnd = bStart + bucketSize;
-          
           const inCount = evolC.data.filter(t => new Date(t.created_at).getTime() >= bStart && new Date(t.created_at).getTime() < bEnd).length;
           const outCount = evolS.data.filter(t => new Date(t.solved_at).getTime() >= bStart && new Date(t.solved_at).getTime() < bEnd).length;
-          
-          const dateLabel = new Date(bStart).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
           evolutionData.push({
-            date: dateLabel,
+            date: new Date(bStart).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
             entradas: inCount,
-            saidas: outCount,
+            resolvidos: outCount,
             saldo: inCount - outCount
           });
         }
       }
 
+      const entradasGrowth = entradasPrev === 0 ? (entradas > 0 ? 100 : 0) : ((entradas - entradasPrev) / entradasPrev) * 100;
+      const backlogGrowth = backlogPrev === 0 ? (backlog > 0 ? 100 : 0) : ((backlog - backlogPrev) / backlogPrev) * 100;
+
+      let execSummary = "Gerando resumo executivo...";
+      try {
+         const prompt = `Gere um "Resumo Executivo" gerencial de 1 a 2 parágrafos no máximo sobre a operação de suporte. 
+         Dados desta semana:
+         - Tickets entrantes: ${entradas} (crescimento de ${entradasGrowth.toFixed(1)}% vs anterior).
+         - Tickets resolvidos: ${resolvidos}.
+         - Saldo operacional (entradas - resolvidos): ${saldo > 0 ? '+' + saldo : saldo}.
+         - Backlog pendente atual: ${backlog} (tendência de ${backlogGrowth.toFixed(1)}%).
+         - Principal produto demandado: ${productGrowth.length > 0 ? productGrowth[0].name : 'Nenhum'}.
+         - Principal cliente demandante: ${clientStats.length > 0 ? clientStats[0].name : 'Nenhum'}.
+         Use um tom executivo, direto, e resuma a situação indicando se a equipe está acumulando backlog ou se a situação está sob controle. Nao use saudações. Direto ao ponto.`;
+
+         const response = await openai.chat.completions.create({
+            model: 'gpt-4o-mini',
+            messages: [{ role: 'user', content: prompt }],
+            temperature: 0.6,
+            max_tokens: 300
+         });
+         execSummary = response.choices[0]?.message?.content || "Resumo não gerado.";
+      } catch(err) {
+         console.log("Erro openai:", err);
+         execSummary = "Não foi possível gerar o resumo executivo neste momento devido a uma falha na API de inteligência.";
+      }
+
       res.json({
         success: true,
         summary: {
-          entradas,
-          entradasPrev,
-          resolvidos,
-          resolvidosPrev,
-          backlog,
-          saldo,
-          avgResolutionTime,
-          slaCumprido,
-          slaVencido
+          entradas, entradasPrev, resolvidos, resolvidosPrev, backlog, backlogPrev,
+          saldo, avgResolutionTime, avgResolutionTimePrev, slaCumprido, slaVencido
         },
         distributions: {
-          byClient: Object.entries(volumeByClient).map(([name, count]) => ({ name, count })).sort((a,b) => b.count - a.count),
           byProduct: Object.entries(volumeByProduct).map(([name, count]) => ({ name, count })).sort((a,b) => b.count - a.count),
           byCategory: Object.entries(volumeByCategory).map(([name, count]) => ({ name, count })).sort((a,b) => b.count - a.count),
-          byGroup: Object.entries(volumeByGroup).map(([name, count]) => ({ name, count })).sort((a,b) => b.count - a.count),
-          byPriority: Object.entries(volumeByPriority).map(([name, count]) => ({ name, count })).sort((a,b) => b.count - a.count)
+          byClient: clientStats,
+          byGroup: groupStats
         },
         trends: {
-          client: clientGrowth.slice(0, 3),
           product: productGrowth.slice(0, 3),
           category: categoryGrowth.slice(0, 3)
         },
-        evolution: evolutionData
+        evolution: evolutionData,
+        executiveSummary: execSummary
       });
 
     } catch (err: any) {

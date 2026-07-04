@@ -2,10 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { api } from '../services/api';
 import { 
   TrendingUp, TrendingDown, Filter, Download, Printer, 
-  Activity, Users, Target, Clock, AlertTriangle, Layers, Map
+  Activity, Users, Target, Clock, AlertTriangle, Layers, Map,
+  CheckCircle, XCircle
 } from 'lucide-react';
 import { 
-  LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, 
+  ComposedChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, 
   Tooltip, Legend, ResponsiveContainer, Cell
 } from 'recharts';
 
@@ -50,11 +51,8 @@ export const ReportsScreen: React.FC = () => {
 
   const handleExportCSV = () => {
     if (!data) return;
-    
-    // Create a simple CSV from the evolution data
     const headers = ['Data', 'Entradas', 'Saídas', 'Saldo'];
-    const rows = data.evolution.map((e: any) => [e.date, e.entradas, e.saidas, e.saldo]);
-    
+    const rows = data.evolution.map((e: any) => [e.date, e.entradas, e.resolvidos, e.saldo]);
     const csvContent = [
       headers.join(','),
       ...rows.map((row: any[]) => row.join(','))
@@ -75,15 +73,21 @@ export const ReportsScreen: React.FC = () => {
   };
 
   const renderTrend = (value: number) => {
-    if (value === 0) return <span style={{ color: 'var(--color-text-secondary)', fontSize: '0.8rem' }}>Sem alteração</span>;
-    if (value > 0) return <span style={{ color: 'var(--color-danger)', fontSize: '0.8rem', display: 'flex', alignItems: 'center' }}><TrendingUp size={14} style={{ marginRight: 4 }}/> +{value.toFixed(1)}%</span>;
-    return <span style={{ color: 'var(--color-success)', fontSize: '0.8rem', display: 'flex', alignItems: 'center' }}><TrendingDown size={14} style={{ marginRight: 4 }}/> {value.toFixed(1)}%</span>;
+    if (value === 0 || !isFinite(value)) return <span style={{ color: 'var(--color-text-secondary)', fontSize: '0.8rem' }}>Sem alteração</span>;
+    if (value > 0) return <span style={{ color: 'var(--color-success)', fontSize: '0.8rem', display: 'flex', alignItems: 'center' }}><TrendingUp size={14} style={{ marginRight: 4 }}/> +{value.toFixed(1)}%</span>;
+    return <span style={{ color: 'var(--color-danger)', fontSize: '0.8rem', display: 'flex', alignItems: 'center' }}><TrendingDown size={14} style={{ marginRight: 4 }}/> {value.toFixed(1)}%</span>;
+  };
+
+  const renderInvertedTrend = (value: number) => {
+    if (value === 0 || !isFinite(value)) return <span style={{ color: 'var(--color-text-secondary)', fontSize: '0.8rem' }}>Sem alteração</span>;
+    if (value > 0) return <span style={{ color: 'var(--color-danger)', fontSize: '0.8rem', display: 'flex', alignItems: 'center' }}><TrendingUp size={14} style={{ marginRight: 4 }}/> +{value.toFixed(1)}% (Crescendo)</span>;
+    return <span style={{ color: 'var(--color-success)', fontSize: '0.8rem', display: 'flex', alignItems: 'center' }}><TrendingDown size={14} style={{ marginRight: 4 }}/> {value.toFixed(1)}% (Reduzindo)</span>;
   };
 
   const renderGrowthTrend = (growth: number) => {
+    if (growth === 0 || !isFinite(growth)) return <span style={{ color: 'var(--color-text-secondary)' }}>-</span>;
     if (growth > 0) return <span style={{ color: 'var(--color-danger)', fontWeight: 600 }}>▲ +{growth.toFixed(0)}%</span>;
-    if (growth < 0) return <span style={{ color: 'var(--color-success)', fontWeight: 600 }}>▼ {growth.toFixed(0)}%</span>;
-    return <span style={{ color: 'var(--color-text-secondary)' }}>-</span>;
+    return <span style={{ color: 'var(--color-success)', fontWeight: 600 }}>▼ {growth.toFixed(0)}%</span>;
   };
 
   if (!data && loading) {
@@ -95,7 +99,11 @@ export const ReportsScreen: React.FC = () => {
     );
   }
 
-  const { summary, distributions, trends, evolution } = data || {};
+  const { summary, distributions, trends, evolution, executiveSummary } = data || {};
+
+  const entradasTrend = summary?.entradasPrev === 0 ? (summary?.entradas > 0 ? 100 : 0) : ((summary?.entradas - summary?.entradasPrev) / summary?.entradasPrev) * 100;
+  const resolvidosTrend = summary?.resolvidosPrev === 0 ? (summary?.resolvidos > 0 ? 100 : 0) : ((summary?.resolvidos - summary?.resolvidosPrev) / summary?.resolvidosPrev) * 100;
+  const backlogTrend = summary?.backlogPrev === 0 ? (summary?.backlog > 0 ? 100 : 0) : ((summary?.backlog - summary?.backlogPrev) / summary?.backlogPrev) * 100;
 
   return (
     <div className="reports-manager print-container">
@@ -205,9 +213,66 @@ export const ReportsScreen: React.FC = () => {
 
       {data && (
         <>
-          {/* Executive Summary Cards */}
+          {/* Executive Summary & Demand Tracker */}
+          <div style={{ display: 'flex', gap: '20px', marginBottom: '24px', flexWrap: 'wrap' }}>
+            <div className="card" style={{ flex: 2, padding: '20px', background: 'var(--color-bg-primary)', borderLeft: '4px solid #8b5cf6' }}>
+              <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: 0, marginBottom: '12px', fontSize: '1.2rem', color: 'var(--color-text-primary)' }}>
+                ⭐ Resumo Executivo
+              </h3>
+              <p style={{ color: 'var(--color-text-secondary)', fontSize: '1rem', lineHeight: '1.6', margin: 0 }}>
+                {executiveSummary}
+              </p>
+            </div>
+
+            <div className="card" style={{ flex: 1, padding: '20px', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', minWidth: '250px' }}>
+              <h3 style={{ marginTop: 0, marginBottom: '12px', fontSize: '1rem', color: 'var(--color-text-secondary)' }}>
+                Estamos acompanhando a demanda?
+              </h3>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                {summary.saldo > 0 ? (
+                  <>
+                    <XCircle size={36} color="#ef4444" />
+                    <span style={{ fontSize: '1.4rem', fontWeight: 700, color: '#ef4444' }}>Não (Acumulando backlog)</span>
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle size={36} color="#22c55e" />
+                    <span style={{ fontSize: '1.4rem', fontWeight: 700, color: '#22c55e' }}>Sim (Volume sob controle)</span>
+                  </>
+                )}
+              </div>
+            </div>
+
+            <div className="card" style={{ flex: 1, padding: '20px', display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: '250px' }}>
+              <h3 style={{ marginTop: 0, marginBottom: '12px', fontSize: '1rem', color: 'var(--color-text-secondary)' }}>
+                Volume do Período
+              </h3>
+              <div style={{ fontSize: '1rem', color: 'var(--color-text-secondary)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
+                <span>Anterior</span>
+                <span style={{ fontSize: '1.2rem', fontWeight: 600 }}>{summary.entradasPrev}</span>
+                <TrendingDown size={16} />
+                <span>Atual</span>
+                <span style={{ fontSize: '2rem', fontWeight: 700, color: 'var(--color-text-primary)' }}>{summary.entradas}</span>
+                {renderInvertedTrend(entradasTrend)}
+              </div>
+            </div>
+          </div>
+
+          {/* Core Metrics Cards (Reordered) */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '20px', marginBottom: '24px' }}>
             
+            <div className="card" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '0.9rem', color: 'var(--color-text-secondary)', fontWeight: 500 }}>Backlog Total</span>
+                <div style={{ background: 'rgba(245, 158, 11, 0.1)', padding: '6px', borderRadius: '8px', color: '#f59e0b' }}><Layers size={18} /></div>
+              </div>
+              <div style={{ fontSize: '2rem', fontWeight: 700, color: 'var(--color-text-primary)' }}>{summary.backlog}</div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
+                <span style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)' }}>vs período anterior</span>
+                {renderInvertedTrend(backlogTrend)}
+              </div>
+            </div>
+
             <div className="card" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ fontSize: '0.9rem', color: 'var(--color-text-secondary)', fontWeight: 500 }}>Entradas</span>
@@ -216,7 +281,7 @@ export const ReportsScreen: React.FC = () => {
               <div style={{ fontSize: '2rem', fontWeight: 700, color: 'var(--color-text-primary)' }}>{summary.entradas}</div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
                 <span style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)' }}>vs período anterior</span>
-                {renderTrend(summary.entradasPrev === 0 ? 0 : ((summary.entradas - summary.entradasPrev) / summary.entradasPrev) * 100)}
+                {renderInvertedTrend(entradasTrend)}
               </div>
             </div>
 
@@ -228,7 +293,7 @@ export const ReportsScreen: React.FC = () => {
               <div style={{ fontSize: '2rem', fontWeight: 700, color: 'var(--color-text-primary)' }}>{summary.resolvidos}</div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
                 <span style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)' }}>vs período anterior</span>
-                {renderTrend(summary.resolvidosPrev === 0 ? 0 : ((summary.resolvidos - summary.resolvidosPrev) / summary.resolvidosPrev) * 100)}
+                {renderTrend(resolvidosTrend)}
               </div>
             </div>
 
@@ -242,17 +307,6 @@ export const ReportsScreen: React.FC = () => {
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
                 <span style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)' }}>Entradas - Resolvidos</span>
-              </div>
-            </div>
-
-            <div className="card" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: '0.9rem', color: 'var(--color-text-secondary)', fontWeight: 500 }}>Backlog Total</span>
-                <div style={{ background: 'rgba(245, 158, 11, 0.1)', padding: '6px', borderRadius: '8px', color: '#f59e0b' }}><Layers size={18} /></div>
-              </div>
-              <div style={{ fontSize: '2rem', fontWeight: 700, color: 'var(--color-text-primary)' }}>{summary.backlog}</div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
-                <span style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)' }}>Tickets em aberto agora</span>
               </div>
             </div>
 
@@ -312,14 +366,14 @@ export const ReportsScreen: React.FC = () => {
             </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '20px', marginBottom: '24px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', marginBottom: '24px' }}>
             
-            {/* Evolution Line Chart */}
+            {/* Evolution Mixed Chart */}
             <div className="card" style={{ padding: '20px' }}>
               <h3 style={{ marginTop: 0, marginBottom: '20px', fontSize: '1.1rem', color: 'var(--color-text-primary)' }}>Evolução da Operação (Entradas vs Saídas)</h3>
-              <div style={{ height: 300, width: '100%' }}>
+              <div style={{ height: 350, width: '100%' }}>
                 <ResponsiveContainer>
-                  <LineChart data={evolution} margin={{ top: 5, right: 30, left: 0, bottom: 5 }}>
+                  <ComposedChart data={evolution} margin={{ top: 5, right: 30, left: 0, bottom: 5 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
                     <XAxis dataKey="date" stroke="var(--color-text-secondary)" fontSize={12} tickMargin={10} />
                     <YAxis stroke="var(--color-text-secondary)" fontSize={12} />
@@ -328,32 +382,40 @@ export const ReportsScreen: React.FC = () => {
                       itemStyle={{ fontWeight: 500 }}
                     />
                     <Legend wrapperStyle={{ paddingTop: '10px' }} />
-                    <Line type="monotone" dataKey="entradas" name="Entradas" stroke="#ef4444" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} />
-                    <Line type="monotone" dataKey="saidas" name="Resolvidos" stroke="#22c55e" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} />
-                    <Line type="monotone" dataKey="saldo" name="Saldo" stroke="#3b82f6" strokeWidth={2} strokeDasharray="5 5" dot={false} />
-                  </LineChart>
+                    <Bar dataKey="entradas" name="Entradas" fill="#ef4444" radius={[4, 4, 0, 0]} maxBarSize={50} />
+                    <Bar dataKey="resolvidos" name="Resolvidos" fill="#22c55e" radius={[4, 4, 0, 0]} maxBarSize={50} />
+                    <Line type="monotone" dataKey="saldo" name="Saldo" stroke="#3b82f6" strokeWidth={3} strokeDasharray="5 5" dot={{ r: 4 }} activeDot={{ r: 6 }} />
+                  </ComposedChart>
                 </ResponsiveContainer>
               </div>
             </div>
 
             {/* Capacity (Distribution by Group) */}
             <div className="card" style={{ padding: '20px', display: 'flex', flexDirection: 'column' }}>
-              <h3 style={{ marginTop: 0, marginBottom: '20px', fontSize: '1.1rem', color: 'var(--color-text-primary)' }}>Capacidade / Distribuição por Grupo</h3>
-              <div style={{ flex: 1, overflowY: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <h3 style={{ marginTop: 0, marginBottom: '20px', fontSize: '1.1rem', color: 'var(--color-text-primary)' }}>Capacidade Operacional por Grupo</h3>
+              <div style={{ flex: 1, overflowX: 'auto' }}>
+                <table className="data-table" style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                  <thead>
+                    <tr style={{ borderBottom: '2px solid var(--color-border)', color: 'var(--color-text-secondary)' }}>
+                      <th style={{ padding: '12px' }}>Grupo / Setor</th>
+                      <th style={{ padding: '12px', textAlign: 'center' }}>Pendentes</th>
+                      <th style={{ padding: '12px', textAlign: 'center' }}>Resolvidos</th>
+                      <th style={{ padding: '12px', textAlign: 'center' }}>Entradas</th>
+                      <th style={{ padding: '12px', textAlign: 'center' }}>Tempo Médio</th>
+                    </tr>
+                  </thead>
                   <tbody>
                     {distributions.byGroup.map((g: any, i: number) => (
                       <tr key={i} style={{ borderBottom: '1px solid var(--color-border)' }}>
-                        <td style={{ padding: '12px 0', color: 'var(--color-text-primary)', fontWeight: 500 }}>{g.name}</td>
-                        <td style={{ padding: '12px 0', textAlign: 'right', color: 'var(--color-text-secondary)' }}>
-                          <span style={{ background: 'var(--color-bg-primary)', padding: '4px 12px', borderRadius: '12px', fontSize: '0.85rem', fontWeight: 600 }}>
-                            {g.count}
-                          </span>
-                        </td>
+                        <td style={{ padding: '12px', color: 'var(--color-text-primary)', fontWeight: 500 }}>{g.name}</td>
+                        <td style={{ padding: '12px', textAlign: 'center', fontWeight: 600, color: '#f59e0b' }}>{g.pendentes}</td>
+                        <td style={{ padding: '12px', textAlign: 'center', fontWeight: 600, color: '#22c55e' }}>{g.resolvidos}</td>
+                        <td style={{ padding: '12px', textAlign: 'center', fontWeight: 600, color: '#ef4444' }}>{g.entradas}</td>
+                        <td style={{ padding: '12px', textAlign: 'center', color: 'var(--color-text-secondary)' }}>{g.avgTime}h</td>
                       </tr>
                     ))}
                     {distributions.byGroup.length === 0 && (
-                      <tr><td colSpan={2} style={{ padding: '20px', textAlign: 'center', color: 'var(--color-text-secondary)' }}>Nenhum grupo encontrado no período.</td></tr>
+                      <tr><td colSpan={5} style={{ padding: '20px', textAlign: 'center', color: 'var(--color-text-secondary)' }}>Nenhum grupo encontrado no período.</td></tr>
                     )}
                   </tbody>
                 </table>
@@ -367,7 +429,7 @@ export const ReportsScreen: React.FC = () => {
             {/* Products Bar Chart */}
             <div className="card" style={{ padding: '20px' }}>
               <h3 style={{ marginTop: 0, marginBottom: '20px', fontSize: '1.1rem', color: 'var(--color-text-primary)' }}>Volume por Produto (Top 10)</h3>
-              <div style={{ height: 300, width: '100%' }}>
+              <div style={{ height: 350, width: '100%' }}>
                 <ResponsiveContainer>
                   <BarChart data={distributions.byProduct.slice(0, 10)} layout="vertical" margin={{ top: 5, right: 30, left: 40, bottom: 5 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" horizontal={true} vertical={false} />
@@ -379,7 +441,7 @@ export const ReportsScreen: React.FC = () => {
                     />
                     <Bar dataKey="count" name="Tickets" fill="#8b5cf6" radius={[0, 4, 4, 0]}>
                       {distributions.byProduct.slice(0, 10).map((entry: any, index: number) => (
-                        <Cell key={`cell-${index}`} fill={index === 0 ? '#6d28d9' : '#8b5cf6'} />
+                        <Cell key={\`cell-\${index}\`} fill={index === 0 ? '#6d28d9' : '#8b5cf6'} />
                       ))}
                     </Bar>
                   </BarChart>
@@ -390,7 +452,7 @@ export const ReportsScreen: React.FC = () => {
             {/* Clients List */}
             <div className="card" style={{ padding: '20px' }}>
               <h3 style={{ marginTop: 0, marginBottom: '20px', fontSize: '1.1rem', color: 'var(--color-text-primary)' }}>Principais Clientes Demandantes</h3>
-              <div style={{ height: 300, overflowY: 'auto', paddingRight: '8px' }}>
+              <div style={{ height: 350, overflowY: 'auto', paddingRight: '8px' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                   <tbody>
                     {distributions.byClient.slice(0, 20).map((c: any, i: number) => (
@@ -399,16 +461,19 @@ export const ReportsScreen: React.FC = () => {
                           <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'var(--color-bg-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.8rem', fontWeight: 600, color: 'var(--color-text-secondary)' }}>
                             {i + 1}
                           </div>
-                          <span style={{ color: 'var(--color-text-primary)', fontWeight: 500 }}>{c.name}</span>
+                          <div style={{ display: 'flex', flexDirection: 'column' }}>
+                            <span style={{ color: 'var(--color-text-primary)', fontWeight: 500 }}>{c.name}</span>
+                            <span style={{ color: 'var(--color-text-secondary)', fontSize: '0.8rem' }}>
+                              {c.avgTime}h médio • {c.reopenRate}% reabertura
+                            </span>
+                          </div>
                         </td>
                         <td style={{ padding: '12px 0', textAlign: 'right' }}>
                           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '8px' }}>
-                            <span style={{ fontWeight: 600, color: 'var(--color-text-primary)' }}>{c.count}</span>
-                            <span style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)' }}>tickets</span>
+                            <span style={{ fontWeight: 600, color: 'var(--color-text-primary)', fontSize: '1.1rem' }}>{c.entradas}</span>
                           </div>
-                          {/* Try to find growth for this client */}
                           {(() => {
-                            const growthObj = trends.client.find((t: any) => t.name === c.name);
+                            const growthObj = trends.client?.find((t: any) => t.name === c.name);
                             if (growthObj && growthObj.growth !== 0) {
                               return <div style={{ marginTop: '2px', textAlign: 'right' }}>{renderGrowthTrend(growthObj.growth)}</div>;
                             }
