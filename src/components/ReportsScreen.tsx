@@ -518,17 +518,25 @@ export const ReportsScreen: React.FC = () => {
         <>
           {/* Contexto da Comparação */}
           {data.comparison && (
-            <div className="no-print" style={{ marginBottom: '24px', padding: '12px 16px', background: 'var(--color-bg-secondary)', borderRadius: '8px', borderLeft: '4px solid var(--color-primary)', display: 'inline-block' }}>
-              <span style={{ fontSize: '0.9rem', color: 'var(--color-text-secondary)' }}>Comparando: </span>
-              <strong style={{ color: 'var(--color-text-primary)' }}>{data.comparison.current.label}</strong>
-              <span style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)', margin: '0 6px' }}>
-                ({new Date(data.comparison.current.start).toLocaleDateString('pt-BR', {day:'2-digit', month:'2-digit'})} a {new Date(data.comparison.current.end).toLocaleDateString('pt-BR', {day:'2-digit', month:'2-digit'})})
-              </span>
-              <span style={{ fontSize: '0.9rem', color: 'var(--color-text-secondary)', margin: '0 8px' }}>vs</span>
-              <strong style={{ color: 'var(--color-text-primary)' }}>{data.comparison.reference.label}</strong>
-              <span style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)', margin: '0 6px' }}>
-                ({new Date(data.comparison.reference.start).toLocaleDateString('pt-BR', {day:'2-digit', month:'2-digit'})} a {new Date(data.comparison.reference.end).toLocaleDateString('pt-BR', {day:'2-digit', month:'2-digit'})})
-              </span>
+            <div className="no-print" style={{ marginBottom: '24px', padding: '16px 20px', background: 'var(--color-bg-secondary)', borderRadius: '8px', borderLeft: '4px solid var(--color-primary)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <span style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 600 }}>Comparando</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
+                  <strong style={{ color: 'var(--color-text-primary)', fontSize: '1.1rem' }}>{data.comparison.current.label}</strong>
+                  <span style={{ fontSize: '0.9rem', color: 'var(--color-text-secondary)' }}>
+                    {new Date(data.comparison.current.start).toLocaleDateString('pt-BR', {day:'2-digit', month:'2-digit'})} a {new Date(data.comparison.current.end).toLocaleDateString('pt-BR', {day:'2-digit', month:'2-digit'})}
+                  </span>
+                </div>
+                
+                <span style={{ fontSize: '1.2rem', color: 'var(--color-text-secondary)', fontWeight: 300 }}>&times;</span>
+                
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
+                  <strong style={{ color: 'var(--color-text-primary)', fontSize: '1.1rem' }}>{data.comparison.reference.label}</strong>
+                  <span style={{ fontSize: '0.9rem', color: 'var(--color-text-secondary)' }}>
+                    {new Date(data.comparison.reference.start).toLocaleDateString('pt-BR', {day:'2-digit', month:'2-digit'})} a {new Date(data.comparison.reference.end).toLocaleDateString('pt-BR', {day:'2-digit', month:'2-digit'})}
+                  </span>
+                </div>
+              </div>
             </div>
           )}
 

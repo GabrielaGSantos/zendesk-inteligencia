@@ -1,32 +1,51 @@
 import { Router } from 'express';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { callGemini, callOpenAI } from './ai-analyzer';
-import { startOfDay, endOfDay, subDays, startOfWeek, endOfWeek, subWeeks, startOfMonth, endOfMonth, subMonths } from 'date-fns';
+import { startOfDay, endOfDay, subDays, addDays, startOfWeek, endOfWeek, subWeeks, startOfMonth, endOfMonth, subMonths, isSaturday, isSunday, getDay, differenceInCalendarDays } from 'date-fns';
 import * as crypto from 'crypto';
 
 
 export function registerReportRoutes(supabase: SupabaseClient) {
   const router = Router();
 
+  function getAdjustedToday(date: Date): Date {
+    let adj = date;
+    if (isSaturday(adj)) adj = subDays(adj, 1);
+    else if (isSunday(adj)) adj = subDays(adj, 2);
+    return adj;
+  }
+
+  function getPreviousWorkday(date: Date): Date {
+    let prev = subDays(date, 1);
+    while (isSaturday(prev) || isSunday(prev)) {
+      prev = subDays(prev, 1);
+    }
+    return prev;
+  }
+
   function getDateRange(period: string, customStart?: string, customEnd?: string) {
     const now = new Date();
+    const adjNow = getAdjustedToday(now);
+
     switch (period) {
       case 'hoje':
-        return { start: startOfDay(now).toISOString(), end: endOfDay(now).toISOString() };
+        return { start: startOfDay(adjNow).toISOString(), end: endOfDay(adjNow).toISOString() };
       case 'ontem': {
-        const ontem = subDays(now, 1);
+        const ontem = getPreviousWorkday(adjNow);
         return { start: startOfDay(ontem).toISOString(), end: endOfDay(ontem).toISOString() };
       }
       case 'ultimos_7_dias':
-        return { start: subDays(now, 7).toISOString(), end: now.toISOString() };
-      case 'esta_semana':
-        return { start: startOfWeek(now, { weekStartsOn: 1 }).toISOString(), end: now.toISOString() };
+      case 'esta_semana': {
+        const start = startOfWeek(adjNow, { weekStartsOn: 1 });
+        return { start: startOfDay(start).toISOString(), end: endOfDay(adjNow).toISOString() };
+      }
       case 'semana_passada': {
         const lastWeek = subWeeks(now, 1);
-        return { start: startOfWeek(lastWeek, { weekStartsOn: 1 }).toISOString(), end: endOfWeek(lastWeek, { weekStartsOn: 1 }).toISOString() };
+        const start = startOfWeek(lastWeek, { weekStartsOn: 1 });
+        return { start: startOfDay(start).toISOString(), end: endOfDay(addDays(start, 4)).toISOString() };
       }
       case 'este_mes':
-        return { start: startOfMonth(now).toISOString(), end: now.toISOString() };
+        return { start: startOfMonth(adjNow).toISOString(), end: endOfDay(adjNow).toISOString() };
       case 'mes_passado': {
         const lastMonth = subMonths(now, 1);
         return { start: startOfMonth(lastMonth).toISOString(), end: endOfMonth(lastMonth).toISOString() };
@@ -35,36 +54,50 @@ export function registerReportRoutes(supabase: SupabaseClient) {
         if (customStart && customEnd) {
           return { start: new Date(customStart).toISOString(), end: new Date(customEnd).toISOString() };
         }
-        return { start: subDays(now, 30).toISOString(), end: now.toISOString() };
+        return { start: subDays(now, 30).toISOString(), end: endOfDay(now).toISOString() };
       default:
-        return { start: subDays(now, 30).toISOString(), end: now.toISOString() };
+        return { start: subDays(now, 30).toISOString(), end: endOfDay(now).toISOString() };
     }
   }
 
   function getPreviousDateRange(period: string, customStart?: string, customEnd?: string) {
     const now = new Date();
+    const adjNow = getAdjustedToday(now);
+
     switch (period) {
       case 'hoje': {
-        const ontem = subDays(now, 1);
+        const ontem = getPreviousWorkday(adjNow);
         return { start: startOfDay(ontem).toISOString(), end: endOfDay(ontem).toISOString() };
       }
       case 'ontem': {
-        const anteontem = subDays(now, 2);
+        const ontem = getPreviousWorkday(adjNow);
+        const anteontem = getPreviousWorkday(ontem);
         return { start: startOfDay(anteontem).toISOString(), end: endOfDay(anteontem).toISOString() };
       }
       case 'ultimos_7_dias':
-        return { start: subDays(now, 14).toISOString(), end: subDays(now, 7).toISOString() };
       case 'esta_semana': {
-        const lastWeek = subWeeks(now, 1);
-        return { start: startOfWeek(lastWeek, { weekStartsOn: 1 }).toISOString(), end: endOfWeek(lastWeek, { weekStartsOn: 1 }).toISOString() };
+        const startLastWeek = startOfWeek(subWeeks(adjNow, 1), { weekStartsOn: 1 });
+        let dayOfWeek = getDay(adjNow);
+        if (dayOfWeek === 0) dayOfWeek = 7;
+        const offset = Math.min(dayOfWeek - 1, 4);
+        const endLastWeek = addDays(startLastWeek, offset);
+        return { start: startOfDay(startLastWeek).toISOString(), end: endOfDay(endLastWeek).toISOString() };
       }
       case 'semana_passada': {
-        const twoWeeks = subWeeks(now, 2);
-        return { start: startOfWeek(twoWeeks, { weekStartsOn: 1 }).toISOString(), end: endOfWeek(twoWeeks, { weekStartsOn: 1 }).toISOString() };
+        const twoWeeksAgo = subWeeks(now, 2);
+        const start = startOfWeek(twoWeeksAgo, { weekStartsOn: 1 });
+        const end = addDays(start, 4);
+        return { start: startOfDay(start).toISOString(), end: endOfDay(end).toISOString() };
       }
       case 'este_mes': {
-        const lastMonth = subMonths(now, 1);
-        return { start: startOfMonth(lastMonth).toISOString(), end: endOfMonth(lastMonth).toISOString() };
+        const lastMonth = subMonths(adjNow, 1);
+        const start = startOfMonth(lastMonth);
+        const dayOfMonth = adjNow.getDate();
+        let end = new Date(lastMonth.getFullYear(), lastMonth.getMonth(), dayOfMonth);
+        if (end.getMonth() !== lastMonth.getMonth()) {
+          end = endOfMonth(lastMonth);
+        }
+        return { start: startOfDay(start).toISOString(), end: endOfDay(end).toISOString() };
       }
       case 'mes_passado': {
         const twoMonths = subMonths(now, 2);
@@ -74,8 +107,10 @@ export function registerReportRoutes(supabase: SupabaseClient) {
         if (customStart && customEnd) {
           const start = new Date(customStart);
           const end = new Date(customEnd);
-          const diff = end.getTime() - start.getTime();
-          return { start: new Date(start.getTime() - diff).toISOString(), end: new Date(end.getTime() - diff).toISOString() };
+          const diffInMs = end.getTime() - start.getTime();
+          const prevEnd = subDays(start, 1);
+          const prevStart = new Date(prevEnd.getTime() - diffInMs);
+          return { start: startOfDay(prevStart).toISOString(), end: endOfDay(prevEnd).toISOString() };
         }
         return { start: subDays(now, 60).toISOString(), end: subDays(now, 30).toISOString() };
       default:
@@ -83,17 +118,26 @@ export function registerReportRoutes(supabase: SupabaseClient) {
     }
   }
 
-  function getPeriodLabels(period: string) {
+  function getPeriodLabels(period: string, currentStart: string, prevStart: string) {
+    const dias = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
+    const prevDayName = dias[new Date(prevStart).getDay()];
+    
     switch (period) {
-      case 'hoje': return { current: 'Hoje', reference: 'Ontem' };
-      case 'ontem': return { current: 'Ontem', reference: 'Anteontem' };
-      case 'ultimos_7_dias': return { current: 'Últimos 7 dias', reference: '7 dias anteriores' };
-      case 'esta_semana': return { current: 'Esta semana', reference: 'Semana passada' };
+      case 'hoje': {
+        const isOneDayDiff = differenceInCalendarDays(new Date(currentStart), new Date(prevStart)) === 1;
+        return { current: 'Hoje', reference: isOneDayDiff ? 'Ontem' : prevDayName };
+      }
+      case 'ontem': {
+        const isOneDayDiff = differenceInCalendarDays(new Date(currentStart), new Date(prevStart)) === 1;
+        return { current: 'Ontem', reference: isOneDayDiff ? 'Anteontem' : prevDayName };
+      }
+      case 'ultimos_7_dias':
+      case 'esta_semana': return { current: 'Semana atual', reference: 'Semana anterior' };
       case 'semana_passada': return { current: 'Semana passada', reference: 'Semana retrasada' };
-      case 'este_mes': return { current: 'Este mês', reference: 'Mês passado' };
+      case 'este_mes': return { current: 'Mês atual', reference: 'Mesmo período do mês anterior' };
       case 'mes_passado': return { current: 'Mês passado', reference: 'Mês retrasado' };
-      case 'personalizado': return { current: 'Período selecionado', reference: 'Período anterior' };
-      default: return { current: 'Período selecionado', reference: 'Período anterior' };
+      case 'personalizado': return { current: 'Período selecionado', reference: 'Período imediatamente anterior' };
+      default: return { current: 'Últimos 30 dias', reference: '30 dias anteriores' };
     }
   }
 
@@ -336,7 +380,7 @@ export function registerReportRoutes(supabase: SupabaseClient) {
         insights.push('🟢 A operação está estável, sem anomalias significativas de volume ou backlog.');
       }
 
-      const periodLabels = getPeriodLabels(period);
+      const periodLabels = getPeriodLabels(period, currentRange.start, prevRange.start);
 
       res.json({
         success: true,
