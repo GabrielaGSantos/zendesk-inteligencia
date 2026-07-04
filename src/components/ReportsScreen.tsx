@@ -396,7 +396,7 @@ export const ReportsScreen: React.FC = () => {
       {activeTab === 'overview' && (
         <>
           {showFilters && (
-        <div className="card no-print" style={{ marginBottom: 24 }}>
+        <div className="card no-print" style={{ padding: '20px', marginBottom: 24 }}>
           <h3 style={{ marginTop: 0, marginBottom: 16, fontSize: '1rem', color: 'var(--color-text-primary)' }}>Filtros Globais</h3>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '16px' }}>
             
