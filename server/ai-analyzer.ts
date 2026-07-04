@@ -302,8 +302,7 @@ async function fetchAgentExpertise(supabase: SupabaseClient): Promise<any[]> {
   try {
     const { data: ranking } = await supabase.from('agent_expertise_ranking')
       .select('*')
-      .order('tickets_resolved', { ascending: false })
-      .limit(15);
+      .order('tickets_resolved', { ascending: false });
     const { data: agents } = await supabase.from('zendesk_agents').select('id, cargo');
     
     if (!ranking) return [];
@@ -440,14 +439,30 @@ Campos já definidos pelo humano que você NÃO PODE alterar:
 `;
   }
 
-  let agentText = agentExpertise && agentExpertise.length > 0 ? `
+  let agentText = '';
+  let filteredAgents: any[] = [];
+  let discardedAgents: any[] = [];
+  if (agentExpertise && agentExpertise.length > 0) {
+    const ticketKeywords = (ticket.subject + " " + ticket.description).toLowerCase();
+    agentExpertise.forEach(agent => {
+      if (filteredAgents.length < 5 && (ticketKeywords.includes(agent.category.toLowerCase()) || filteredAgents.length < 2)) {
+        filteredAgents.push(agent);
+      } else {
+        discardedAgents.push(agent);
+      }
+    });
+
+    if (filteredAgents.length > 0) {
+      agentText = `
 ## Base de Especialistas (Histórico Real de Atendimento)
 Aqui está o ranking atual dos agentes que mais resolveram tickets, agrupado por categoria.
 Baseie a sua recomendação EXCLUSIVAMENTE nesta lista para sugerir o especialista mais adequado.
 Justifique a sua escolha citando as métricas apresentadas abaixo (quantidade, taxa de resolução, tempo médio, etc).
 
-${agentExpertise.map(e => `- Agente: ${e.assignee_name} (${e.cargo}) | Categoria: ${e.category} | Resolvidos: ${e.tickets_resolved} | Taxa de Resolução: ${Number(e.resolution_rate).toFixed(1)}% | Tempo Médio: ${Number(e.avg_resolution_time).toFixed(1)}h | Reaberturas: ${Number(e.reopen_rate).toFixed(1)}%`).join('\n')}
-` : '';
+${filteredAgents.map(e => `- Agente: ${e.assignee_name} (${e.cargo}) | Categoria: ${e.category} | Resolvidos: ${e.tickets_resolved} | Taxa de Resolução: ${Number(e.resolution_rate).toFixed(1)}% | Tempo Médio: ${Number(e.avg_resolution_time).toFixed(1)}h | Reaberturas: ${Number(e.reopen_rate).toFixed(1)}%`).join('\n')}
+`;
+    }
+  }
 
   let promptBody = `Você é um analista de suporte técnico especializado. Analise o ticket de atendimento abaixo e forneça uma classificação detalhada.
 
@@ -503,41 +518,115 @@ Com base em TODAS as informações acima (assunto, descrição, comentários pú
 
 Responda APENAS com um JSON válido contendo exatamente esses campos. Não inclua explicações extras.`;
 
+  // --- TRUNCAMENTO DE EMERGÊNCIA E DIAGNÓSTICO ---
   let totalTokens = estimateTokens(promptBody);
   
   if (totalTokens > 10000) {
     const limitBody = (text: string, maxLen: number) => text.length > maxLen ? text.substring(0, maxLen) + '\n[...truncado por limite de tokens...]' : text;
-    
-    // Nível 1: Cortar Tickets Semelhantes
-    if (estimateTokens(promptBody) > 10000) {
-      promptBody = promptBody.replace(similarContextText, limitBody(similarContextText, 500));
-    }
-    // Nível 2: Cortar Base de Conhecimento (Regras)
-    if (estimateTokens(promptBody) > 10000) {
-      promptBody = promptBody.replace(knowledgeText, limitBody(knowledgeText, 1500));
-    }
-    // Nível 3: Cortar Comentários Antigos
-    if (estimateTokens(promptBody) > 10000) {
-      promptBody = promptBody.replace(commentsText, limitBody(commentsText, 1000));
-    }
-    // Nível 4: Cortar Descrição Original
-    if (estimateTokens(promptBody) > 10000) {
-      promptBody = promptBody.replace(ticket.description || '', limitBody(ticket.description || '', 1000));
-    }
+    if (estimateTokens(promptBody) > 10000) promptBody = promptBody.replace(similarContextText, limitBody(similarContextText, 500));
+    if (estimateTokens(promptBody) > 10000) promptBody = promptBody.replace(knowledgeText, limitBody(knowledgeText, 1500));
+    if (estimateTokens(promptBody) > 10000) promptBody = promptBody.replace(commentsText, limitBody(commentsText, 1000));
+    if (estimateTokens(promptBody) > 10000) promptBody = promptBody.replace(ticket.description || '', limitBody(ticket.description || '', 1000));
     totalTokens = estimateTokens(promptBody);
   }
 
-  console.log('\n===== PROMPT ANALYSIS =====');
-  console.log(`Ticket: #${ticket.zendesk_id} - ${ticket.subject}`);
-  console.log(`Regras enviadas: ${filteredRules.length} de ${knowledgeRules?.length || 0}`);
-  console.log(`Comentários enviados: ${(ticket.comments || []).length > 0 ? Array.from(new Set(ticket.comments || [])).slice(-5).length : 0} de ${(ticket.comments || []).length}`);
-  console.log(`Tickets semelhantes enviados: ${(similarTickets || []).slice(0, 5).length} de ${similarTickets?.length || 0}`);
-  console.log(`Tokens - Base de Conhecimento: ~${estimateTokens(knowledgeText)}`);
-  console.log(`Tokens - Comentários/Desc: ~${estimateTokens(commentsText + (ticket.description || ''))}`);
-  console.log(`Tokens - Tickets Semelhantes: ~${estimateTokens(similarContextText)}`);
-  console.log(`Tokens - Especialistas: ~${estimateTokens(agentText)}`);
-  console.log(`TOTAL ESTIMADO (Meta < 10k): ~${totalTokens} tokens`);
-  console.log('==========================\n');
+  // --- LOG DE AUDITORIA COMPLETO ---
+  console.log('\n=======================================');
+  console.log('Evolução do Diagnóstico de Consumo de Tokens');
+  console.log('=======================================\n');
+
+  console.log('===== KNOWLEDGE BASE =====');
+  (knowledgeRules || []).forEach(r => {
+    const titleLower = r.title.toLowerCase();
+    const catLower = r.category.toLowerCase();
+    const isCritical = r.priority?.toLowerCase() === 'urgente' || 
+                       titleLower.includes('lgpd') || titleLower.includes('ofício') || 
+                       titleLower.includes('mpx') || titleLower.includes('renan') ||
+                       catLower.includes('atendimento') || catLower.includes('segurança') ||
+                       catLower.includes('lgpd') || catLower.includes('escalonamento') ||
+                       catLower.includes('ofício') || catLower.includes('mpx') ||
+                       catLower.includes('resposta padrão');
+    
+    let isSent = false;
+    let reason = '';
+    
+    if (isCritical) {
+      isSent = true;
+      reason = 'Regra crítica fixa';
+    } else {
+      const ticketKeywords = (ticket.subject + " " + ticket.description).toLowerCase();
+      const ruleKeywords = catLower.split(' ').filter((w: string) => w.length > 4);
+      if (ruleKeywords.some((w: string) => ticketKeywords.includes(w))) {
+        isSent = true;
+        reason = 'Categoria relacionada semanticamente';
+      } else if ((knowledgeRules || []).length <= 15) {
+        isSent = true;
+        reason = 'Base pequena (Forçado)';
+      } else {
+        reason = 'Sem relação com o ticket';
+      }
+    }
+    
+    console.log(`\nRegra:\n${r.title}`);
+    console.log(`Status:\n${isSent ? 'ENVIADA' : 'DESCARTADA'}`);
+    console.log(`Motivo:\n${reason}`);
+    if (isSent) {
+      const ruleText = `--- Regra ID: ${r.id} ---\nTópico: ${r.title}\nCategoria: ${r.category}\nPrioridade: ${r.priority}\nDescricao da Regra: ${r.description}`;
+      console.log(`Tokens:\n~${estimateTokens(ruleText)}`);
+    }
+    console.log('----------------------------');
+  });
+
+  console.log('\n===== ESPECIALISTAS =====');
+  filteredAgents.forEach(a => {
+    console.log(`\n${a.assignee_name}`);
+    console.log('Status:\nEnviado');
+    const agentText = `- Agente: ${a.assignee_name} (${a.cargo}) | Categoria: ${a.category} | Resolvidos: ${a.tickets_resolved}`;
+    console.log(`Tokens:\n~${estimateTokens(agentText)}`);
+    console.log('Motivo:\nEspecialista Relevante (Top 5 da Categoria)');
+    console.log('----------------------------');
+  });
+  discardedAgents.slice(0, 5).forEach(a => {
+    console.log(`\n${a.assignee_name}`);
+    console.log('Status:\nDescartado');
+    console.log('Motivo:\nBaixa relevância ou fora do Top 5');
+    console.log('----------------------------');
+  });
+  if (discardedAgents.length > 5) console.log(`\n... e mais ${discardedAgents.length - 5} descartados.`);
+
+  console.log('\n===== TICKETS SEMELHANTES =====');
+  (similarTickets || []).forEach((st, i) => {
+    console.log(`\nTicket #${st.zendesk_id}`);
+    if (st.similarity) console.log(`Similaridade:\n${(st.similarity * 100).toFixed(1)}%`);
+    if (i < 5) {
+      console.log('Status:\nEnviado');
+      console.log(`Tokens:\n~${estimateTokens(st.solution_comment || '')}`);
+    } else {
+      console.log('Status:\nDescartado');
+      console.log('Motivo:\nFora do limite de top 5 (Excesso de tokens)');
+    }
+    console.log('----------------------------');
+  });
+
+  console.log('\n===== COMENTÁRIOS =====');
+  console.log(`Total:\n${allComments.length}`);
+  console.log(`Enviados:\n${finalComments.length}`);
+  console.log(`Descartados:\n${allComments.length - finalComments.length}`);
+  if (allComments.length - finalComments.length > 0) {
+    console.log('Motivo:\nHistórico antigo truncado (Manteve últimos 5, último público e último do cliente)');
+  }
+
+  console.log('\n===== PROMPT ANALYSIS =====\n');
+  const systemTokens = estimateTokens(`Você é um analista de suporte técnico especializado...`) + 1000;
+  console.log(`Prompt do Sistema\n~${systemTokens}`);
+  console.log(`Base de Conhecimento\n~${estimateTokens(knowledgeText)}`);
+  console.log(`Comentários\n~${estimateTokens(commentsText)}`);
+  console.log(`Tickets Semelhantes\n~${estimateTokens(similarContextText)}`);
+  console.log(`Especialistas\n~${estimateTokens(agentText)}`);
+  const othersTokens = estimateTokens(ticket.description || '') + estimateTokens(manualCorrectionText);
+  console.log(`Outros\n~${othersTokens}`);
+  console.log(`\nTOTAL\n${totalTokens} tokens`);
+  console.log('\n===========================\n');
 
   return promptBody;
 }
