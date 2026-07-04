@@ -1,9 +1,8 @@
 import { Router } from 'express';
 import { SupabaseClient } from '@supabase/supabase-js';
-import OpenAI from 'openai';
+import { callGemini, callOpenAI } from './ai-analyzer';
 import { startOfDay, endOfDay, subDays, startOfWeek, endOfWeek, subWeeks, startOfMonth, endOfMonth, subMonths } from 'date-fns';
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY || '' });
 
 export function registerReportRoutes(supabase: SupabaseClient) {
   const router = Router();
@@ -273,6 +272,10 @@ export function registerReportRoutes(supabase: SupabaseClient) {
 
       let execSummary = "Gerando resumo executivo...";
       try {
+         const { data: aiSettings } = await supabase.from('system_settings').select('*').eq('id', 1).single();
+         const aiProvider = aiSettings?.ai_provider || 'gemini';
+         const aiModel = aiSettings?.ai_model || 'gemini-2.5-flash-lite';
+
          const prompt = `Gere um "Resumo Executivo" gerencial de 1 a 2 parágrafos no máximo sobre a operação de suporte. 
          Dados desta semana:
          - Tickets entrantes: ${entradas} (crescimento de ${entradasGrowth.toFixed(1)}% vs anterior).
@@ -281,17 +284,21 @@ export function registerReportRoutes(supabase: SupabaseClient) {
          - Backlog pendente atual: ${backlog} (tendência de ${backlogGrowth.toFixed(1)}%).
          - Principal produto demandado: ${productGrowth.length > 0 ? productGrowth[0].name : 'Nenhum'}.
          - Principal cliente demandante: ${clientStats.length > 0 ? clientStats[0].name : 'Nenhum'}.
-         Use um tom executivo, direto, e resuma a situação indicando se a equipe está acumulando backlog ou se a situação está sob controle. Nao use saudações. Direto ao ponto.`;
+         Use um tom executivo, direto, e resuma a situação indicando se a equipe está acumulando backlog ou se a situação está sob controle. Nao use saudações. Direto ao ponto. Responda APENAS com o texto do resumo, sem JSON.`;
 
-         const response = await openai.chat.completions.create({
-            model: 'gpt-4o-mini',
-            messages: [{ role: 'user', content: prompt }],
-            temperature: 0.6,
-            max_tokens: 300
-         });
-         execSummary = response.choices[0]?.message?.content || "Resumo não gerado.";
-      } catch(err) {
-         console.log("Erro openai:", err);
+         let aiResponse;
+         if (aiProvider === 'openai') {
+           const openaiKey = process.env.OPENAI_API_KEY;
+           if (!openaiKey) throw new Error('Chave da API da OpenAI não configurada');
+           aiResponse = await callOpenAI(openaiKey, prompt, aiModel);
+         } else {
+           const geminiKey = process.env.GEMINI_API_KEY;
+           if (!geminiKey) throw new Error('Chave da API do Gemini não configurada');
+           aiResponse = await callGemini(geminiKey, prompt, aiModel);
+         }
+         execSummary = aiResponse.text || "Resumo não gerado.";
+      } catch(err: any) {
+         console.log("Erro ao gerar resumo executivo:", err.message);
          execSummary = "Não foi possível gerar o resumo executivo neste momento devido a uma falha na API de inteligência.";
       }
 

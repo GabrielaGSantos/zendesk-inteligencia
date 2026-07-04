@@ -87,7 +87,7 @@ export interface AIResponse {
   };
 }
 
-async function callGemini(apiKey: string, prompt: string, model: string = 'gemini-2.5-flash'): Promise<AIResponse> {
+export async function callGemini(apiKey: string, prompt: string, model: string = 'gemini-2.5-flash'): Promise<AIResponse> {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
   const options = {
     method: 'POST',
@@ -151,7 +151,7 @@ async function callGemini(apiKey: string, prompt: string, model: string = 'gemin
   throw lastError;
 }
 
-async function callOpenAI(apiKey: string, prompt: string, model: string = 'gpt-4o-mini'): Promise<AIResponse> {
+export async function callOpenAI(apiKey: string, prompt: string, model: string = 'gpt-4o-mini'): Promise<AIResponse> {
   const openai = new OpenAI({ apiKey });
   let lastError;
   
@@ -825,6 +825,36 @@ export async function startAnalysis(apiKey: string, supabase: SupabaseClient): P
             }
             
             globalSuccessCount++;
+
+            // Registrar log de auditoria por ticket analisado
+            try {
+              await supabase.from('audit_logs').insert({
+                user_id: null,
+                user_email: 'sistema',
+                user_name: 'Sistema (IA)',
+                action: 'ai_analysis',
+                target_type: 'ticket',
+                target_id: String(ticket.zendesk_id),
+                details: {
+                  message: `Análise IA concluída para ticket #${ticket.zendesk_id} - ${ticket.subject?.substring(0, 80)}`,
+                  metrics: {
+                    provider: provider,
+                    model: model,
+                    api_calls: 1,
+                    input_tokens: responseObj.usage.prompt,
+                    output_tokens: responseObj.usage.completion,
+                    total_tokens: responseObj.usage.total,
+                    estimated_cost: calculateCost(provider, model, responseObj.usage),
+                    error_429: 0,
+                    category: parsed.category || '',
+                    product: parsed.product || '',
+                    confidence: parsed.confidence_level || 0
+                  }
+                }
+              });
+            } catch (logErr) {
+              console.error('Erro ao salvar audit log individual:', logErr);
+            }
           } catch (err: any) {
             console.error(`Error analyzing ticket ${ticket.zendesk_id}:`, err.message);
             if (err.message.includes('429') || err.message.includes('Quota') || err.message.includes('RESOURCE_EXHAUSTED') || err.message.includes('rate limit') || err.message.includes('Too Many Requests') || err.message === 'RATE_LIMIT') {

@@ -34,6 +34,8 @@ export const AuditLogs: React.FC = () => {
       case 'edit_analysis': return 'Edição de Análise';
       case 'sync_start': return 'Sincronização';
       case 'analyze_start': return 'Análise em Massa';
+      case 'analyze_end': return 'Análise Concluída';
+      case 'ai_analysis': return 'Análise IA (Ticket)';
       case 'webhook_sync': return 'Zendesk: Novo/Atualizado';
       case 'webhook_analyze': return 'IA via Webhook';
       default: return action;
@@ -62,6 +64,8 @@ export const AuditLogs: React.FC = () => {
             <option value="edit_analysis">Edição de Análise</option>
             <option value="sync_start">Sincronização Manual</option>
             <option value="analyze_start">Análise em Massa</option>
+            <option value="analyze_end">Análise Concluída</option>
+            <option value="ai_analysis">Análise IA (Ticket)</option>
             <option value="webhook_sync">Zendesk: Novo/Atualizado (Webhook)</option>
             <option value="webhook_analyze">IA via Webhook</option>
           </select>
