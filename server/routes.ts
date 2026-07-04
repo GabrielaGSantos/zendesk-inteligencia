@@ -280,6 +280,7 @@ export function createRoutes(supabase: SupabaseClient): Router {
       const hasAnalysis = req.query.hasAnalysis as string || '';
       const assignee = req.query.assignee as string || '';
       const sort = req.query.sort as string || 'created_desc';
+      const excludeCategory = req.query.excludeCategory as string || '';
 
       let query = supabase.from('tickets').select(`
         *,
@@ -303,6 +304,7 @@ export function createRoutes(supabase: SupabaseClient): Router {
         }
       }
       if (category) query = query.ilike('ticket_analysis.category', `%${category}%`);
+      if (excludeCategory) query = query.not('ticket_analysis.category', 'ilike', `%${excludeCategory}%`);
       if (product) query = query.eq('ticket_analysis.product', product);
       if (pattern) query = query.ilike('ticket_analysis.identified_pattern', `%${pattern}%`);
       if (priority) query = query.eq('ticket_analysis.suggested_priority', priority);

@@ -40,7 +40,7 @@ function App() {
   const [showSyncModal, setShowSyncModal] = useState(false);
   const [currentTab, setCurrentTab] = useState(() => {
     const hash = window.location.hash.replace('#', '');
-    return ['principal', 'fechados', 'knowledge', 'agents', 'radar'].includes(hash) ? hash : 'principal';
+    return ['principal', 'fechados', 'knowledge', 'agents', 'radar', 'spam'].includes(hash) ? hash : 'principal';
   });
 
   useEffect(() => {
@@ -62,7 +62,7 @@ function App() {
   useEffect(() => {
     const handleHashChange = () => {
       const hash = window.location.hash.replace('#', '');
-      if (hash && ['principal', 'fechados', 'knowledge', 'agents', 'radar', 'users'].includes(hash)) {
+      if (hash && ['principal', 'fechados', 'knowledge', 'agents', 'radar', 'users', 'spam'].includes(hash)) {
         setCurrentTab(hash);
       }
     };
@@ -120,16 +120,23 @@ function App() {
     setLoading(true);
     try {
       let effectiveStatus = status;
+      let effectiveCategory = category;
+      let effectiveExcludeCategory = '';
+
       if (!status) {
         if (currentTab === 'fechados') {
           effectiveStatus = 'solved,closed'; // Custom backend logic or just filter locally if not supported? We should pass it.
         } else if (currentTab === 'principal') {
           effectiveStatus = 'new,open,pending,hold';
+          effectiveExcludeCategory = 'Spam'; // Hide spam from principal
+        } else if (currentTab === 'spam') {
+          effectiveStatus = 'new,open,pending,hold,solved,closed'; // Spam can be any status, usually not closed, but maybe
+          effectiveCategory = 'Spam';
         }
       }
 
       const data = await api.getTickets({
-        page, limit, search, status: effectiveStatus, category, product, priority, assignee, sort: sortOrder
+        page, limit, search, status: effectiveStatus, category: effectiveCategory, excludeCategory: effectiveExcludeCategory, product, priority, assignee, sort: sortOrder
       });
       setTickets(data.tickets);
       setTotalPages(data.pagination.totalPages);
@@ -363,10 +370,12 @@ function App() {
           {/* Page Header */}
           <div className="page-header">
             <h1 className="page-header__title">
-              {currentTab === 'fechados' ? 'Tickets Fechados e Resolvidos' : 'Análise de Padrões dos Tickets'}
+              {currentTab === 'fechados' ? 'Tickets Fechados e Resolvidos' : 
+               currentTab === 'spam' ? 'Lixeira e Spam' : 
+               'Análise de Padrões dos Tickets'}
             </h1>
             <p className="page-header__description">
-              Visualize os tickets sincronizados do Zendesk e os padrões identificados pela IA.
+              {currentTab === 'spam' ? 'Tickets identificados pela IA como Spam. Eles não aparecem na tela principal.' : 'Visualize os tickets sincronizados do Zendesk e os padrões identificados pela IA.'}
             </p>
           </div>
 

@@ -12,7 +12,8 @@ import {
   Radar,
   Calendar,
   Settings,
-  TrendingUp
+  TrendingUp,
+  ShieldAlert
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
@@ -28,6 +29,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, setCurrentTab }) =
       items: [
         { id: 'principal', label: 'Principal', icon: Inbox },
         { id: 'fechados', label: 'Fechados', icon: Archive },
+        { id: 'spam', label: 'Spam', icon: ShieldAlert },
       ]
     },
     {

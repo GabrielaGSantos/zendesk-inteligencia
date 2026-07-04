@@ -139,6 +139,26 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({ ticket: in
     }
   };
 
+  const handleMoveToPrincipal = async () => {
+    setIsSaving(true);
+    try {
+      const newCategory = (ticket.category || '').split(' | ')
+        .map(c => c.trim())
+        .filter(c => c.toLowerCase() !== 'spam')
+        .join(' | ') || 'Dúvida Genérica'; // fallback se ficar vazio
+
+      await api.updateAnalysis(ticket.zendesk_id, { category: newCategory });
+      const updatedTicket = { ...ticket, category: newCategory, is_manually_corrected: true };
+      setTicket(updatedTicket);
+      if (onUpdate) onUpdate(updatedTicket);
+    } catch (err) {
+      console.error('Error moving to principal:', err);
+      alert('Erro ao mover ticket');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const copyResponse = async () => {
     if (ticket.suggested_response) {
       await navigator.clipboard.writeText(ticket.suggested_response);
@@ -278,6 +298,16 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({ ticket: in
                     <><Sparkles size={14} style={{ marginRight: 6 }} /> {hasAnalysis ? 'Analisar Novamente' : 'Analisar com IA'}</>
                   )}
                 </button>
+                {hasAnalysis && ticket.category?.toLowerCase().includes('spam') && (
+                  <button 
+                    className="btn btn--outline"
+                    style={{ padding: '4px 12px', fontSize: 12, borderColor: 'var(--color-brand-primary-400)', color: 'var(--color-brand-primary-600)' }}
+                    onClick={handleMoveToPrincipal}
+                    disabled={isAnalyzing || isEditing || isSaving}
+                  >
+                    Mover para Principal
+                  </button>
+                )}
               </div>
             </div>
           </div>
