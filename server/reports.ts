@@ -270,36 +270,38 @@ export function registerReportRoutes(supabase: SupabaseClient) {
       const entradasGrowth = entradasPrev === 0 ? (entradas > 0 ? 100 : 0) : ((entradas - entradasPrev) / entradasPrev) * 100;
       const backlogGrowth = backlogPrev === 0 ? (backlog > 0 ? 100 : 0) : ((backlog - backlogPrev) / backlogPrev) * 100;
 
-      let execSummary = "Gerando resumo executivo...";
-      try {
-         const { data: aiSettings } = await supabase.from('system_settings').select('*').eq('id', 1).single();
-         const aiProvider = aiSettings?.ai_provider || 'gemini';
-         const aiModel = aiSettings?.ai_model || 'gemini-2.5-flash-lite';
+      // Geração de Insights Determinísticos
+      const insights: string[] = [];
+      
+      // Volume e Backlog
+      if (entradasGrowth > 0) {
+        insights.push(`Entradas aumentaram ${entradasGrowth.toFixed(1)}% em relação ao período anterior.`);
+      } else if (entradasGrowth < 0) {
+        insights.push(`Volume de entradas caiu ${Math.abs(entradasGrowth).toFixed(1)}% em relação ao período anterior.`);
+      }
+      
+      if (backlogGrowth > 5) {
+        insights.push(`Atenção: Backlog aumentou ${backlogGrowth.toFixed(1)}% e requer monitoramento.`);
+      } else if (backlogGrowth < -5) {
+        insights.push(`Positivo: Backlog foi reduzido em ${Math.abs(backlogGrowth).toFixed(1)}%.`);
+      }
 
-         const prompt = `Gere um "Resumo Executivo" gerencial de 1 a 2 parágrafos no máximo sobre a operação de suporte. 
-         Dados desta semana:
-         - Tickets entrantes: ${entradas} (crescimento de ${entradasGrowth.toFixed(1)}% vs anterior).
-         - Tickets resolvidos: ${resolvidos}.
-         - Saldo operacional (entradas - resolvidos): ${saldo > 0 ? '+' + saldo : saldo}.
-         - Backlog pendente atual: ${backlog} (tendência de ${backlogGrowth.toFixed(1)}%).
-         - Principal produto demandado: ${productGrowth.length > 0 ? productGrowth[0].name : 'Nenhum'}.
-         - Principal cliente demandante: ${clientStats.length > 0 ? clientStats[0].name : 'Nenhum'}.
-         Use um tom executivo, direto, e resuma a situação indicando se a equipe está acumulando backlog ou se a situação está sob controle. Nao use saudações. Direto ao ponto. Responda APENAS com o texto do resumo, sem JSON.`;
-
-         let aiResponse;
-         if (aiProvider === 'openai') {
-           const openaiKey = process.env.OPENAI_API_KEY;
-           if (!openaiKey) throw new Error('Chave da API da OpenAI não configurada');
-           aiResponse = await callOpenAI(openaiKey, prompt, aiModel);
-         } else {
-           const geminiKey = process.env.GEMINI_API_KEY;
-           if (!geminiKey) throw new Error('Chave da API do Gemini não configurada');
-           aiResponse = await callGemini(geminiKey, prompt, aiModel);
-         }
-         execSummary = aiResponse.text || "Resumo não gerado.";
-      } catch(err: any) {
-         console.log("Erro ao gerar resumo executivo:", err.message);
-         execSummary = "Não foi possível gerar o resumo executivo neste momento devido a uma falha na API de inteligência.";
+      // Produto/Cliente
+      if (productGrowth.length > 0 && productGrowth[0].growth > 20) {
+        insights.push(`Produto "${productGrowth[0].name}" apresentou crescimento de ${productGrowth[0].growth.toFixed(0)}% nos chamados.`);
+      }
+      if (clientStats.length > 0 && clientStats[0].entradas > 5) {
+        insights.push(`Cliente "${clientStats[0].name}" concentra a maior demanda do período.`);
+      }
+      
+      // SLA
+      if (slaVencido > 0) {
+        const slaPct = ((slaVencido / (slaCumprido + slaVencido)) * 100);
+        if (slaPct > 10) insights.push(`Alerta: ${slaPct.toFixed(1)}% dos tickets resolvidos romperam o SLA estabelecido.`);
+      }
+      
+      if (insights.length === 0) {
+        insights.push('A operação está estável, sem anomalias significativas de volume ou backlog.');
       }
 
       res.json({
@@ -319,11 +321,43 @@ export function registerReportRoutes(supabase: SupabaseClient) {
           category: categoryGrowth.slice(0, 3)
         },
         evolution: evolutionData,
-        executiveSummary: execSummary
+        insights: insights
       });
 
     } catch (err: any) {
       console.error('[Reports API] Error:', err);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  router.post('/api/reports/executive-summary', async (req, res) => {
+    try {
+      const { summaryData } = req.body;
+      const { data: aiSettings } = await supabase.from('system_settings').select('*').eq('id', 1).single();
+      const aiProvider = aiSettings?.ai_provider || 'gemini';
+      const aiModel = aiSettings?.ai_model || 'gemini-2.5-flash-lite';
+
+      const prompt = `Você é um diretor de operações. Analise os indicadores abaixo e forneça um Parecer Executivo profundo sobre a operação de suporte.
+      DADOS OBTIDOS:
+      ${JSON.stringify(summaryData, null, 2)}
+      
+      Não repita os números cegamente. Dê a sua opinião profissional e conselhos do que o gerente da área deve fazer. Ex: "A queda de SLA somada ao aumento em X produto sugere gargalo técnico. Mova especialistas para esta área."
+      Escreva em 2 a 3 parágrafos curtos, diretos e profissionais. Sem saudações. Sem introduções. Não use formatação markdown além de negrito.`;
+
+      let aiResponse;
+      if (aiProvider === 'openai') {
+        const openaiKey = process.env.OPENAI_API_KEY;
+        if (!openaiKey) throw new Error('OpenAI key missing');
+        aiResponse = await callOpenAI(openaiKey, prompt, aiModel);
+      } else {
+        const geminiKey = process.env.GEMINI_API_KEY;
+        if (!geminiKey) throw new Error('Gemini key missing');
+        aiResponse = await callGemini(geminiKey, prompt, aiModel);
+      }
+
+      res.json({ success: true, text: aiResponse.text });
+    } catch (err: any) {
+      console.error('[Executive Summary AI] Error:', err);
       res.status(500).json({ error: err.message });
     }
   });

@@ -14,6 +14,11 @@ export const ReportsScreen: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<any>(null);
 
+  // Parecer Executivo (IA)
+  const [showAIModal, setShowAIModal] = useState(false);
+  const [aiSummary, setAiSummary] = useState('');
+  const [loadingAI, setLoadingAI] = useState(false);
+
   // Filters state
   const [period, setPeriod] = useState('ultimos_7_dias');
   const [customStart, setCustomStart] = useState('');
@@ -42,6 +47,24 @@ export const ReportsScreen: React.FC = () => {
       console.error('Error fetching dashboard:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const generateExecutiveSummary = async () => {
+    setLoadingAI(true);
+    setShowAIModal(true);
+    try {
+      const response = await api.reports.getExecutiveSummary(data.summary);
+      if (response.success) {
+        setAiSummary(response.text);
+      } else {
+        setAiSummary('Não foi possível gerar o parecer neste momento.');
+      }
+    } catch (err) {
+      console.error(err);
+      setAiSummary('Ocorreu um erro de comunicação com a IA.');
+    } finally {
+      setLoadingAI(false);
     }
   };
 
@@ -99,7 +122,7 @@ export const ReportsScreen: React.FC = () => {
     );
   }
 
-  const { summary, distributions, trends, evolution, executiveSummary } = data || {};
+  const { summary, distributions, trends, evolution, insights } = data || {};
 
   const entradasTrend = summary?.entradasPrev === 0 ? (summary?.entradas > 0 ? 100 : 0) : ((summary?.entradas - summary?.entradasPrev) / summary?.entradasPrev) * 100;
   const resolvidosTrend = summary?.resolvidosPrev === 0 ? (summary?.resolvidos > 0 ? 100 : 0) : ((summary?.resolvidos - summary?.resolvidosPrev) / summary?.resolvidosPrev) * 100;
@@ -115,7 +138,30 @@ export const ReportsScreen: React.FC = () => {
           .print-container { background: white; color: black; }
           .card { border: 1px solid #ddd; box-shadow: none; break-inside: avoid; }
         }
+        .insight-list {
+          margin: 0; padding-left: 20px; color: var(--color-text-secondary); font-size: 0.95rem; line-height: 1.6;
+        }
+        .insight-list li { margin-bottom: 8px; }
       `}} />
+
+      {showAIModal && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div className="card" style={{ width: '600px', maxWidth: '90%', padding: '24px', position: 'relative' }}>
+            <button onClick={() => setShowAIModal(false)} style={{ position: 'absolute', top: 16, right: 16, background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--color-text-secondary)' }}><XCircle size={24} /></button>
+            <h2 style={{ marginTop: 0, display: 'flex', alignItems: 'center', gap: 8, color: '#6d28d9' }}><Target size={24} /> Parecer Executivo IA</h2>
+            {loadingAI ? (
+               <div style={{ padding: '40px 0', textAlign: 'center', color: 'var(--color-text-secondary)' }}>
+                 <div className="spinner" style={{ margin: '0 auto 16px' }}></div>
+                 A IA está analisando toda a operação...
+               </div>
+            ) : (
+               <div style={{ whiteSpace: 'pre-wrap', lineHeight: '1.6', color: 'var(--color-text-primary)' }}>
+                 {aiSummary}
+               </div>
+            )}
+          </div>
+        </div>
+      )}
 
       <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <div>
@@ -216,12 +262,19 @@ export const ReportsScreen: React.FC = () => {
           {/* Executive Summary & Demand Tracker */}
           <div style={{ display: 'flex', gap: '20px', marginBottom: '24px', flexWrap: 'wrap' }}>
             <div className="card" style={{ flex: 2, padding: '20px', background: 'var(--color-bg-primary)', borderLeft: '4px solid #8b5cf6' }}>
-              <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: 0, marginBottom: '12px', fontSize: '1.2rem', color: 'var(--color-text-primary)' }}>
-                ⭐ Resumo Executivo
-              </h3>
-              <p style={{ color: 'var(--color-text-secondary)', fontSize: '1rem', lineHeight: '1.6', margin: 0 }}>
-                {executiveSummary}
-              </p>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
+                <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: 0, fontSize: '1.2rem', color: 'var(--color-text-primary)' }}>
+                  🧠 Insights Operacionais
+                </h3>
+                <button className="btn btn--primary no-print" onClick={generateExecutiveSummary} style={{ padding: '6px 12px', fontSize: '0.85rem' }}>
+                  Gerar Parecer (IA)
+                </button>
+              </div>
+              <ul className="insight-list">
+                {insights && insights.map((insight: string, idx: number) => (
+                  <li key={idx}><strong>{insight.split(':')[0]}</strong>{insight.includes(':') ? ':' + insight.split(':')[1] : ''}</li>
+                ))}
+              </ul>
             </div>
 
             <div className="card" style={{ flex: 1, padding: '20px', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', minWidth: '250px' }}>
@@ -232,12 +285,18 @@ export const ReportsScreen: React.FC = () => {
                 {summary?.saldo > 0 ? (
                   <>
                     <XCircle size={36} color="#ef4444" />
-                    <span style={{ fontSize: '1.4rem', fontWeight: 700, color: '#ef4444' }}>Não (Acumulando backlog)</span>
+                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                      <span style={{ fontSize: '1.2rem', fontWeight: 700, color: '#ef4444' }}>🔴 Operação em Déficit</span>
+                      <span style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)' }}>Entraram: {summary.entradas} | Resolvidos: {summary.resolvidos} | Saldo: +{summary.saldo}</span>
+                    </div>
                   </>
                 ) : (
                   <>
                     <CheckCircle size={36} color="#22c55e" />
-                    <span style={{ fontSize: '1.4rem', fontWeight: 700, color: '#22c55e' }}>Sim (Volume sob controle)</span>
+                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                      <span style={{ fontSize: '1.2rem', fontWeight: 700, color: '#22c55e' }}>🟢 Operação Equilibrada</span>
+                      <span style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)' }}>Entraram: {summary.entradas} | Resolvidos: {summary.resolvidos} | Saldo: {summary.saldo}</span>
+                    </div>
                   </>
                 )}
               </div>
@@ -248,12 +307,17 @@ export const ReportsScreen: React.FC = () => {
                 Volume do Período
               </h3>
               <div style={{ fontSize: '1rem', color: 'var(--color-text-secondary)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
-                <span>Anterior</span>
-                <span style={{ fontSize: '1.2rem', fontWeight: 600 }}>{summary.entradasPrev}</span>
-                <TrendingDown size={16} />
-                <span>Atual</span>
-                <span style={{ fontSize: '2rem', fontWeight: 700, color: 'var(--color-text-primary)' }}>{summary.entradas}</span>
-                {renderInvertedTrend(entradasTrend)}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <span style={{ fontSize: '1.2rem', fontWeight: 600 }}>{summary.entradasPrev}</span>
+                  <TrendingDown size={16} />
+                  <span style={{ fontSize: '2rem', fontWeight: 700, color: 'var(--color-text-primary)' }}>{summary.entradas}</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  {renderInvertedTrend(entradasTrend)}
+                  <span style={{ fontSize: '0.85rem', fontWeight: 600, color: summary.entradas - summary.entradasPrev > 0 ? 'var(--color-danger)' : 'var(--color-success)' }}>
+                    ({summary.entradas - summary.entradasPrev > 0 ? '+' : ''}{summary.entradas - summary.entradasPrev} tickets)
+                  </span>
+                </div>
               </div>
             </div>
           </div>
@@ -268,8 +332,10 @@ export const ReportsScreen: React.FC = () => {
               </div>
               <div style={{ fontSize: '2rem', fontWeight: 700, color: 'var(--color-text-primary)' }}>{summary.backlog}</div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
-                <span style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)' }}>vs período anterior</span>
                 {renderInvertedTrend(backlogTrend)}
+                <span style={{ fontSize: '0.8rem', fontWeight: 600, color: summary.backlog - summary.backlogPrev > 0 ? 'var(--color-danger)' : 'var(--color-success)' }}>
+                  ({summary.backlog - summary.backlogPrev > 0 ? '+' : ''}{summary.backlog - summary.backlogPrev})
+                </span>
               </div>
             </div>
 
@@ -299,7 +365,7 @@ export const ReportsScreen: React.FC = () => {
 
             <div className="card" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: '0.9rem', color: 'var(--color-text-secondary)', fontWeight: 500 }}>Saldo Operacional</span>
+                <span style={{ fontSize: '0.9rem', color: 'var(--color-text-secondary)', fontWeight: 500 }}>Variação do Backlog</span>
                 <div style={{ background: 'rgba(59, 130, 246, 0.1)', padding: '6px', borderRadius: '8px', color: '#3b82f6' }}><Activity size={18} /></div>
               </div>
               <div style={{ fontSize: '2rem', fontWeight: 700, color: summary.saldo > 0 ? '#ef4444' : '#22c55e' }}>
@@ -310,16 +376,31 @@ export const ReportsScreen: React.FC = () => {
               </div>
             </div>
 
-            <div className="card" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <div className="card" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '8px', gridColumn: 'span 2' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: '0.9rem', color: 'var(--color-text-secondary)', fontWeight: 500 }}>Tempo Médio / SLA</span>
+                <span style={{ fontSize: '0.9rem', color: 'var(--color-text-secondary)', fontWeight: 500 }}>Saúde do SLA</span>
                 <div style={{ background: 'rgba(139, 92, 246, 0.1)', padding: '6px', borderRadius: '8px', color: '#8b5cf6' }}><Clock size={18} /></div>
               </div>
-              <div style={{ fontSize: '2rem', fontWeight: 700, color: 'var(--color-text-primary)' }}>{summary.avgResolutionTime} <span style={{fontSize: '1rem'}}>h</span></div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
-                <span style={{ fontSize: '0.8rem', color: 'var(--color-success)' }}>{summary.slaCumprido} no SLA</span>
-                <span style={{ fontSize: '0.8rem', color: 'var(--color-danger)' }}>{summary.slaVencido} Vencidos</span>
-              </div>
+              
+              {(() => {
+                const totalSla = summary.slaCumprido + summary.slaVencido;
+                const slaPct = totalSla === 0 ? 0 : (summary.slaCumprido / totalSla) * 100;
+                return (
+                  <div style={{ marginTop: 'auto' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                      <span style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--color-text-primary)' }}>{slaPct.toFixed(1)}% <span style={{fontSize:'0.8rem', fontWeight: 400}}>no prazo</span></span>
+                    </div>
+                    <div style={{ width: '100%', height: '16px', background: 'var(--color-bg-secondary)', borderRadius: '8px', overflow: 'hidden', display: 'flex' }}>
+                      <div style={{ width: `${slaPct}%`, background: '#22c55e', height: '100%' }}></div>
+                      <div style={{ width: `${100 - slaPct}%`, background: '#ef4444', height: '100%' }}></div>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8 }}>
+                      <span style={{ fontSize: '0.85rem', color: '#22c55e', fontWeight: 600 }}>{summary.slaCumprido} Dentro do SLA</span>
+                      <span style={{ fontSize: '0.85rem', color: '#ef4444', fontWeight: 600 }}>{summary.slaVencido} Vencidos</span>
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
             
           </div>
@@ -384,7 +465,7 @@ export const ReportsScreen: React.FC = () => {
                     <Legend wrapperStyle={{ paddingTop: '10px' }} />
                     <Bar dataKey="entradas" name="Entradas" fill="#ef4444" radius={[4, 4, 0, 0]} maxBarSize={50} />
                     <Bar dataKey="resolvidos" name="Resolvidos" fill="#22c55e" radius={[4, 4, 0, 0]} maxBarSize={50} />
-                    <Line type="monotone" dataKey="saldo" name="Saldo" stroke="#3b82f6" strokeWidth={3} strokeDasharray="5 5" dot={{ r: 4 }} activeDot={{ r: 6 }} />
+                    <Line type="monotone" dataKey="saldo" name="Acúmulo Diário" stroke="#3b82f6" strokeWidth={3} strokeDasharray="5 5" dot={{ r: 4 }} activeDot={{ r: 6 }} />
                   </ComposedChart>
                 </ResponsiveContainer>
               </div>
@@ -451,39 +532,37 @@ export const ReportsScreen: React.FC = () => {
 
             {/* Clients List */}
             <div className="card" style={{ padding: '20px' }}>
-              <h3 style={{ marginTop: 0, marginBottom: '20px', fontSize: '1.1rem', color: 'var(--color-text-primary)' }}>Principais Clientes Demandantes</h3>
+              <h3 style={{ marginTop: 0, marginBottom: '20px', fontSize: '1.1rem', color: 'var(--color-text-primary)' }}>Tabela Gerencial de Clientes</h3>
               <div style={{ height: 350, overflowY: 'auto', paddingRight: '8px' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <table className="data-table" style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                  <thead>
+                    <tr style={{ borderBottom: '2px solid var(--color-border)', color: 'var(--color-text-secondary)' }}>
+                      <th style={{ padding: '12px' }}>Cliente</th>
+                      <th style={{ padding: '12px', textAlign: 'center' }}>Tickets</th>
+                      <th style={{ padding: '12px', textAlign: 'center' }}>Tempo Médio</th>
+                      <th style={{ padding: '12px', textAlign: 'center' }}>Reabertura</th>
+                    </tr>
+                  </thead>
                   <tbody>
                     {distributions.byClient.slice(0, 20).map((c: any, i: number) => (
                       <tr key={i} style={{ borderBottom: '1px solid var(--color-border)' }}>
-                        <td style={{ padding: '12px 0', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                          <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'var(--color-bg-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.8rem', fontWeight: 600, color: 'var(--color-text-secondary)' }}>
-                            {i + 1}
-                          </div>
-                          <div style={{ display: 'flex', flexDirection: 'column' }}>
-                            <span style={{ color: 'var(--color-text-primary)', fontWeight: 500 }}>{c.name}</span>
-                            <span style={{ color: 'var(--color-text-secondary)', fontSize: '0.8rem' }}>
-                              {c.avgTime}h médio • {c.reopenRate}% reabertura
-                            </span>
-                          </div>
-                        </td>
-                        <td style={{ padding: '12px 0', textAlign: 'right' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '8px' }}>
-                            <span style={{ fontWeight: 600, color: 'var(--color-text-primary)', fontSize: '1.1rem' }}>{c.entradas}</span>
-                          </div>
+                        <td style={{ padding: '12px', color: 'var(--color-text-primary)', fontWeight: 500, display: 'flex', alignItems: 'center', gap: 8 }}>
                           {(() => {
                             const growthObj = trends.client?.find((t: any) => t.name === c.name);
-                            if (growthObj && growthObj.growth !== 0) {
-                              return <div style={{ marginTop: '2px', textAlign: 'right' }}>{renderGrowthTrend(growthObj.growth)}</div>;
-                            }
+                            if (growthObj && growthObj.growth > 0) return <AlertTriangle size={14} color="#f59e0b" />;
                             return null;
                           })()}
+                          {c.name}
+                        </td>
+                        <td style={{ padding: '12px', textAlign: 'center', fontWeight: 600 }}>{c.entradas}</td>
+                        <td style={{ padding: '12px', textAlign: 'center', color: 'var(--color-text-secondary)' }}>{c.avgTime}h</td>
+                        <td style={{ padding: '12px', textAlign: 'center', color: c.reopenRate > 10 ? 'var(--color-danger)' : 'var(--color-text-secondary)' }}>
+                          {c.reopenRate}%
                         </td>
                       </tr>
                     ))}
                     {distributions.byClient.length === 0 && (
-                      <tr><td colSpan={2} style={{ padding: '20px', textAlign: 'center', color: 'var(--color-text-secondary)' }}>Nenhum cliente registrado no período.</td></tr>
+                      <tr><td colSpan={4} style={{ padding: '20px', textAlign: 'center', color: 'var(--color-text-secondary)' }}>Nenhum cliente registrado no período.</td></tr>
                     )}
                   </tbody>
                 </table>

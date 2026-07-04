@@ -214,6 +214,10 @@ export const api = {  // Tickets
     getDashboard: (filters: any): Promise<any> => request('/api/reports/dashboard', {
       method: 'POST',
       body: JSON.stringify(filters)
+    }),
+    getExecutiveSummary: (summaryData: any): Promise<{success: boolean, text: string}> => request('/api/reports/executive-summary', {
+      method: 'POST',
+      body: JSON.stringify({ summaryData })
     })
   },
 
