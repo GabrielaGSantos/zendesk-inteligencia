@@ -168,15 +168,17 @@ export function registerReportRoutes(supabase: SupabaseClient) {
           const isSolved = t.status === 'solved' || t.status === 'closed' ? (new Date(t.solved_at).getTime() >= new Date(currentRange.start).getTime() && new Date(t.solved_at).getTime() <= new Date(currentRange.end).getTime()) : false;
           const isPending = t.status !== 'solved' && t.status !== 'closed';
 
-          if (t.group_name) {
-            if (!groupData[t.group_name]) groupData[t.group_name] = { entradas: 0, resolvidos: 0, pendentes: 0, totalHours: 0, solvedCount: 0 };
-            if (isCreated) groupData[t.group_name].entradas++;
+          const groupName = t.group_name && t.group_name.trim() !== '' ? t.group_name : 'Sem grupo definido';
+
+          if (groupName) {
+            if (!groupData[groupName]) groupData[groupName] = { entradas: 0, resolvidos: 0, pendentes: 0, totalHours: 0, solvedCount: 0 };
+            if (isCreated) groupData[groupName].entradas++;
             if (isSolved) {
-               groupData[t.group_name].resolvidos++;
-               groupData[t.group_name].totalHours += (new Date(t.solved_at).getTime() - new Date(t.created_at).getTime()) / 3600000;
-               groupData[t.group_name].solvedCount++;
+               groupData[groupName].resolvidos++;
+               groupData[groupName].totalHours += (new Date(t.solved_at).getTime() - new Date(t.created_at).getTime()) / 3600000;
+               groupData[groupName].solvedCount++;
             }
-            if (isPending) groupData[t.group_name].pendentes++;
+            if (isPending) groupData[groupName].pendentes++;
           }
 
           if (t.organization_name) {
@@ -290,33 +292,33 @@ export function registerReportRoutes(supabase: SupabaseClient) {
       
       // Volume e Backlog
       if (entradasGrowth > 0) {
-        insights.push(`Entradas aumentaram ${entradasGrowth.toFixed(1)}% em relação ao período anterior.`);
+        insights.push(`📈 Volume de entradas subiu ${entradasGrowth.toFixed(1)}% em relação ao período anterior.`);
       } else if (entradasGrowth < 0) {
-        insights.push(`Volume de entradas caiu ${Math.abs(entradasGrowth).toFixed(1)}% em relação ao período anterior.`);
+        insights.push(`📉 Volume de entradas caiu ${Math.abs(entradasGrowth).toFixed(1)}% em relação ao período anterior.`);
       }
       
       if (backlogGrowth > 5) {
-        insights.push(`Atenção: Backlog aumentou ${backlogGrowth.toFixed(1)}% e requer monitoramento.`);
+        insights.push(`🟡 Atenção: Backlog aumentou ${backlogGrowth.toFixed(1)}% e requer monitoramento.`);
       } else if (backlogGrowth < -5) {
-        insights.push(`Positivo: Backlog foi reduzido em ${Math.abs(backlogGrowth).toFixed(1)}%.`);
+        insights.push(`🟢 Positivo: Backlog foi reduzido em ${Math.abs(backlogGrowth).toFixed(1)}%.`);
       }
 
       // Produto/Cliente
       if (productGrowth.length > 0 && productGrowth[0].growth > 20) {
-        insights.push(`Produto "${productGrowth[0].name}" apresentou crescimento de ${productGrowth[0].growth.toFixed(0)}% nos chamados.`);
+        insights.push(`⚠ Produto "${productGrowth[0].name}" apresentou crescimento de ${productGrowth[0].growth.toFixed(0)}% nos chamados.`);
       }
       if (clientStats.length > 0 && clientStats[0].entradas > 5) {
-        insights.push(`Cliente "${clientStats[0].name}" concentra a maior demanda do período.`);
+        insights.push(`🏛 Cliente "${clientStats[0].name}" concentra a maior demanda do período.`);
       }
       
       // SLA
       if (slaVencido > 0) {
         const slaPct = ((slaVencido / (slaCumprido + slaVencido)) * 100);
-        if (slaPct > 10) insights.push(`Alerta: ${slaPct.toFixed(1)}% dos tickets resolvidos romperam o SLA estabelecido.`);
+        if (slaPct > 10) insights.push(`🔴 Alerta: ${slaPct.toFixed(1)}% dos tickets resolvidos romperam o SLA estabelecido.`);
       }
       
       if (insights.length === 0) {
-        insights.push('A operação está estável, sem anomalias significativas de volume ou backlog.');
+        insights.push('🟢 A operação está estável, sem anomalias significativas de volume ou backlog.');
       }
 
       res.json({
@@ -389,7 +391,7 @@ export function registerReportRoutes(supabase: SupabaseClient) {
       }
 
       const prompt = `Você é um diretor de operações focado em suporte técnico corporativo.
-Analise os indicadores abaixo e forneça um Parecer Executivo profundo sobre a operação.
+Analise os indicadores abaixo e forneça um Parecer Executivo profundo e qualitativo sobre a operação.
 
 DADOS OBTIDOS:
 ${JSON.stringify(summaryData, null, 2)}
@@ -397,14 +399,16 @@ ${JSON.stringify(summaryData, null, 2)}
 ATENÇÃO (CRÍTICO):
 1. O objeto "demandasInternas" representa chamados internos da própria organização (ajustes de infraestrutura, rotinas, desenvolvimento). Trate-os como "Demanda Interna / Backoffice" e não como um cliente que está reclamando.
 2. Apenas os clientes na lista "clientesTop" são clientes externos.
-3. Não repita números cegamente. Avalie a eficiência e indique ações gerenciais (ex: "SLA caiu, direcione analistas seniores", etc).
-4. OBRIGATÓRIO: Sua resposta final deve ser um objeto JSON válido. NENHUM texto fora do JSON. Não use bloco de código (marcador \`\`\`).
+3. NÃO descreva ou repita os números que já estão visíveis na tela. Em vez disso, responda tacitamente: O que preocupa? O que mudou? Qual a tendência? O que merece atenção amanhã?
+4. Seja analítico e aponte correlações (ex: aumento de entradas com queda de SLA, ou impacto de categorias específicas no backlog).
+5. OBRIGATÓRIO: Sua resposta final deve ser um objeto JSON válido. NENHUM texto fora do JSON. Não use bloco de código (marcador \`\`\`).
 
 FORMATO OBRIGATÓRIO (JSON):
 {
   "parecerExecutivo": [
-    { "titulo": "Análise Geral da Operação", "corpo": "Texto profundo aqui..." },
-    { "titulo": "Ações e Recomendações Críticas", "corpo": "Texto sobre o que a gestão deve fazer agora..." }
+    { "titulo": "Situação Geral" },
+    { "titulo": "Principais Riscos" },
+    { "titulo": "Prioridades" }
   ]
 }`;
 
@@ -438,8 +442,6 @@ FORMATO OBRIGATÓRIO (JSON):
 
   router.post('/api/reports/historical', async (req, res) => {
     try {
-      // Cálculo on-the-fly de indicadores mensais
-      // Pega os últimos 6 meses a partir de hoje
       const now = new Date();
       const months = [];
       for (let i = 5; i >= 0; i--) {
@@ -456,7 +458,6 @@ FORMATO OBRIGATÓRIO (JSON):
         let qCreated = supabase.from('tickets').select('id, group_name').gte('created_at', m.start).lte('created_at', m.end);
         let qSolved = supabase.from('tickets').select('id, solved_at, created_at, group_name').in('status', ['solved', 'closed']).gte('solved_at', m.start).lte('solved_at', m.end);
         
-        // SLA do mes (simplificado para o on-the-fly)
         let qSla = supabase.from('ticket_analysis').select('category').gte('created_at', m.start).lte('created_at', m.end);
 
         const [resCreated, resSolved] = await Promise.all([qCreated, qSolved]);

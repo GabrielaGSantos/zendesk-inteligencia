@@ -62,7 +62,7 @@ export const ReportsScreen: React.FC = () => {
     try {
       const response = await api.reports.getHistorical();
       if (response.success) {
-        setHistoricalData(response.history.reverse());
+        setHistoricalData(response.history);
       }
     } catch (err) {
       console.error(err);
@@ -223,8 +223,10 @@ export const ReportsScreen: React.FC = () => {
   return (
     <div className="reports-manager print-container">
       <style dangerouslySetInnerHTML={{__html: `
+        .print-only { display: none; }
         @media print {
           .no-print { display: none !important; }
+          .print-only { display: block !important; margin-bottom: 20px; border-bottom: 2px solid #ddd; padding-bottom: 10px; }
           .app-sidebar { display: none !important; }
           .app-main { margin-left: 0 !important; padding: 0 !important; }
           .print-container { background: white; color: black; }
@@ -235,6 +237,15 @@ export const ReportsScreen: React.FC = () => {
         }
         .insight-list li { margin-bottom: 8px; }
       `}} />
+
+      <div className="print-only">
+        <h2 style={{ margin: '0 0 16px 0', color: '#111827' }}>Relatório Gerencial de Operações</h2>
+        <div style={{ display: 'flex', gap: '40px', fontSize: '0.9rem', color: '#4b5563' }}>
+          <div><strong>Período Selecionado:</strong> {period}</div>
+          <div><strong>Gerado em:</strong> {new Date().toLocaleString('pt-BR')}</div>
+          <div><strong>Modelo IA:</strong> Gemini 2.5 Flash / Strategy</div>
+        </div>
+      </div>
 
       {showAIModal && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -523,8 +534,45 @@ export const ReportsScreen: React.FC = () => {
             </div>
           </div>
 
-          {/* Core Metrics Cards (Reordered) */}
+          {/* Saúde Geral da Operação e Métricas Core */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '20px', marginBottom: '24px' }}>
+            
+            {/* Saúde Geral Badge */}
+            {(() => {
+              const totalSla = summary.slaCumprido + summary.slaVencido;
+              const slaPct = totalSla === 0 ? 100 : (summary.slaCumprido / totalSla) * 100;
+              const backlogCrescimento = backlogTrend;
+              
+              let saudeStatus = '🟡 Atenção';
+              let saudeColor = '#f59e0b';
+              let saudeBg = 'rgba(245, 158, 11, 0.1)';
+              
+              if (slaPct >= 85 && backlogCrescimento <= 0) {
+                saudeStatus = '🟢 Operação saudável';
+                saudeColor = '#22c55e';
+                saudeBg = 'rgba(34, 197, 94, 0.1)';
+              } else if (slaPct < 60 || backlogCrescimento > 10) {
+                saudeStatus = '🔴 Crítica';
+                saudeColor = '#ef4444';
+                saudeBg = 'rgba(239, 68, 68, 0.1)';
+              }
+
+              return (
+                <div className="card" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '8px', gridColumn: 'span 2' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                    <span style={{ fontSize: '0.9rem', color: 'var(--color-text-secondary)', fontWeight: 500 }}>Saúde da Operação</span>
+                    <div style={{ background: 'rgba(59, 130, 246, 0.1)', padding: '6px', borderRadius: '8px', color: '#3b82f6' }}><Activity size={18} /></div>
+                  </div>
+                  <div style={{ background: saudeBg, color: saudeColor, padding: '16px', borderRadius: '8px', fontSize: '1.4rem', fontWeight: 700, textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12 }}>
+                    {saudeStatus}
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'center', gap: '16px', marginTop: 8, fontSize: '0.85rem', color: 'var(--color-text-secondary)' }}>
+                    <span>SLA: {slaPct.toFixed(1)}%</span>
+                    <span>Backlog: {backlogCrescimento > 0 ? '+' : ''}{backlogCrescimento.toFixed(1)}%</span>
+                  </div>
+                </div>
+              );
+            })()}
             
             <div className="card" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -561,6 +609,19 @@ export const ReportsScreen: React.FC = () => {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
                 <span style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)' }}>vs período anterior</span>
                 {renderTrend(resolvidosTrend)}
+              </div>
+            </div>
+
+            <div className="card" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '0.9rem', color: 'var(--color-text-secondary)', fontWeight: 500 }}>Taxa de Resolução</span>
+                <div style={{ background: 'rgba(16, 185, 129, 0.1)', padding: '6px', borderRadius: '8px', color: '#10b981' }}><CheckCircle size={18} /></div>
+              </div>
+              <div style={{ fontSize: '2rem', fontWeight: 700, color: 'var(--color-text-primary)' }}>
+                {summary.entradas > 0 ? ((summary.resolvidos / summary.entradas) * 100).toFixed(1) : 0}%
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
+                <span style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)' }}>Resolvidos / Entradas</span>
               </div>
             </div>
 
@@ -610,40 +671,39 @@ export const ReportsScreen: React.FC = () => {
           <div style={{ display: 'flex', gap: '20px', marginBottom: '24px' }}>
             <div className="card" style={{ flex: 1, padding: '20px' }}>
               <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: 0, marginBottom: '16px', fontSize: '1.1rem', color: 'var(--color-text-primary)' }}>
-                <AlertTriangle size={20} color="#f59e0b" /> Tendências de Alta (Gargalos)
+                <AlertTriangle size={20} color="#f59e0b" /> Tendências e Anomalias
               </h3>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
                 
-                {trends.product && trends.product.length > 0 && (
-                  <div style={{ padding: '12px', background: 'var(--color-bg-primary)', borderRadius: '8px', border: '1px solid var(--color-border)' }}>
-                    <div style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)', marginBottom: '4px' }}>Produto com maior aumento</div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontWeight: 600, color: 'var(--color-text-primary)' }}>{trends.product[0].name}</span>
-                      {renderGrowthTrend(trends.product[0].growth)}
-                    </div>
+                {backlogTrend > 5 && (
+                  <div style={{ padding: '8px 16px', background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', borderRadius: '24px', fontSize: '0.9rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6, border: '1px solid rgba(239, 68, 68, 0.2)' }}>
+                    <TrendingUp size={16} /> Backlog +{backlogTrend.toFixed(0)}%
                   </div>
                 )}
                 
-                {trends.client && trends.client.length > 0 && (
-                  <div style={{ padding: '12px', background: 'var(--color-bg-primary)', borderRadius: '8px', border: '1px solid var(--color-border)' }}>
-                    <div style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)', marginBottom: '4px' }}>Cliente com maior aumento</div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontWeight: 600, color: 'var(--color-text-primary)' }}>{trends.client[0].name}</span>
-                      {renderGrowthTrend(trends.client[0].growth)}
-                    </div>
+                {trends.product && trends.product.length > 0 && trends.product[0].growth > 10 && (
+                  <div style={{ padding: '8px 16px', background: 'rgba(245, 158, 11, 0.1)', color: '#f59e0b', borderRadius: '24px', fontSize: '0.9rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6, border: '1px solid rgba(245, 158, 11, 0.2)' }}>
+                    <AlertTriangle size={16} /> {trends.product[0].name} +{trends.product[0].growth.toFixed(0)}%
                   </div>
                 )}
                 
-                {trends.category && trends.category.length > 0 && (
-                  <div style={{ padding: '12px', background: 'var(--color-bg-primary)', borderRadius: '8px', border: '1px solid var(--color-border)' }}>
-                    <div style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)', marginBottom: '4px' }}>Categoria em alta</div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontWeight: 600, color: 'var(--color-text-primary)' }}>{trends.category[0].name}</span>
-                      {renderGrowthTrend(trends.category[0].growth)}
-                    </div>
+                {trends.client && trends.client.length > 0 && trends.client[0].growth > 10 && (
+                  <div style={{ padding: '8px 16px', background: 'rgba(245, 158, 11, 0.1)', color: '#f59e0b', borderRadius: '24px', fontSize: '0.9rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6, border: '1px solid rgba(245, 158, 11, 0.2)' }}>
+                    <AlertTriangle size={16} /> {trends.client[0].name} +{trends.client[0].growth.toFixed(0)}%
                   </div>
                 )}
-
+                
+                {summary.slaCumprido + summary.slaVencido > 0 && ((summary.slaCumprido / (summary.slaCumprido + summary.slaVencido)) * 100) < 85 && (
+                  <div style={{ padding: '8px 16px', background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', borderRadius: '24px', fontSize: '0.9rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6, border: '1px solid rgba(239, 68, 68, 0.2)' }}>
+                    <TrendingDown size={16} /> SLA caiu para {((summary.slaCumprido / (summary.slaCumprido + summary.slaVencido)) * 100).toFixed(0)}%
+                  </div>
+                )}
+                
+                {(!trends.product || trends.product.length === 0 || trends.product[0].growth <= 10) && backlogTrend <= 5 && (
+                  <div style={{ padding: '8px 16px', background: 'rgba(34, 197, 94, 0.1)', color: '#22c55e', borderRadius: '24px', fontSize: '0.9rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6, border: '1px solid rgba(34, 197, 94, 0.2)' }}>
+                    <CheckCircle size={16} /> Operação Sem Anomalias de Alta
+                  </div>
+                )}
               </div>
             </div>
           </div>
