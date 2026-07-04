@@ -298,7 +298,7 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({ ticket: in
                     <><Sparkles size={14} style={{ marginRight: 6 }} /> {hasAnalysis ? 'Analisar Novamente' : 'Analisar com IA'}</>
                   )}
                 </button>
-                {hasAnalysis && ticket.category?.toLowerCase().includes('spam') && (
+                {hasAnalysis && ticket.category?.toLowerCase().includes('spam') && !ticket.category?.toLowerCase().includes('análise de spam') && (
                   <button 
                     className="btn btn--outline"
                     style={{ padding: '4px 12px', fontSize: 12, borderColor: 'var(--color-brand-primary-400)', color: 'var(--color-brand-primary-600)' }}

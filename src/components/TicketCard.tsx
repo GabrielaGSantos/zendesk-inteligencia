@@ -51,7 +51,10 @@ function formatDate(dateStr: string): string {
 export const TicketCard: React.FC<TicketCardProps> = ({ ticket, onClick, onNotSpam }) => {
   const hasAnalysis = !!ticket.analyzed_at;
   const confidence = getConfidenceBadge(ticket.confidence_level);
-  const isSpam = ticket.subject?.includes('***SPAM***') || ticket.tags?.includes('spam') || ticket.category?.toLowerCase().includes('spam') || ticket.status === 'suspended';
+  const isSpam = ticket.subject?.includes('***SPAM***') || 
+                 ticket.tags?.includes('spam') || 
+                 (ticket.category?.toLowerCase().includes('spam') && !ticket.category?.toLowerCase().includes('análise de spam')) || 
+                 ticket.status === 'suspended';
 
   return (
     <div className="card card--clickable ticket-card" onClick={() => onClick(ticket)}>

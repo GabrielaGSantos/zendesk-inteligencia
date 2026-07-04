@@ -314,7 +314,10 @@ export function createRoutes(supabase: SupabaseClient): Router {
       if (assignee) query = query.eq('assignee_name', assignee);
 
       if (isSpamTab || excludeSpam) {
-        const { data: spamAnalyses } = await supabase.from('ticket_analysis').select('ticket_zendesk_id').ilike('category', '%Spam%');
+        const { data: spamAnalyses } = await supabase.from('ticket_analysis')
+          .select('ticket_zendesk_id')
+          .ilike('category', '%Spam%')
+          .not('category', 'ilike', '%Análise de Spam%');
         const spamIds = (spamAnalyses || []).map(a => a.ticket_zendesk_id);
         
         if (isSpamTab) {
