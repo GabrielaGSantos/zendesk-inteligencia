@@ -578,7 +578,7 @@ export const ReportsScreen: React.FC = () => {
           </div>
 
           {/* Saúde Geral da Operação e Métricas Core */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '20px', marginBottom: '24px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px', marginBottom: '24px' }}>
             
             {/* Saúde Geral Badge */}
             {(() => {
