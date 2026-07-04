@@ -215,10 +215,12 @@ export const api = {  // Tickets
       method: 'POST',
       body: JSON.stringify(filters)
     }),
-    getExecutiveSummary: (summaryData: any): Promise<{success: boolean, text: string}> => request('/api/reports/executive-summary', {
+    getExecutiveSummary: (summaryData: any): Promise<{success: boolean, text: string, cached: boolean}> => request('/api/reports/executive-summary', {
       method: 'POST',
       body: JSON.stringify({ summaryData })
-    })
+    }),
+    getExecutiveReports: (): Promise<{success: boolean, reports: any[]}> => request('/api/reports/executive-reports'),
+    getHistorical: (): Promise<{success: boolean, history: any[]}> => request('/api/reports/historical', { method: 'POST' })
   },
 
   // Settings

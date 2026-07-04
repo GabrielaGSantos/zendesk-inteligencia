@@ -17,7 +17,14 @@ export const ReportsScreen: React.FC = () => {
   // Parecer Executivo (IA)
   const [showAIModal, setShowAIModal] = useState(false);
   const [aiSummary, setAiSummary] = useState('');
+  const [isCached, setIsCached] = useState(false);
   const [loadingAI, setLoadingAI] = useState(false);
+  const [reportsHistory, setReportsHistory] = useState<any[]>([]);
+
+  // Navegação e Histórico de Longo Prazo
+  const [activeTab, setActiveTab] = useState<'overview' | 'historical'>('overview');
+  const [historicalData, setHistoricalData] = useState<any[]>([]);
+  const [loadingHistorical, setLoadingHistorical] = useState(false);
 
   // Filters state
   const [period, setPeriod] = useState('ultimos_7_dias');
@@ -50,6 +57,29 @@ export const ReportsScreen: React.FC = () => {
     }
   };
 
+  const fetchHistoricalData = async () => {
+    setLoadingHistorical(true);
+    try {
+      const response = await api.reports.getHistorical();
+      if (response.success) {
+        setHistoricalData(response.history.reverse());
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoadingHistorical(false);
+    }
+  };
+
+  const fetchReportsHistory = async () => {
+    try {
+      const response = await api.reports.getExecutiveReports();
+      if (response.success) setReportsHistory(response.reports);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   const generateExecutiveSummary = async () => {
     setLoadingAI(true);
     setShowAIModal(true);
@@ -77,20 +107,34 @@ export const ReportsScreen: React.FC = () => {
       const response = await api.reports.getExecutiveSummary(payload);
       if (response.success) {
         setAiSummary(response.text);
+        setIsCached(response.cached);
+        fetchReportsHistory();
       } else {
         setAiSummary('Não foi possível gerar o parecer neste momento.');
+        setIsCached(false);
       }
     } catch (err) {
       console.error(err);
       setAiSummary('Ocorreu um erro de comunicação com a IA.');
+      setIsCached(false);
     } finally {
       setLoadingAI(false);
     }
   };
 
   useEffect(() => {
-    fetchDashboard();
-  }, [period, client, product, category, group, priority]);
+    if (activeTab === 'overview') {
+      fetchDashboard();
+    } else if (activeTab === 'historical' && historicalData.length === 0) {
+      fetchHistoricalData();
+    }
+  }, [activeTab, period, client, product, category, group, priority]);
+
+  useEffect(() => {
+    if (showAIModal && reportsHistory.length === 0) {
+      fetchReportsHistory();
+    }
+  }, [showAIModal]);
 
   const handleExportCSV = () => {
     if (!data) return;
@@ -166,19 +210,63 @@ export const ReportsScreen: React.FC = () => {
 
       {showAIModal && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div className="card" style={{ width: '600px', maxWidth: '90%', padding: '24px', position: 'relative' }}>
-            <button onClick={() => setShowAIModal(false)} style={{ position: 'absolute', top: 16, right: 16, background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--color-text-secondary)' }}><XCircle size={24} /></button>
-            <h2 style={{ marginTop: 0, display: 'flex', alignItems: 'center', gap: 8, color: '#6d28d9' }}><Target size={24} /> Parecer Executivo IA</h2>
-            {loadingAI ? (
-               <div style={{ padding: '40px 0', textAlign: 'center', color: 'var(--color-text-secondary)' }}>
-                 <div className="spinner" style={{ margin: '0 auto 16px' }}></div>
-                 A IA está analisando toda a operação...
-               </div>
-            ) : (
-               <div style={{ whiteSpace: 'pre-wrap', lineHeight: '1.6', color: 'var(--color-text-primary)' }}>
-                 {aiSummary}
-               </div>
-            )}
+          <div className="card" style={{ width: '900px', maxWidth: '95%', height: '80vh', display: 'flex', overflow: 'hidden', position: 'relative', padding: 0 }}>
+            
+            {/* Sidebar Histórico */}
+            <div style={{ width: '280px', background: 'var(--color-bg-secondary)', borderRight: '1px solid var(--color-border)', display: 'flex', flexDirection: 'column' }} className="no-print">
+              <div style={{ padding: '20px', borderBottom: '1px solid var(--color-border)' }}>
+                <h3 style={{ margin: 0, fontSize: '1rem', color: 'var(--color-text-primary)' }}>Histórico de Pareceres</h3>
+              </div>
+              <div style={{ flex: 1, overflowY: 'auto', padding: '10px' }}>
+                {reportsHistory.map((rep) => (
+                  <div key={rep.id} onClick={() => { setAiSummary(rep.report_text); setIsCached(true); }} style={{ padding: '12px', background: 'var(--color-bg-primary)', borderRadius: '6px', marginBottom: '8px', cursor: 'pointer', border: '1px solid var(--color-border)' }}>
+                    <div style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)', marginBottom: 4 }}>
+                      {new Date(rep.created_at).toLocaleDateString('pt-BR')} - {new Date(rep.created_at).toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'})}
+                    </div>
+                    <div style={{ fontSize: '0.9rem', color: 'var(--color-text-primary)', fontWeight: 500 }}>
+                      Filtro: {rep.period_filter}
+                    </div>
+                  </div>
+                ))}
+                {reportsHistory.length === 0 && <div style={{ padding: '20px', textAlign: 'center', color: 'var(--color-text-secondary)', fontSize: '0.9rem' }}>Nenhum histórico salvo.</div>}
+              </div>
+            </div>
+
+            {/* Main Content */}
+            <div style={{ flex: 1, padding: '30px', overflowY: 'auto', position: 'relative' }} className="print-container">
+              <button className="no-print" onClick={() => setShowAIModal(false)} style={{ position: 'absolute', top: 16, right: 16, background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--color-text-secondary)' }}><XCircle size={24} /></button>
+              
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, borderBottom: '2px solid var(--color-border)', paddingBottom: 16 }}>
+                <h2 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 8, color: '#6d28d9' }}>
+                  <Target size={24} /> Parecer Executivo 
+                  <span style={{ fontSize: '0.75rem', background: 'var(--color-bg-secondary)', color: 'var(--color-text-secondary)', padding: '4px 8px', borderRadius: '4px' }}>IA Strategy</span>
+                </h2>
+                <div className="no-print" style={{ display: 'flex', gap: 10 }}>
+                  <button className="btn btn--secondary" onClick={handlePrint}><Printer size={16} /> Exportar PDF</button>
+                </div>
+              </div>
+
+              {loadingAI ? (
+                 <div style={{ padding: '60px 0', textAlign: 'center', color: 'var(--color-text-secondary)' }}>
+                   <div className="spinner" style={{ margin: '0 auto 16px' }}></div>
+                   A IA está analisando toda a matriz de indicadores da operação...
+                 </div>
+              ) : (
+                 <>
+                   {isCached && (
+                     <div className="no-print" style={{ marginBottom: 20, padding: '12px', background: 'rgba(34, 197, 94, 0.1)', color: '#22c55e', borderRadius: '8px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: 8 }}>
+                       <CheckCircle size={16} /> <strong>Resposta em Cache:</strong> Este parecer já havia sido gerado recentemente para estes mesmos filtros.
+                     </div>
+                   )}
+                   <div style={{ whiteSpace: 'pre-wrap', lineHeight: '1.6', color: 'var(--color-text-primary)', fontSize: '1.05rem' }}>
+                     {aiSummary}
+                   </div>
+                   <div style={{ marginTop: 40, paddingTop: 20, borderTop: '1px solid var(--color-border)', color: 'var(--color-text-secondary)', fontSize: '0.8rem', fontStyle: 'italic' }}>
+                     Aviso: O texto acima é gerado automaticamente por Inteligência Artificial baseado nos dados consolidados do painel. A interpretação e as recomendações devem ser avaliadas criticamente pela gestão.
+                   </div>
+                 </>
+              )}
+            </div>
           </div>
         </div>
       )}
@@ -191,19 +279,86 @@ export const ReportsScreen: React.FC = () => {
           </p>
         </div>
         <div className="no-print" style={{ display: 'flex', gap: '10px' }}>
-          <button className="btn btn--secondary" onClick={() => setShowFilters(!showFilters)}>
-            <Filter size={18} /> Filtros
-          </button>
-          <button className="btn btn--secondary" onClick={handleExportCSV}>
-            <Download size={18} /> Exportar CSV
-          </button>
-          <button className="btn btn--secondary" onClick={handlePrint}>
-            <Printer size={18} /> Imprimir (PDF)
-          </button>
+          <div style={{ background: 'var(--color-bg-secondary)', padding: '4px', borderRadius: '8px', display: 'flex', gap: 4, marginRight: 16 }}>
+            <button 
+              onClick={() => setActiveTab('overview')}
+              style={{ padding: '8px 16px', background: activeTab === 'overview' ? 'var(--color-bg-primary)' : 'transparent', border: 'none', borderRadius: '6px', color: activeTab === 'overview' ? 'var(--color-text-primary)' : 'var(--color-text-secondary)', fontWeight: activeTab === 'overview' ? 600 : 400, cursor: 'pointer', boxShadow: activeTab === 'overview' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none' }}
+            >
+              Visão Período
+            </button>
+            <button 
+              onClick={() => setActiveTab('historical')}
+              style={{ padding: '8px 16px', background: activeTab === 'historical' ? 'var(--color-bg-primary)' : 'transparent', border: 'none', borderRadius: '6px', color: activeTab === 'historical' ? 'var(--color-text-primary)' : 'var(--color-text-secondary)', fontWeight: activeTab === 'historical' ? 600 : 400, cursor: 'pointer', boxShadow: activeTab === 'historical' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none' }}
+            >
+              Indicadores M/M (Longo Prazo)
+            </button>
+          </div>
+          {activeTab === 'overview' && (
+            <>
+              <button className="btn btn--secondary" onClick={() => setShowFilters(!showFilters)}>
+                <Filter size={18} /> Filtros
+              </button>
+              <button className="btn btn--secondary" onClick={handleExportCSV}>
+                <Download size={18} /> CSV
+              </button>
+              <button className="btn btn--secondary" onClick={handlePrint}>
+                <Printer size={18} /> Imprimir
+              </button>
+            </>
+          )}
         </div>
       </div>
 
-      {showFilters && (
+      {activeTab === 'historical' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+          {loadingHistorical ? (
+            <div style={{ padding: '60px', textAlign: 'center' }}>
+              <div className="spinner" style={{ margin: '0 auto 16px' }}></div>
+              <p style={{ color: 'var(--color-text-secondary)' }}>Carregando dados históricos...</p>
+            </div>
+          ) : (
+            <>
+              <div className="card" style={{ padding: '20px' }}>
+                <h3 style={{ marginTop: 0, marginBottom: '20px', fontSize: '1.1rem', color: 'var(--color-text-primary)' }}>Evolução de Volume (Month over Month)</h3>
+                <div style={{ height: 350, width: '100%' }}>
+                  <ResponsiveContainer>
+                    <ComposedChart data={historicalData} margin={{ top: 5, right: 30, left: 0, bottom: 5 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
+                      <XAxis dataKey="month" stroke="var(--color-text-secondary)" fontSize={12} />
+                      <YAxis stroke="var(--color-text-secondary)" fontSize={12} />
+                      <Tooltip contentStyle={{ backgroundColor: 'var(--color-bg-secondary)', borderColor: 'var(--color-border)', borderRadius: '8px' }} />
+                      <Legend />
+                      <Bar dataKey="entradas" name="Entradas Mês" fill="#ef4444" radius={[4, 4, 0, 0]} maxBarSize={50} />
+                      <Bar dataKey="resolvidos" name="Resolvidos Mês" fill="#22c55e" radius={[4, 4, 0, 0]} maxBarSize={50} />
+                      <Line type="monotone" dataKey="saldo" name="Variação Mensal (Backlog)" stroke="#f59e0b" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} />
+                    </ComposedChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+
+              <div className="card" style={{ padding: '20px' }}>
+                <h3 style={{ marginTop: 0, marginBottom: '20px', fontSize: '1.1rem', color: 'var(--color-text-primary)' }}>Tempo Médio de Resolução (M/M)</h3>
+                <div style={{ height: 300, width: '100%' }}>
+                  <ResponsiveContainer>
+                    <ComposedChart data={historicalData} margin={{ top: 5, right: 30, left: 0, bottom: 5 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
+                      <XAxis dataKey="month" stroke="var(--color-text-secondary)" fontSize={12} />
+                      <YAxis stroke="var(--color-text-secondary)" fontSize={12} />
+                      <Tooltip contentStyle={{ backgroundColor: 'var(--color-bg-secondary)', borderColor: 'var(--color-border)', borderRadius: '8px' }} />
+                      <Legend />
+                      <Line type="monotone" dataKey="avgTime" name="Tempo Médio (Horas)" stroke="#8b5cf6" strokeWidth={3} dot={{ r: 4 }} />
+                    </ComposedChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      {activeTab === 'overview' && (
+        <>
+          {showFilters && (
         <div className="card no-print" style={{ marginBottom: 24 }}>
           <h3 style={{ marginTop: 0, marginBottom: 16, fontSize: '1rem', color: 'var(--color-text-primary)' }}>Filtros Globais</h3>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '16px' }}>
@@ -591,6 +746,8 @@ export const ReportsScreen: React.FC = () => {
 
           </div>
         </>
+      )}
+      </>
       )}
     </div>
   );

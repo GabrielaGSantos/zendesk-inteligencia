@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { callGemini, callOpenAI } from './ai-analyzer';
 import { startOfDay, endOfDay, subDays, startOfWeek, endOfWeek, subWeeks, startOfMonth, endOfMonth, subMonths } from 'date-fns';
+import * as crypto from 'crypto';
 
 
 export function registerReportRoutes(supabase: SupabaseClient) {
@@ -330,12 +331,47 @@ export function registerReportRoutes(supabase: SupabaseClient) {
     }
   });
 
+  router.get('/api/reports/executive-reports', async (req, res) => {
+    try {
+      const { data, error } = await supabase
+        .from('executive_reports')
+        .select('*')
+        .order('created_at', { ascending: false });
+        
+      if (error) throw error;
+      res.json({ success: true, reports: data });
+    } catch (err: any) {
+      console.error('[Get Executive Reports Error]:', err);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   router.post('/api/reports/executive-summary', async (req, res) => {
     try {
       const { summaryData } = req.body;
       const { data: aiSettings } = await supabase.from('system_settings').select('*').eq('id', 1).single();
       const aiProvider = aiSettings?.ai_provider || 'gemini';
       const aiModel = aiSettings?.ai_model || 'gemini-2.5-flash-lite';
+      const providerStr = `${aiProvider} / ${aiModel}`;
+
+      // Hash the payload
+      const payloadString = JSON.stringify(summaryData);
+      const hash = crypto.createHash('md5').update(payloadString).digest('hex');
+
+      // Check cache (last 30 minutes)
+      const thirtyMinsAgo = new Date(Date.now() - 30 * 60000).toISOString();
+      const { data: cachedReport } = await supabase
+        .from('executive_reports')
+        .select('report_text')
+        .eq('metrics_hash', hash)
+        .gte('created_at', thirtyMinsAgo)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (cachedReport) {
+        return res.json({ success: true, text: cachedReport.report_text, cached: true });
+      }
 
       const prompt = `Você é um diretor de operações. Analise os indicadores abaixo e forneça um Parecer Executivo profundo sobre a operação de suporte.
       DADOS OBTIDOS:
@@ -355,9 +391,71 @@ export function registerReportRoutes(supabase: SupabaseClient) {
         aiResponse = await callGemini(geminiKey, prompt, aiModel);
       }
 
-      res.json({ success: true, text: aiResponse.text });
+      // Save to database
+      await supabase.from('executive_reports').insert({
+        period_filter: summaryData.periodo || 'Desconhecido',
+        filters_applied: summaryData.filters || {},
+        metrics_hash: hash,
+        report_text: aiResponse.text,
+        provider_model: providerStr,
+        created_by: 'system' // Em cenário com Auth, injetar usuário logado
+      });
+
+      res.json({ success: true, text: aiResponse.text, cached: false });
     } catch (err: any) {
       console.error('[Executive Summary AI] Error:', err);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  router.post('/api/reports/historical', async (req, res) => {
+    try {
+      // Cálculo on-the-fly de indicadores mensais
+      // Pega os últimos 6 meses a partir de hoje
+      const now = new Date();
+      const months = [];
+      for (let i = 5; i >= 0; i--) {
+        const d = subMonths(now, i);
+        months.push({
+          start: startOfMonth(d).toISOString(),
+          end: endOfMonth(d).toISOString(),
+          label: d.toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' })
+        });
+      }
+
+      const results = [];
+      for (const m of months) {
+        let qCreated = supabase.from('tickets').select('id, group_name').gte('created_at', m.start).lte('created_at', m.end);
+        let qSolved = supabase.from('tickets').select('id, solved_at, created_at, group_name').in('status', ['solved', 'closed']).gte('solved_at', m.start).lte('solved_at', m.end);
+        
+        // SLA do mes (simplificado para o on-the-fly)
+        let qSla = supabase.from('ticket_analysis').select('category').gte('created_at', m.start).lte('created_at', m.end);
+
+        const [resCreated, resSolved] = await Promise.all([qCreated, qSolved]);
+        
+        const entradas = resCreated.data?.length || 0;
+        const resolvidos = resSolved.data?.length || 0;
+        
+        let totalHours = 0;
+        if (resSolved.data) {
+           resSolved.data.forEach(t => {
+             totalHours += (new Date(t.solved_at).getTime() - new Date(t.created_at).getTime()) / 3600000;
+           });
+        }
+        const avgTime = resolvidos > 0 ? (totalHours / resolvidos).toFixed(1) : 0;
+
+        results.push({
+          month: m.label,
+          entradas,
+          resolvidos,
+          saldo: entradas - resolvidos,
+          avgTime: parseFloat(avgTime.toString())
+        });
+      }
+
+      res.json({ success: true, history: results });
+    } catch (err: any) {
+      console.error('[Historical Indicators Error]:', err);
       res.status(500).json({ error: err.message });
     }
   });
