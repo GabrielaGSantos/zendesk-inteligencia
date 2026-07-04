@@ -263,18 +263,24 @@ async function fetchActiveRules(supabase: SupabaseClient): Promise<any[]> {
         .select('zendesk_id, subject')
         .in('zendesk_id', Array.from(allExampleIds));
         
-      const { data: commentsData } = await supabase
-        .from('ticket_comments')
-        .select('ticket_zendesk_id, body')
-        .in('ticket_zendesk_id', Array.from(allExampleIds))
-        .eq('is_public', true)
-        .order('created_at', { ascending: false });
+      const { data: analysisData } = await supabase
+        .from('ticket_analysis')
+        .select('ticket_zendesk_id, category, problem_summary, suggested_response')
+        .in('ticket_zendesk_id', Array.from(allExampleIds));
         
       if (ticketsData) {
         const ticketMap = new Map();
         for (const t of ticketsData) {
-          const solution = commentsData?.find(c => c.ticket_zendesk_id === t.zendesk_id)?.body || 'Sem resposta pública';
-          ticketMap.set(t.zendesk_id, { subject: t.subject, solution });
+          const analysis = analysisData?.find(a => a.ticket_zendesk_id === t.zendesk_id);
+          let solution = analysis?.suggested_response || '';
+          if (solution.length > 200) solution = solution.substring(0, 200) + '...';
+          
+          ticketMap.set(t.zendesk_id, { 
+            subject: t.subject, 
+            category: analysis?.category || 'Desconhecida',
+            summary: analysis?.problem_summary || '',
+            solution: solution || 'Sem resposta disponível'
+          });
         }
         
         for (const rule of data) {
@@ -294,7 +300,10 @@ async function fetchActiveRules(supabase: SupabaseClient): Promise<any[]> {
 
 async function fetchAgentExpertise(supabase: SupabaseClient): Promise<any[]> {
   try {
-    const { data: ranking } = await supabase.from('agent_expertise_ranking').select('*');
+    const { data: ranking } = await supabase.from('agent_expertise_ranking')
+      .select('*')
+      .order('tickets_resolved', { ascending: false })
+      .limit(15);
     const { data: agents } = await supabase.from('zendesk_agents').select('id, cargo');
     
     if (!ranking) return [];
@@ -312,6 +321,11 @@ async function fetchAgentExpertise(supabase: SupabaseClient): Promise<any[]> {
   }
 }
 
+function estimateTokens(text: string): number {
+  if (!text) return 0;
+  return Math.ceil(text.length / 3.8);
+}
+
 function buildAnalysisPrompt(
   ticket: TicketForAnalysis, 
   similarTickets?: SimilarTicketContext[], 
@@ -319,7 +333,24 @@ function buildAnalysisPrompt(
   agentExpertise?: any[],
   existingAnalysis?: any
 ): string {
-  const commentsText = ticket.comments
+  // 1. Filtragem de Comentários (Otimização)
+  const allComments = ticket.comments || [];
+  let selectedComments = new Set<any>();
+  
+  if (allComments.length > 0) {
+    // Últimos 5 comentários
+    allComments.slice(-5).forEach(c => selectedComments.add(c));
+    // Último comentário público
+    const lastPublic = [...allComments].reverse().find(c => c.is_public);
+    if (lastPublic) selectedComments.add(lastPublic);
+    // Último comentário do cliente (que geralmente é o requester_name)
+    const lastClient = [...allComments].reverse().find(c => c.author_name === ticket.requester_name);
+    if (lastClient) selectedComments.add(lastClient);
+  }
+
+  const finalComments = Array.from(selectedComments).sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+
+  const commentsText = finalComments
     .map(c => {
       const visibility = c.is_public ? 'Público' : 'Interno';
       return `[${visibility}] ${c.author_name} (${c.created_at}):\n${c.body}`;
@@ -333,35 +364,54 @@ function buildAnalysisPrompt(
     tags = [];
   }
 
+  // 2. Histórico de Casos Similares (Otimização)
   let similarContextText = '';
-  if (similarTickets && similarTickets.length > 0) {
+  let filteredSimilar = (similarTickets || []).slice(0, 5); // Max 5
+  if (filteredSimilar.length > 0) {
     similarContextText = `
 ## Histórico de Casos Similares Resolvidos pela Equipe
 Abaixo estão exemplos de como a nossa equipe resolveu tickets parecidos no passado. **Use esses exemplos para guiar o seu "suggested_response" e entender os procedimentos internos (recommended_procedure).** Tente imitar o tom, as palavras e as soluções dadas nestes exemplos.
 
 IMPORTANTE: Se algum exemplo abaixo estiver marcado com "[CORRIGIDO MANUALMENTE PELA COORDENAÇÃO]", isso significa que um humano revisou a classificação da IA e definiu o GABARITO OFICIAL. Você DEVE seguir a mesma Categoria, Produto e Procedimento Recomendado deste gabarito para este novo ticket se os assuntos forem idênticos.
 
-${similarTickets.map((st, i) => `--- Exemplo ${i + 1} ---
-Assunto Original: ${st.subject}
-${st.is_manually_corrected ? '⚠️ [CORRIGIDO MANUALMENTE PELA COORDENAÇÃO - GABARITO OFICIAL]\n' : ''}${st.ai_feedback ? `💡 INSTRUÇÃO DA COORDENAÇÃO: ${st.ai_feedback}\n` : ''}Categoria Histórica: ${st.category || 'N/A'}
-Produto Histórico: ${st.product || 'N/A'}
-Procedimento Recomendado Histórico: ${st.recommended_procedure || 'N/A'}
-Resposta Final da Equipe: ${st.solution_comment}`).join('\n\n')}
+${filteredSimilar.map((st, i) => {
+  let sol = st.solution_comment || '';
+  if (sol.length > 300) sol = sol.substring(0, 300) + '...';
+  return `--- Exemplo ${i + 1} ---\nTicket ID: ${st.zendesk_id}\nAssunto Original: ${st.subject}\n${st.is_manually_corrected ? '⚠️ [CORRIGIDO MANUALMENTE PELA COORDENAÇÃO - GABARITO OFICIAL]\n' : ''}Categoria Histórica: ${st.category || 'N/A'}\nProduto Histórico: ${st.product || 'N/A'}\nProcedimento Recomendado Histórico: ${st.recommended_procedure || 'N/A'}\nResposta Final da Equipe (Resumida): ${sol}`
+}).join('\n\n')}
 `;
   }
 
+  // 3. Base de Conhecimento e Regras (Otimização)
   let knowledgeText = '';
-  if (knowledgeRules && knowledgeRules.length > 0) {
+  let filteredRules = knowledgeRules || [];
+  
+  if (filteredRules.length > 0) {
+    const ticketKeywords = (ticket.subject + " " + ticket.description).toLowerCase();
+    filteredRules = filteredRules.filter(r => {
+      const titleLower = r.title.toLowerCase();
+      const catLower = r.category.toLowerCase();
+      const isCritical = titleLower.includes('lgpd') || titleLower.includes('ofício') || 
+                         titleLower.includes('mpx') || titleLower.includes('renan') || 
+                         r.priority?.toLowerCase() === 'urgente';
+      
+      if (isCritical) return true;
+      
+      // Checagem básica de relevância semântica (match de palavras-chave da categoria/título)
+      const ruleKeywords = catLower.split(' ').filter((w: string) => w.length > 4);
+      return ruleKeywords.some((w: string) => ticketKeywords.includes(w)) || filteredRules.length <= 15;
+    });
+
     knowledgeText = `
 ## Base de Conhecimento e Regras de Ouro
 Abaixo estão regras estritas e procedimentos internos que você DEVE seguir ao analisar o ticket e sugerir a resposta ou o procedimento. Em caso de conflito, dê preferência às regras de maior Prioridade.
 
-${knowledgeRules.map((kr, i) => `--- Regra ID: ${kr.id} ---
+${filteredRules.map((kr, i) => `--- Regra ID: ${kr.id} ---
 Tópico: ${kr.title}
 Categoria: ${kr.category}
 Prioridade: ${kr.priority}
-Descrição da Regra: ${kr.description}
-${kr.examples_data && kr.examples_data.length > 0 ? `\nCasos Práticos de Exemplo para esta regra:\n${kr.examples_data.map((ex: any, i: number) => `  [Exemplo ${i+1}] Assunto: ${ex.subject}\n  Solução: ${ex.solution}`).join('\n\n')}` : ''}`).join('\n\n')}
+Descricao da Regra: ${kr.description}
+${kr.examples_data && kr.examples_data.length > 0 ? `\nCasos Práticos (Exemplos Curtos):\n${kr.examples_data.map((ex: any, idx: number) => `  [Exemplo ${idx+1}] Assunto: ${ex.subject}\n  Categoria: ${ex.category}\n  Solução: ${ex.solution}`).join('\n\n')}` : ''}`).join('\n\n')}
 `;
   }
 
@@ -385,7 +435,16 @@ Campos já definidos pelo humano que você NÃO PODE alterar:
 `;
   }
 
-  return `Você é um analista de suporte técnico especializado. Analise o ticket de atendimento abaixo e forneça uma classificação detalhada.
+  let agentText = agentExpertise && agentExpertise.length > 0 ? `
+## Base de Especialistas (Histórico Real de Atendimento)
+Aqui está o ranking atual dos agentes que mais resolveram tickets, agrupado por categoria.
+Baseie a sua recomendação EXCLUSIVAMENTE nesta lista para sugerir o especialista mais adequado.
+Justifique a sua escolha citando as métricas apresentadas abaixo (quantidade, taxa de resolução, tempo médio, etc).
+
+${agentExpertise.map(e => `- Agente: ${e.assignee_name} (${e.cargo}) | Categoria: ${e.category} | Resolvidos: ${e.tickets_resolved} | Taxa de Resolução: ${Number(e.resolution_rate).toFixed(1)}% | Tempo Médio: ${Number(e.avg_resolution_time).toFixed(1)}h | Reaberturas: ${Number(e.reopen_rate).toFixed(1)}%`).join('\n')}
+` : '';
+
+  let promptBody = `Você é um analista de suporte técnico especializado. Analise o ticket de atendimento abaixo e forneça uma classificação detalhada.
 
 ## Dados do Ticket
 
@@ -406,19 +465,9 @@ ${ticket.description || 'Sem descrição'}
 ${commentsText || 'Sem comentários'}
 
 ${manualCorrectionText}
-
 ${similarContextText}
-
 ${knowledgeText}
-
-${agentExpertise && agentExpertise.length > 0 ? `
-## Base de Especialistas (Histórico Real de Atendimento)
-Aqui está o ranking atual dos agentes que mais resolveram tickets, agrupado por categoria.
-Baseie a sua recomendação EXCLUSIVAMENTE nesta lista para sugerir o especialista mais adequado.
-Justifique a sua escolha citando as métricas apresentadas abaixo (quantidade, taxa de resolução, tempo médio, etc).
-
-${agentExpertise.map(e => `- Agente: ${e.assignee_name} (${e.cargo}) | Categoria: ${e.category} | Resolvidos: ${e.tickets_resolved} | Taxa de Resolução: ${Number(e.resolution_rate).toFixed(1)}% | Tempo Médio: ${Number(e.avg_resolution_time).toFixed(1)}h | Reaberturas: ${Number(e.reopen_rate).toFixed(1)}%`).join('\n')}
-` : ''}
+${agentText}
 ---
 
 ## Instruções de Análise
@@ -445,10 +494,33 @@ Com base em TODAS as informações acima (assunto, descrição, comentários pú
 18. **recommended_expert**: O nome exato dos **DOIS** agentes mais recomendados (1º e 2º), com base na tabela de Especialistas. IMPORTANTE: Este campo é EXCLUSIVO para o executor técnico que vai colocar a mão na massa e resolver o problema. Se a Base de Conhecimento disser que uma pessoa (ex: Chefe/Diretor) deve apenas 'aprovar' a demanda, ELA NÃO DEVE APARECER AQUI. Ignore aprovadores para este campo e indique-os apenas em 'needs_internal_routing'. Ex: "1º Bruno | 2º Gabriela". Se não houver dados, retorne null.
 19. **expert_reasoning**: Justificativa detalhada citando os indicadores numéricos (taxa, tempo, etc) que te levaram a escolher esses dois especialistas.
 20. **rule_particularities**: Se o ticket utiliza uma regra existente mas apresenta uma particularidade, exceção ou nuance importante observada nos comentários, descreva-a de forma sucinta aqui. Se não houver particularidade, retorne null.
-21. **predicted_resolution_time_hours**: Estimativa numérica (em horas) de quanto tempo este ticket levará para ser resolvido (da abertura até a solução), considerando a complexidade e casos similares. Ex: 2.5 (2 horas e meia), 48 (2 dias). Se não tiver como prever, retorne null.cularidade, exceção ou nuance importante observada nos comentários, descreva-a de forma sucinta aqui. Se não houver particularidade, retorne null.
-20. **predicted_resolution_time_hours**: Estimativa numérica (em horas) de quanto tempo este ticket levará para ser resolvido (da abertura até a solução), considerando a complexidade e casos similares. Ex: 2.5 (2 horas e meia), 48 (2 dias). Se não tiver como prever, retorne null.
+21. **predicted_resolution_time_hours**: Estimativa numérica (em horas) de quanto tempo este ticket levará para ser resolvido (da abertura até a solução), considerando a complexidade e casos similares. Ex: 2.5 (2 horas e meia), 48 (2 dias). Se não tiver como prever, retorne null.
 
 Responda APENAS com um JSON válido contendo exatamente esses campos. Não inclua explicações extras.`;
+
+  // --- TRUNCAMENTO DE EMERGÊNCIA E DIAGNÓSTICO ---
+  let totalTokens = estimateTokens(promptBody);
+  
+  if (totalTokens > 10000) {
+    const limitBody = (text: string, maxLen: number) => text.length > maxLen ? text.substring(0, maxLen) + '\n[...truncado por limite de tokens...]' : text;
+    promptBody = promptBody.replace(ticket.description || '', limitBody(ticket.description || '', 1000));
+    promptBody = promptBody.replace(commentsText, limitBody(commentsText, 2000));
+    totalTokens = estimateTokens(promptBody);
+  }
+
+  console.log('\n===== PROMPT ANALYSIS =====');
+  console.log(`Ticket: #${ticket.zendesk_id} - ${ticket.subject}`);
+  console.log(`Regras enviadas: ${filteredRules.length} de ${knowledgeRules?.length || 0}`);
+  console.log(`Comentários enviados: ${(ticket.comments || []).length > 0 ? Array.from(new Set(ticket.comments || [])).slice(-5).length : 0} de ${(ticket.comments || []).length}`);
+  console.log(`Tickets semelhantes enviados: ${(similarTickets || []).slice(0, 5).length} de ${similarTickets?.length || 0}`);
+  console.log(`Tokens - Base de Conhecimento: ~${estimateTokens(knowledgeText)}`);
+  console.log(`Tokens - Comentários/Desc: ~${estimateTokens(commentsText + (ticket.description || ''))}`);
+  console.log(`Tokens - Tickets Semelhantes: ~${estimateTokens(similarContextText)}`);
+  console.log(`Tokens - Especialistas: ~${estimateTokens(agentText)}`);
+  console.log(`TOTAL ESTIMADO (Meta < 10k): ~${totalTokens} tokens`);
+  console.log('==========================\n');
+
+  return promptBody;
 }
 
 export async function startAnalysis(apiKey: string, supabase: SupabaseClient): Promise<void> {
