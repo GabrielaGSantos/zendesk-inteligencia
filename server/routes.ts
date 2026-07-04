@@ -321,13 +321,13 @@ export function createRoutes(supabase: SupabaseClient): Router {
         const spamIds = (spamAnalyses || []).map(a => a.ticket_zendesk_id);
         
         if (isSpamTab) {
-          let orStr = `subject.ilike.%***SPAM***%,status.eq.suspended`;
+          let orStr = `subject.ilike.%\\*\\*\\*SPAM\\*\\*\\*%,status.eq.suspended`;
           if (spamIds.length > 0) {
             orStr += `,zendesk_id.in.(${spamIds.join(',')})`;
           }
           query = query.or(orStr);
         } else if (excludeSpam) {
-          query = query.not('subject', 'ilike', '%***SPAM***%');
+          query = query.not('subject', 'ilike', '%\\*\\*\\*SPAM\\*\\*\\*%');
           query = query.neq('status', 'suspended');
           if (spamIds.length > 0) {
              const chunkSize = 200;
