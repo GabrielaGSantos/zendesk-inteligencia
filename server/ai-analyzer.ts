@@ -518,7 +518,9 @@ Com base em TODAS as informações acima (assunto, descrição, comentários pú
 
 Responda APENAS com um JSON válido contendo exatamente esses campos. Não inclua explicações extras.`;
 
-  // --- TRUNCAMENTO DE EMERGÊNCIA E DIAGNÓSTICO ---
+  // ──────────────────────────────────────────────────────
+  // TRUNCAMENTO DE EMERGÊNCIA
+  // ──────────────────────────────────────────────────────
   let totalTokens = estimateTokens(promptBody);
   
   if (totalTokens > 10000) {
@@ -530,12 +532,110 @@ Responda APENAS com um JSON válido contendo exatamente esses campos. Não inclu
     totalTokens = estimateTokens(promptBody);
   }
 
-  // --- LOG DE AUDITORIA COMPLETO ---
-  console.log('\n=======================================');
-  console.log('Evolução do Diagnóstico de Consumo de Tokens');
-  console.log('=======================================\n');
+  // ──────────────────────────────────────────────────────
+  // DIAGNÓSTICO EXATO — CONTABILIZAÇÃO SEÇÃO POR SEÇÃO
+  // ──────────────────────────────────────────────────────
+  
+  // Definir cada seção exata do prompt montado
+  const systemPromptText = `Você é um analista de suporte técnico especializado. Analise o ticket de atendimento abaixo e forneça uma classificação detalhada.`;
+  
+  const ticketMetadataText = `## Dados do Ticket\n\n**Assunto:** ${ticket.subject}\n**Status:** ${ticket.status}\n**Prioridade atual:** ${ticket.priority || 'Não definida'}\n**Solicitante:** ${ticket.requester_name}\n**Organização:** ${ticket.organization_name || 'Não informada'}\n**Responsável:** ${ticket.assignee_name || 'Não atribuído'}\n**Grupo:** ${ticket.group_name || 'Não definido'}\n**Tags:** ${tags.join(', ') || 'Nenhuma'}\n**Data de criação:** ${ticket.created_at}`;
+  
+  const descriptionText = `## Descrição / Primeira Mensagem do Cliente\n${ticket.description || 'Sem descrição'}`;
+  
+  const commentsSection = `## Histórico de Comentários\n${commentsText || 'Sem comentários'}`;
+  
+  const instructionsText = promptBody.substring(promptBody.indexOf('## Instruções de Análise'));
+  
+  // Seções completas com suas medições
+  const sections: { name: string; chars: number; tokens: number }[] = [
+    { name: 'System Prompt', chars: systemPromptText.length, tokens: estimateTokens(systemPromptText) },
+    { name: 'Metadados do Ticket', chars: ticketMetadataText.length, tokens: estimateTokens(ticketMetadataText) },
+    { name: 'Descrição Original', chars: (ticket.description || '').length, tokens: estimateTokens(ticket.description || '') },
+    { name: 'Comentários', chars: commentsText.length, tokens: estimateTokens(commentsText) },
+    { name: 'Correção Manual', chars: manualCorrectionText.length, tokens: estimateTokens(manualCorrectionText) },
+    { name: 'Tickets Semelhantes', chars: similarContextText.length, tokens: estimateTokens(similarContextText) },
+    { name: 'Base de Conhecimento', chars: knowledgeText.length, tokens: estimateTokens(knowledgeText) },
+    { name: 'Especialistas', chars: agentText.length, tokens: estimateTokens(agentText) },
+    { name: 'Instruções + JSON Schema', chars: instructionsText.length, tokens: estimateTokens(instructionsText) },
+  ];
+  
+  const totalEstimado = estimateTokens(promptBody);
+  const somaSecoes = sections.reduce((sum, s) => sum + s.tokens, 0);
+  
+  console.log('\n╔══════════════════════════════════════════════════════════╗');
+  console.log(`║  DIAGNÓSTICO EXATO — Ticket #${ticket.zendesk_id}`);
+  console.log('╚══════════════════════════════════════════════════════════╝\n');
+  
+  console.log('───── SEÇÕES DO PROMPT ─────\n');
+  sections.forEach(s => {
+    if (s.chars === 0) return;
+    const pct = totalEstimado > 0 ? ((s.tokens / totalEstimado) * 100).toFixed(1) : '0.0';
+    console.log(`${s.name}`);
+    console.log(`  Caracteres: ${s.chars.toLocaleString()}`);
+    console.log(`  Tokens:     ~${s.tokens.toLocaleString()}`);
+    console.log(`  % Prompt:   ${pct}%`);
+    console.log('');
+  });
+  
+  console.log('───── COMENTÁRIOS INDIVIDUAIS ─────\n');
+  finalComments.forEach((c, idx) => {
+    const visibility = c.is_public ? 'Público' : 'Interno';
+    const commentStr = `[${visibility}] ${c.author_name} (${c.created_at}):\n${c.body}`;
+    const cTokens = estimateTokens(commentStr);
+    const cChars = commentStr.length;
+    
+    // Detectar lixo
+    const warnings: string[] = [];
+    if (/<[a-z][\s\S]*>/i.test(c.body)) warnings.push('HTML bruto');
+    if (/data:image\/[a-z]+;base64/i.test(c.body)) warnings.push('Base64 imagem');
+    if (/[-_]{10,}/.test(c.body) || /^(--\s*$|Enviado|De:|From:|Sent:|Em\s+\d)/m.test(c.body)) warnings.push('Assinatura/Citação');
+    if (/<style[\s\S]*?<\/style>/i.test(c.body)) warnings.push('CSS inline');
+    if (c.body.length > 3000) warnings.push('Comentário longo (>3k chars)');
+    
+    console.log(`Comentário ${idx + 1} (${visibility}) — ${c.author_name}`);
+    console.log(`  Chars: ${cChars.toLocaleString()} | Tokens: ~${cTokens}`);
+    if (warnings.length > 0) console.log(`  ⚠️  ALERTA: ${warnings.join(', ')}`);
+    console.log('');
+  });
+  
+  console.log('───── VERIFICAÇÃO DE DUPLICIDADES ─────\n');
+  // Verificar descrição duplicada nos comentários
+  const descInComments = commentsText.includes(ticket.description?.substring(0, 100) || '___NOMATCH___');
+  if (descInComments && ticket.description && ticket.description.length > 50) {
+    console.log('⚠️  DUPLICIDADE: Descrição original aparece dentro dos comentários');
+  }
+  // Verificar comentários duplicados
+  const commentBodies = finalComments.map(c => c.body.substring(0, 200));
+  const dupes = commentBodies.filter((item, index) => commentBodies.indexOf(item) !== index);
+  if (dupes.length > 0) {
+    console.log(`⚠️  DUPLICIDADE: ${dupes.length} comentário(s) duplicado(s) detectado(s)`);
+  }
+  // Verificar regras duplicadas
+  const ruleNames = filteredRules.map(r => r.title);
+  const dupeRules = ruleNames.filter((item, index) => ruleNames.indexOf(item) !== index);
+  if (dupeRules.length > 0) {
+    console.log(`⚠️  DUPLICIDADE: Regras duplicadas: ${dupeRules.join(', ')}`);
+  }
+  // Verificar tickets semelhantes duplicados
+  const simIds = (similarTickets || []).slice(0, 5).map(s => s.zendesk_id);
+  const dupeSimIds = simIds.filter((item, index) => simIds.indexOf(item) !== index);
+  if (dupeSimIds.length > 0) {
+    console.log(`⚠️  DUPLICIDADE: Tickets semelhantes duplicados: ${dupeSimIds.join(', ')}`);
+  }
+  if (!descInComments && dupes.length === 0 && dupeRules.length === 0 && dupeSimIds.length === 0) {
+    console.log('✅ Nenhuma duplicidade detectada.');
+  }
+  
+  console.log('\n───── RESUMO FINAL ─────\n');
+  console.log(`Soma das seções:     ~${somaSecoes.toLocaleString()} tokens`);
+  console.log(`Prompt completo:     ~${totalEstimado.toLocaleString()} tokens`);
+  console.log(`Diferença (overhead): ~${Math.abs(totalEstimado - somaSecoes).toLocaleString()} tokens`);
+  console.log(`Caracteres totais:    ${promptBody.length.toLocaleString()}`);
+  console.log('');
 
-  console.log('===== KNOWLEDGE BASE =====');
+  // ──── KNOWLEDGE BASE (Regras avaliadas) ────
+  console.log('───── REGRAS AVALIADAS ─────\n');
   (knowledgeRules || []).forEach(r => {
     const titleLower = r.title.toLowerCase();
     const catLower = r.category.toLowerCase();
@@ -567,66 +667,44 @@ Responda APENAS com um JSON válido contendo exatamente esses campos. Não inclu
       }
     }
     
-    console.log(`\nRegra:\n${r.title}`);
-    console.log(`Status:\n${isSent ? 'ENVIADA' : 'DESCARTADA'}`);
-    console.log(`Motivo:\n${reason}`);
-    if (isSent) {
-      const ruleText = `--- Regra ID: ${r.id} ---\nTópico: ${r.title}\nCategoria: ${r.category}\nPrioridade: ${r.priority}\nDescricao da Regra: ${r.description}`;
-      console.log(`Tokens:\n~${estimateTokens(ruleText)}`);
-    }
-    console.log('----------------------------');
+    console.log(`${isSent ? '✅' : '❌'} ${r.title} — ${reason}${isSent ? ' (~' + estimateTokens(r.description || '') + ' tokens)' : ''}`);
   });
 
-  console.log('\n===== ESPECIALISTAS =====');
+  // ──── ESPECIALISTAS ────
+  console.log('\n───── ESPECIALISTAS ─────\n');
   filteredAgents.forEach(a => {
-    console.log(`\n${a.assignee_name}`);
-    console.log('Status:\nEnviado');
-    const agentText = `- Agente: ${a.assignee_name} (${a.cargo}) | Categoria: ${a.category} | Resolvidos: ${a.tickets_resolved}`;
-    console.log(`Tokens:\n~${estimateTokens(agentText)}`);
-    console.log('Motivo:\nEspecialista Relevante (Top 5 da Categoria)');
-    console.log('----------------------------');
+    console.log(`✅ ${a.assignee_name} (${a.category}) — Top 5`);
   });
-  discardedAgents.slice(0, 5).forEach(a => {
-    console.log(`\n${a.assignee_name}`);
-    console.log('Status:\nDescartado');
-    console.log('Motivo:\nBaixa relevância ou fora do Top 5');
-    console.log('----------------------------');
+  discardedAgents.slice(0, 3).forEach(a => {
+    console.log(`❌ ${a.assignee_name} — Descartado`);
   });
-  if (discardedAgents.length > 5) console.log(`\n... e mais ${discardedAgents.length - 5} descartados.`);
+  if (discardedAgents.length > 3) console.log(`   ... e mais ${discardedAgents.length - 3} descartados.`);
 
-  console.log('\n===== TICKETS SEMELHANTES =====');
+  // ──── TICKETS SEMELHANTES ────
+  console.log('\n───── TICKETS SEMELHANTES ─────\n');
   (similarTickets || []).forEach((st, i) => {
-    console.log(`\nTicket #${st.zendesk_id}`);
-    if (st.similarity) console.log(`Similaridade:\n${(st.similarity * 100).toFixed(1)}%`);
     if (i < 5) {
-      console.log('Status:\nEnviado');
-      console.log(`Tokens:\n~${estimateTokens(st.solution_comment || '')}`);
+      console.log(`✅ #${st.zendesk_id} — ~${estimateTokens(st.solution_comment || '')} tokens`);
     } else {
-      console.log('Status:\nDescartado');
-      console.log('Motivo:\nFora do limite de top 5 (Excesso de tokens)');
+      console.log(`❌ #${st.zendesk_id} — Descartado (fora do top 5)`);
     }
-    console.log('----------------------------');
   });
 
-  console.log('\n===== COMENTÁRIOS =====');
-  console.log(`Total:\n${allComments.length}`);
-  console.log(`Enviados:\n${finalComments.length}`);
-  console.log(`Descartados:\n${allComments.length - finalComments.length}`);
-  if (allComments.length - finalComments.length > 0) {
-    console.log('Motivo:\nHistórico antigo truncado (Manteve últimos 5, último público e último do cliente)');
+  console.log(`\nTotal enviados: ${allComments.length} total, ${finalComments.length} enviados, ${allComments.length - finalComments.length} descartados`);
+  
+  // ──── MODO DEBUG: Salvar prompt completo ────
+  if (process.env.DEBUG_PROMPT === 'true') {
+    const fs = require('fs');
+    const debugPath = `/tmp/prompt_debug_${ticket.zendesk_id}_${Date.now()}.txt`;
+    try {
+      fs.writeFileSync(debugPath, promptBody, 'utf8');
+      console.log(`\n🔍 DEBUG: Prompt completo salvo em ${debugPath}`);
+    } catch (e) {
+      console.log('\n🔍 DEBUG: Não foi possível salvar o prompt (verifique permissões de escrita).');
+    }
   }
-
-  console.log('\n===== PROMPT ANALYSIS =====\n');
-  const systemTokens = estimateTokens(`Você é um analista de suporte técnico especializado...`) + 1000;
-  console.log(`Prompt do Sistema\n~${systemTokens}`);
-  console.log(`Base de Conhecimento\n~${estimateTokens(knowledgeText)}`);
-  console.log(`Comentários\n~${estimateTokens(commentsText)}`);
-  console.log(`Tickets Semelhantes\n~${estimateTokens(similarContextText)}`);
-  console.log(`Especialistas\n~${estimateTokens(agentText)}`);
-  const othersTokens = estimateTokens(ticket.description || '') + estimateTokens(manualCorrectionText);
-  console.log(`Outros\n~${othersTokens}`);
-  console.log(`\nTOTAL\n${totalTokens} tokens`);
-  console.log('\n===========================\n');
+  
+  console.log('\n══════════════════════════════════════════════════════════\n');
 
   return promptBody;
 }
