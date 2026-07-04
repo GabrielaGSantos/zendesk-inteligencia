@@ -101,6 +101,7 @@ export const ReportsScreen: React.FC = () => {
           nome: p.name,
           tickets: p.count
         })),
+        demandasInternas: data.distributions?.internalDemand,
         gargalos: data.insights
       };
 
@@ -175,6 +176,33 @@ export const ReportsScreen: React.FC = () => {
     if (growth === 0 || !isFinite(growth)) return <span style={{ color: 'var(--color-text-secondary)' }}>-</span>;
     if (growth > 0) return <span style={{ color: 'var(--color-danger)', fontWeight: 600 }}>▲ +{growth.toFixed(0)}%</span>;
     return <span style={{ color: 'var(--color-success)', fontWeight: 600 }}>▼ {growth.toFixed(0)}%</span>;
+  };
+
+  const renderParsedAI = (text: string) => {
+    try {
+      let cleanText = text.trim();
+      if (cleanText.startsWith('```json')) cleanText = cleanText.replace('```json', '');
+      if (cleanText.startsWith('```')) cleanText = cleanText.replace('```', '');
+      if (cleanText.endsWith('```')) cleanText = cleanText.replace(/```$/, '');
+      cleanText = cleanText.trim();
+      
+      const parsed = JSON.parse(cleanText);
+      if (parsed.parecerExecutivo && Array.isArray(parsed.parecerExecutivo)) {
+        return (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', fontSize: '1.05rem', color: 'var(--color-text-primary)' }}>
+            {parsed.parecerExecutivo.map((section: any, idx: number) => (
+              <div key={idx}>
+                <h4 style={{ margin: '0 0 8px 0', color: 'var(--color-text-primary)', fontSize: '1.1rem' }}>{section.titulo}</h4>
+                <div dangerouslySetInnerHTML={{ __html: section.corpo ? section.corpo.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') : '' }} style={{ lineHeight: 1.6, color: 'var(--color-text-secondary)' }} />
+              </div>
+            ))}
+          </div>
+        );
+      }
+    } catch(e) {}
+    
+    // Fallback if not JSON or parsing fails
+    return <div style={{ whiteSpace: 'pre-wrap', lineHeight: '1.6', color: 'var(--color-text-primary)', fontSize: '1.05rem' }}>{text}</div>;
   };
 
   if (!data && loading) {
@@ -258,9 +286,7 @@ export const ReportsScreen: React.FC = () => {
                        <CheckCircle size={16} /> <strong>Resposta em Cache:</strong> Este parecer já havia sido gerado recentemente para estes mesmos filtros.
                      </div>
                    )}
-                   <div style={{ whiteSpace: 'pre-wrap', lineHeight: '1.6', color: 'var(--color-text-primary)', fontSize: '1.05rem' }}>
-                     {aiSummary}
-                   </div>
+                   {renderParsedAI(aiSummary)}
                    <div style={{ marginTop: 40, paddingTop: 20, borderTop: '1px solid var(--color-border)', color: 'var(--color-text-secondary)', fontSize: '0.8rem', fontStyle: 'italic' }}>
                      Aviso: O texto acima é gerado automaticamente por Inteligência Artificial baseado nos dados consolidados do painel. A interpretação e as recomendações devem ser avaliadas criticamente pela gestão.
                    </div>
@@ -742,6 +768,17 @@ export const ReportsScreen: React.FC = () => {
                   </tbody>
                 </table>
               </div>
+              {distributions.internalDemand && (
+                <div style={{ marginTop: '20px', padding: '16px', background: 'var(--color-bg-secondary)', borderRadius: '8px', borderLeft: '4px solid #3b82f6' }}>
+                  <h4 style={{ margin: '0 0 8px 0', fontSize: '0.95rem', color: 'var(--color-text-primary)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <Activity size={16} color="#3b82f6" /> Demandas internas da MPX
+                  </h4>
+                  <div style={{ display: 'flex', gap: '24px', fontSize: '0.9rem', color: 'var(--color-text-secondary)' }}>
+                    <span><strong>Tickets:</strong> {distributions.internalDemand.entradas}</span>
+                    <span><strong>Tempo Médio:</strong> {distributions.internalDemand.avgTime}h</span>
+                  </div>
+                </div>
+              )}
             </div>
 
           </div>

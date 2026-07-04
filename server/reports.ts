@@ -206,12 +206,26 @@ export function registerReportRoutes(supabase: SupabaseClient) {
         avgTime: groupData[k].solvedCount > 0 ? (groupData[k].totalHours / groupData[k].solvedCount).toFixed(1) : '-'
       })).sort((a,b) => b.entradas - a.entradas);
 
-      const clientStats = Object.keys(clientData).map(k => ({
-        name: k,
-        entradas: clientData[k].entradas,
-        reopenRate: clientData[k].entradas > 0 ? ((clientData[k].reaberturas / clientData[k].entradas) * 100).toFixed(0) : '0',
-        avgTime: clientData[k].solvedCount > 0 ? (clientData[k].totalHours / clientData[k].solvedCount).toFixed(1) : '-'
-      })).sort((a,b) => b.entradas - a.entradas);
+      let internalDemand = null;
+      const clientStats = Object.keys(clientData)
+        .filter(k => {
+          if (k === 'MPX Brasil') {
+            internalDemand = {
+              name: k,
+              entradas: clientData[k].entradas,
+              reopenRate: clientData[k].entradas > 0 ? ((clientData[k].reaberturas / clientData[k].entradas) * 100).toFixed(0) : '0',
+              avgTime: clientData[k].solvedCount > 0 ? (clientData[k].totalHours / clientData[k].solvedCount).toFixed(1) : '-'
+            };
+            return false;
+          }
+          return true;
+        })
+        .map(k => ({
+          name: k,
+          entradas: clientData[k].entradas,
+          reopenRate: clientData[k].entradas > 0 ? ((clientData[k].reaberturas / clientData[k].entradas) * 100).toFixed(0) : '0',
+          avgTime: clientData[k].solvedCount > 0 ? (clientData[k].totalHours / clientData[k].solvedCount).toFixed(1) : '-'
+        })).sort((a,b) => b.entradas - a.entradas);
 
       // Prev Volumes for trends
       let qAllPrevCreated = applyFiltersSafe(supabase.from('tickets').select(`organization_name, ticket_analysis${joinType}(category, product)`).gte('created_at', prevRange.start).lte('created_at', prevRange.end));
@@ -315,7 +329,8 @@ export function registerReportRoutes(supabase: SupabaseClient) {
           byProduct: Object.entries(volumeByProduct).map(([name, count]) => ({ name, count })).sort((a,b) => b.count - a.count),
           byCategory: Object.entries(volumeByCategory).map(([name, count]) => ({ name, count })).sort((a,b) => b.count - a.count),
           byClient: clientStats,
-          byGroup: groupStats
+          byGroup: groupStats,
+          internalDemand
         },
         trends: {
           product: productGrowth.slice(0, 3),
@@ -373,12 +388,25 @@ export function registerReportRoutes(supabase: SupabaseClient) {
         return res.json({ success: true, text: cachedReport.report_text, cached: true });
       }
 
-      const prompt = `Você é um diretor de operações. Analise os indicadores abaixo e forneça um Parecer Executivo profundo sobre a operação de suporte.
-      DADOS OBTIDOS:
-      ${JSON.stringify(summaryData, null, 2)}
-      
-      Não repita os números cegamente. Dê a sua opinião profissional e conselhos do que o gerente da área deve fazer. Ex: "A queda de SLA somada ao aumento em X produto sugere gargalo técnico. Mova especialistas para esta área."
-      Escreva em 2 a 3 parágrafos curtos, diretos e profissionais. Sem saudações. Sem introduções. Não use formatação markdown além de negrito.`;
+      const prompt = `Você é um diretor de operações focado em suporte técnico corporativo.
+Analise os indicadores abaixo e forneça um Parecer Executivo profundo sobre a operação.
+
+DADOS OBTIDOS:
+${JSON.stringify(summaryData, null, 2)}
+
+ATENÇÃO (CRÍTICO):
+1. O objeto "demandasInternas" representa chamados internos da própria organização (ajustes de infraestrutura, rotinas, desenvolvimento). Trate-os como "Demanda Interna / Backoffice" e não como um cliente que está reclamando.
+2. Apenas os clientes na lista "clientesTop" são clientes externos.
+3. Não repita números cegamente. Avalie a eficiência e indique ações gerenciais (ex: "SLA caiu, direcione analistas seniores", etc).
+4. OBRIGATÓRIO: Sua resposta final deve ser um objeto JSON válido. NENHUM texto fora do JSON. Não use bloco de código (marcador \`\`\`).
+
+FORMATO OBRIGATÓRIO (JSON):
+{
+  "parecerExecutivo": [
+    { "titulo": "Análise Geral da Operação", "corpo": "Texto profundo aqui..." },
+    { "titulo": "Ações e Recomendações Críticas", "corpo": "Texto sobre o que a gestão deve fazer agora..." }
+  ]
+}`;
 
       let aiResponse;
       if (aiProvider === 'openai') {
