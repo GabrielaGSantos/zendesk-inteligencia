@@ -391,9 +391,14 @@ ${filteredSimilar.map((st, i) => {
     filteredRules = filteredRules.filter(r => {
       const titleLower = r.title.toLowerCase();
       const catLower = r.category.toLowerCase();
-      const isCritical = titleLower.includes('lgpd') || titleLower.includes('ofício') || 
-                         titleLower.includes('mpx') || titleLower.includes('renan') || 
-                         r.priority?.toLowerCase() === 'urgente';
+      
+      const isCritical = r.priority?.toLowerCase() === 'urgente' || 
+                         titleLower.includes('lgpd') || titleLower.includes('ofício') || 
+                         titleLower.includes('mpx') || titleLower.includes('renan') ||
+                         catLower.includes('atendimento') || catLower.includes('segurança') ||
+                         catLower.includes('lgpd') || catLower.includes('escalonamento') ||
+                         catLower.includes('ofício') || catLower.includes('mpx') ||
+                         catLower.includes('resposta padrão');
       
       if (isCritical) return true;
       
@@ -498,13 +503,27 @@ Com base em TODAS as informações acima (assunto, descrição, comentários pú
 
 Responda APENAS com um JSON válido contendo exatamente esses campos. Não inclua explicações extras.`;
 
-  // --- TRUNCAMENTO DE EMERGÊNCIA E DIAGNÓSTICO ---
   let totalTokens = estimateTokens(promptBody);
   
   if (totalTokens > 10000) {
     const limitBody = (text: string, maxLen: number) => text.length > maxLen ? text.substring(0, maxLen) + '\n[...truncado por limite de tokens...]' : text;
-    promptBody = promptBody.replace(ticket.description || '', limitBody(ticket.description || '', 1000));
-    promptBody = promptBody.replace(commentsText, limitBody(commentsText, 2000));
+    
+    // Nível 1: Cortar Tickets Semelhantes
+    if (estimateTokens(promptBody) > 10000) {
+      promptBody = promptBody.replace(similarContextText, limitBody(similarContextText, 500));
+    }
+    // Nível 2: Cortar Base de Conhecimento (Regras)
+    if (estimateTokens(promptBody) > 10000) {
+      promptBody = promptBody.replace(knowledgeText, limitBody(knowledgeText, 1500));
+    }
+    // Nível 3: Cortar Comentários Antigos
+    if (estimateTokens(promptBody) > 10000) {
+      promptBody = promptBody.replace(commentsText, limitBody(commentsText, 1000));
+    }
+    // Nível 4: Cortar Descrição Original
+    if (estimateTokens(promptBody) > 10000) {
+      promptBody = promptBody.replace(ticket.description || '', limitBody(ticket.description || '', 1000));
+    }
     totalTokens = estimateTokens(promptBody);
   }
 
