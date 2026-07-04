@@ -120,23 +120,22 @@ function App() {
     setLoading(true);
     try {
       let effectiveStatus = status;
-      let effectiveCategory = category;
-      let effectiveExcludeCategory = '';
 
       if (!status) {
         if (currentTab === 'fechados') {
           effectiveStatus = 'solved,closed'; // Custom backend logic or just filter locally if not supported? We should pass it.
         } else if (currentTab === 'principal') {
           effectiveStatus = 'new,open,pending,hold';
-          effectiveExcludeCategory = 'Spam'; // Hide spam from principal
         } else if (currentTab === 'spam') {
-          effectiveStatus = 'new,open,pending,hold,solved,closed'; // Spam can be any status, usually not closed, but maybe
-          effectiveCategory = 'Spam';
+          effectiveStatus = 'new,open,pending,hold,solved,closed,suspended'; // Spam can be any status
         }
       }
 
       const data = await api.getTickets({
-        page, limit, search, status: effectiveStatus, category: effectiveCategory, excludeCategory: effectiveExcludeCategory, product, priority, assignee, sort: sortOrder
+        page, limit, search, status: effectiveStatus, category,
+        isSpamTab: currentTab === 'spam',
+        excludeSpam: currentTab === 'principal',
+        product, priority, assignee, sort: sortOrder
       });
       setTickets(data.tickets);
       setTotalPages(data.pagination.totalPages);
@@ -310,6 +309,22 @@ function App() {
     setPage(1);
   };
 
+  const handleNotSpam = async (ticket: Ticket) => {
+    try {
+      const newCategory = (ticket.category || '').split(' | ')
+        .map(c => c.trim())
+        .filter(c => c.toLowerCase() !== 'spam')
+        .join(' | ') || 'Dúvida Genérica';
+        
+      await api.updateAnalysis(ticket.zendesk_id, { category: newCategory });
+      setTickets(prev => prev.filter(t => t.zendesk_id !== ticket.zendesk_id));
+      // Reload stats if needed, but removing from UI is enough for immediate feedback
+    } catch (err) {
+      console.error('Error removing spam status:', err);
+      alert('Erro ao alterar status de spam.');
+    }
+  };
+
   const handleLogout = async () => {
     await supabase.auth.signOut();
   };
@@ -453,6 +468,7 @@ function App() {
                 key={ticket.zendesk_id}
                 ticket={ticket}
                 onClick={setSelectedTicket}
+                onNotSpam={currentTab === 'spam' ? handleNotSpam : undefined}
               />
             ))}
           </div>

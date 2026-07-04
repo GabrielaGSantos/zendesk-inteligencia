@@ -280,7 +280,8 @@ export function createRoutes(supabase: SupabaseClient): Router {
       const hasAnalysis = req.query.hasAnalysis as string || '';
       const assignee = req.query.assignee as string || '';
       const sort = req.query.sort as string || 'created_desc';
-      const excludeCategory = req.query.excludeCategory as string || '';
+      const isSpamTab = req.query.isSpamTab === 'true';
+      const excludeSpam = req.query.excludeSpam === 'true';
 
       let query = supabase.from('tickets').select(`
         *,
@@ -303,12 +304,38 @@ export function createRoutes(supabase: SupabaseClient): Router {
           query = query.eq('status', status);
         }
       }
-      if (category) query = query.ilike('ticket_analysis.category', `%${category}%`);
-      if (excludeCategory) query = query.not('ticket_analysis.category', 'ilike', `%${excludeCategory}%`);
-      if (product) query = query.eq('ticket_analysis.product', product);
-      if (pattern) query = query.ilike('ticket_analysis.identified_pattern', `%${pattern}%`);
-      if (priority) query = query.eq('ticket_analysis.suggested_priority', priority);
+      }
+      if (category) {
+        // If we filter by a specific category, we MUST inner join to filter the parent
+        query = query.not('ticket_analysis', 'is', null).ilike('ticket_analysis.category', `%${category}%`);
+      }
+      if (product) query = query.not('ticket_analysis', 'is', null).eq('ticket_analysis.product', product);
+      if (pattern) query = query.not('ticket_analysis', 'is', null).ilike('ticket_analysis.identified_pattern', `%${pattern}%`);
+      if (priority) query = query.not('ticket_analysis', 'is', null).eq('ticket_analysis.suggested_priority', priority);
       if (assignee) query = query.eq('assignee_name', assignee);
+
+      if (isSpamTab || excludeSpam) {
+        const { data: spamAnalyses } = await supabase.from('ticket_analysis').select('ticket_zendesk_id').ilike('category', '%Spam%');
+        const spamIds = (spamAnalyses || []).map(a => a.ticket_zendesk_id);
+        
+        if (isSpamTab) {
+          let orStr = `subject.ilike.%***SPAM***%,status.eq.suspended`;
+          if (spamIds.length > 0) {
+            orStr += `,zendesk_id.in.(${spamIds.join(',')})`;
+          }
+          query = query.or(orStr);
+        } else if (excludeSpam) {
+          query = query.not('subject', 'ilike', '%***SPAM***%');
+          query = query.neq('status', 'suspended');
+          if (spamIds.length > 0) {
+             const chunkSize = 200;
+             for (let i = 0; i < spamIds.length; i += chunkSize) {
+                const chunk = spamIds.slice(i, i + chunkSize);
+                query = query.not('zendesk_id', 'in', `(${chunk.join(',')})`);
+             }
+          }
+        }
+      }
 
       if (hasAnalysis === 'true') {
         query = query.not('ticket_analysis', 'is', null);

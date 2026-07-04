@@ -10,6 +10,7 @@ import { ptBR } from 'date-fns/locale';
 interface TicketCardProps {
   ticket: Ticket;
   onClick: (ticket: Ticket) => void;
+  onNotSpam?: (ticket: Ticket) => void;
 }
 
 function getStatusBadgeClass(status: string): string {
@@ -47,9 +48,10 @@ function formatDate(dateStr: string): string {
   }
 }
 
-export const TicketCard: React.FC<TicketCardProps> = ({ ticket, onClick }) => {
+export const TicketCard: React.FC<TicketCardProps> = ({ ticket, onClick, onNotSpam }) => {
   const hasAnalysis = !!ticket.analyzed_at;
   const confidence = getConfidenceBadge(ticket.confidence_level);
+  const isSpam = ticket.subject?.includes('***SPAM***') || ticket.tags?.includes('spam') || ticket.category?.toLowerCase().includes('spam') || ticket.status === 'suspended';
 
   return (
     <div className="card card--clickable ticket-card" onClick={() => onClick(ticket)}>
@@ -189,17 +191,32 @@ export const TicketCard: React.FC<TicketCardProps> = ({ ticket, onClick }) => {
             </span>
           )}
         </div>
-        <a
-          href={ticket.zendesk_url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="btn btn--ghost btn--sm"
-          onClick={e => e.stopPropagation()}
-          title="Abrir no Zendesk"
-        >
-          <ExternalLink size={13} />
-          Zendesk
-        </a>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          {isSpam && onNotSpam && (
+            <button
+              className="btn btn--outline btn--sm"
+              style={{ borderColor: 'var(--color-brand-primary-400)', color: 'var(--color-brand-primary-600)' }}
+              onClick={(e) => {
+                e.stopPropagation();
+                onNotSpam(ticket);
+              }}
+              title="Marcar que não é spam e mover para principal"
+            >
+              Não é Spam
+            </button>
+          )}
+          <a
+            href={ticket.zendesk_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="btn btn--ghost btn--sm"
+            onClick={e => e.stopPropagation()}
+            title="Abrir no Zendesk"
+          >
+            <ExternalLink size={13} />
+            Zendesk
+          </a>
+        </div>
       </div>
     </div>
   );

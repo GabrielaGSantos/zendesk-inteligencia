@@ -37,7 +37,8 @@ export const api = {  // Tickets
     pattern?: string;
     priority?: string;
     hasAnalysis?: string;
-    excludeCategory?: string;
+    isSpamTab?: boolean;
+    excludeSpam?: boolean;
   } = {}): Promise<PaginatedResponse<Ticket>> => {
     const searchParams = new URLSearchParams();
     Object.entries(params).forEach(([key, value]) => {
