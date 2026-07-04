@@ -54,7 +54,27 @@ export const ReportsScreen: React.FC = () => {
     setLoadingAI(true);
     setShowAIModal(true);
     try {
-      const response = await api.reports.getExecutiveSummary(data.summary);
+      const payload = {
+        periodo: period,
+        entradas: data.summary?.entradas,
+        resolvidos: data.summary?.resolvidos,
+        backlog: data.summary?.backlog,
+        variacaoBacklog: data.summary?.backlog - data.summary?.backlogPrev,
+        sla: data.summary?.slaCumprido / (data.summary?.slaCumprido + data.summary?.slaVencido) * 100,
+        tempoMedio: data.summary?.avgResolutionTime + 'h',
+        clientesTop: data.distributions?.byClient?.slice(0, 3).map((c: any) => ({
+          nome: c.name,
+          tickets: c.entradas,
+          tempoMedio: c.avgTime + 'h'
+        })),
+        produtosTop: data.distributions?.byProduct?.slice(0, 3).map((p: any) => ({
+          nome: p.name,
+          tickets: p.count
+        })),
+        gargalos: data.insights
+      };
+
+      const response = await api.reports.getExecutiveSummary(payload);
       if (response.success) {
         setAiSummary(response.text);
       } else {
