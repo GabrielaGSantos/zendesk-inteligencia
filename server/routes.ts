@@ -304,7 +304,6 @@ export function createRoutes(supabase: SupabaseClient): Router {
           query = query.eq('status', status);
         }
       }
-      }
       if (category) {
         // If we filter by a specific category, we MUST inner join to filter the parent
         query = query.not('ticket_analysis', 'is', null).ilike('ticket_analysis.category', `%${category}%`);
