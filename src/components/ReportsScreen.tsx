@@ -229,7 +229,7 @@ export const ReportsScreen: React.FC = () => {
                 Estamos acompanhando a demanda?
               </h3>
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                {summary.saldo > 0 ? (
+                {summary?.saldo > 0 ? (
                   <>
                     <XCircle size={36} color="#ef4444" />
                     <span style={{ fontSize: '1.4rem', fontWeight: 700, color: '#ef4444' }}>Não (Acumulando backlog)</span>
