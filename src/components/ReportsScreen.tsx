@@ -441,7 +441,7 @@ export const ReportsScreen: React.FC = () => {
                     />
                     <Bar dataKey="count" name="Tickets" fill="#8b5cf6" radius={[0, 4, 4, 0]}>
                       {distributions.byProduct.slice(0, 10).map((entry: any, index: number) => (
-                        <Cell key={\`cell-\${index}\`} fill={index === 0 ? '#6d28d9' : '#8b5cf6'} />
+                        <Cell key={`cell-${index}`} fill={index === 0 ? '#6d28d9' : '#8b5cf6'} />
                       ))}
                     </Bar>
                   </BarChart>
