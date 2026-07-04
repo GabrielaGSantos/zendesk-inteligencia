@@ -406,9 +406,9 @@ ATENÇÃO (CRÍTICO):
 FORMATO OBRIGATÓRIO (JSON):
 {
   "parecerExecutivo": [
-    { "titulo": "Situação Geral" },
-    { "titulo": "Principais Riscos" },
-    { "titulo": "Prioridades" }
+    { "titulo": "Situação Geral", "corpo": "Texto focando no diagnóstico da operação..." },
+    { "titulo": "Principais Riscos", "corpo": "Pontos de atenção, anomalias e gargalos identificados..." },
+    { "titulo": "Prioridades", "corpo": "O que a gestão deve fazer hoje/amanhã com base nos dados..." }
   ]
 }`;
 
