@@ -83,6 +83,20 @@ export function registerReportRoutes(supabase: SupabaseClient) {
     }
   }
 
+  function getPeriodLabels(period: string) {
+    switch (period) {
+      case 'hoje': return { current: 'Hoje', reference: 'Ontem' };
+      case 'ontem': return { current: 'Ontem', reference: 'Anteontem' };
+      case 'ultimos_7_dias': return { current: 'Últimos 7 dias', reference: '7 dias anteriores' };
+      case 'esta_semana': return { current: 'Esta semana', reference: 'Semana passada' };
+      case 'semana_passada': return { current: 'Semana passada', reference: 'Semana retrasada' };
+      case 'este_mes': return { current: 'Este mês', reference: 'Mês passado' };
+      case 'mes_passado': return { current: 'Mês passado', reference: 'Mês retrasado' };
+      case 'personalizado': return { current: 'Período selecionado', reference: 'Período anterior' };
+      default: return { current: 'Período selecionado', reference: 'Período anterior' };
+    }
+  }
+
   router.post('/api/reports/dashboard', async (req, res) => {
     try {
       const { period, customStart, customEnd, client, product, group, assignee, category, priority } = req.body;
@@ -117,6 +131,7 @@ export function registerReportRoutes(supabase: SupabaseClient) {
       const resolvidosPrev = resolvidosPrevRes.count || 0;
       const backlog = backlogRes.count || 0;
       const saldo = entradas - resolvidos;
+      const saldoPrev = entradasPrev - resolvidosPrev;
       const backlogPrev = backlog - saldo;
 
       // SLA
@@ -321,11 +336,26 @@ export function registerReportRoutes(supabase: SupabaseClient) {
         insights.push('🟢 A operação está estável, sem anomalias significativas de volume ou backlog.');
       }
 
+      const periodLabels = getPeriodLabels(period);
+
       res.json({
         success: true,
+        comparison: {
+          mode: period,
+          current: {
+            label: periodLabels.current,
+            start: currentRange.start,
+            end: currentRange.end
+          },
+          reference: {
+            label: periodLabels.reference,
+            start: prevRange.start,
+            end: prevRange.end
+          }
+        },
         summary: {
           entradas, entradasPrev, resolvidos, resolvidosPrev, backlog, backlogPrev,
-          saldo, avgResolutionTime, avgResolutionTimePrev, slaCumprido, slaVencido
+          saldo, saldoPrev, avgResolutionTime, avgResolutionTimePrev, slaCumprido, slaVencido
         },
         distributions: {
           byProduct: Object.entries(volumeByProduct).map(([name, count]) => ({ name, count })).sort((a,b) => b.count - a.count),
