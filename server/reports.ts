@@ -609,13 +609,13 @@ FORMATO OBRIGATÓRIO (JSON):
         const entradas = resCreated.data?.length || 0;
         const resolvidos = resSolved.data?.length || 0;
         
-        let totalHours = 0;
+        let resolutionTimes: number[] = [];
         if (resSolved.data) {
            resSolved.data.forEach(t => {
-             totalHours += (new Date(t.solved_at).getTime() - new Date(t.created_at).getTime()) / 3600000;
+             resolutionTimes.push(getBusinessHours(t.created_at, t.solved_at));
            });
         }
-        const avgTime = resolvidos > 0 ? (totalHours / resolvidos).toFixed(1) : 0;
+        const avgTime = resolutionTimes.length > 0 ? getMedian(resolutionTimes).toFixed(1) : 0;
 
         results.push({
           month: m.label,
