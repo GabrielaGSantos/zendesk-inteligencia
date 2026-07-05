@@ -250,16 +250,20 @@ async function fetchActiveRules(supabase: SupabaseClient): Promise<any[]> {
   return data || [];
 }
 
-async function fetchTaxonomy(supabase: SupabaseClient): Promise<{products: string[], categories: string[]}> {
+async function fetchTaxonomy(supabase: SupabaseClient): Promise<{products: string[], categories: string[], activePatterns: string[]}> {
   try {
     const { data: pData } = await supabase.from('catalog_products').select('name').eq('is_active', true);
     const { data: cData } = await supabase.from('catalog_categories').select('name').eq('is_active', true);
+    // Busca os padrões ativos
+    const { data: patData } = await supabase.from('pattern_groups').select('name').eq('status', 'active');
+    
     return {
       products: pData ? pData.map(p => p.name) : [],
-      categories: cData ? cData.map(c => c.name) : []
+      categories: cData ? cData.map(c => c.name) : [],
+      activePatterns: patData ? patData.map(p => p.name) : []
     };
   } catch(e) {
-    return { products: [], categories: [] };
+    return { products: [], categories: [], activePatterns: [] };
   }
 }
 
@@ -296,7 +300,8 @@ function buildAnalysisPrompt(
   knowledgeRules?: any[],
   agentExpertise?: any[],
   existingAnalysis?: any,
-  taxonomy?: {products: string[], categories: string[]}
+  taxonomy?: {products: string[], categories: string[]},
+  activePatterns?: string[]
 ): string {
   // 1. Filtragem de Comentários (Otimização)
   const allComments = ticket.comments || [];
@@ -478,7 +483,10 @@ Com base em TODAS as informações acima (assunto, descrição, comentários pú
 10. **recommended_procedure**: Procedimento interno recomendado para a equipe resolver o ticket. Se houver casos similares, baseie-se neles.
 11. **suggested_priority**: Prioridade sugerida (urgente, alta, normal, baixa)
 12. **confidence_level**: Seu nível de confiança nesta análise de 0.0 a 1.0
-13. **pattern_group**: Nome do grupo de padrão ao qual este ticket pertence (ex: "Problemas no Portal da Transparência", "Gestão de Acessos", etc.)
+13. **pattern_group**: O nome do padrão de problema ao qual este ticket pertence.
+    VOCÊ DEVE TENTAR ENCAIXÁ-LO EM UM DESTES PADRÕES ATIVOS:
+    ${activePatterns && activePatterns.length > 0 ? activePatterns.map(p => `- "${p}"`).join('\n    ') : 'Nenhum padrão existente.'}
+    REGRA VITAL: Só crie um nome novo se o problema for uma anomalia sistêmica clara (ex: sistema inteiro caiu). Caso contrário, e se não encaixar perfeitamente em nenhum padrão da lista, retorne estritamente null. NUNCA crie padrões com 1 ou 2 tickets apenas.
 14. **needs_internal_routing**: Se precisa de trâmite interno, indicar qual equipe ou pessoa (ex: "Equipe de Desenvolvimento", "Equipe de Infraestrutura", "Nenhum")
 15. **solution_applied**: Se o ticket já foi resolvido baseado nos comentários, descreva brevemente a solução aplicada. Se não, escreva "Pendente".
 16. **new_learned_rule**: Se você perceber, lendo os comentários da equipe de suporte, que eles utilizaram um procedimento interno ou regra padrão que não existe na "Base de Conhecimento", extraia e formule essa nova regra de forma clara. IMPORTANTE: Antes de criar uma nova regra, leia atentamente todas as regras da "Base de Conhecimento" já existentes. Se a regra que você pensou já existir (mesmo que com outras palavras) ou for muito similar a uma existente, NÃO a crie. Só retorne uma regra se ela for genuinamente inédita. Caso contrário, retorne null.
@@ -782,7 +790,7 @@ export async function startAnalysis(apiKey: string, supabase: SupabaseClient): P
           const ticketData: TicketForAnalysis = { ...ticket, comments: comments || [] };
           try {
             const similarContext = await findSimilarResolvedTickets(supabase, ticketData.subject, ticketData.zendesk_id);
-            const prompt = buildAnalysisPrompt(ticketData, similarContext, knowledgeRules, agentExpertise, undefined, taxonomy);
+            const prompt = buildAnalysisPrompt(ticketData, similarContext, knowledgeRules, agentExpertise, undefined, taxonomy, taxonomy.activePatterns);
 
             let responseObj: AIResponse;
             if (provider === 'openai') {
@@ -1071,7 +1079,7 @@ export async function analyzeSingleTicket(apiKey: string, supabase: SupabaseClie
   const provider = settings?.ai_provider || 'gemini';
   const model = settings?.ai_model || 'gemini-2.5-flash';
 
-  const prompt = buildAnalysisPrompt(ticketData, similarContext, knowledgeRules, agentExpertise, existingAnalysis, taxonomy);
+  const prompt = buildAnalysisPrompt(ticketData, similarContext, knowledgeRules, agentExpertise, existingAnalysis, taxonomy, taxonomy.activePatterns);
 
   let responseObj: AIResponse;
 
