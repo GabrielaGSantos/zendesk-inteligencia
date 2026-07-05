@@ -357,9 +357,9 @@ export function registerReportRoutes(supabase: SupabaseClient) {
       }
       
       if (backlogGrowth > 5) {
-        insights.push(`🟡 Atenção: Backlog aumentou ${backlogGrowth.toFixed(1)}% e requer monitoramento.`);
+        insights.push(`🟡 Atenção: Os tickets em aberto aumentaram ${backlogGrowth.toFixed(1)}% e requerem monitoramento.`);
       } else if (backlogGrowth < -5) {
-        insights.push(`🟢 Positivo: Backlog foi reduzido em ${Math.abs(backlogGrowth).toFixed(1)}%.`);
+        insights.push(`🟢 Positivo: Os tickets em aberto foram reduzidos em ${Math.abs(backlogGrowth).toFixed(1)}%.`);
       }
 
       // Produto/Cliente
@@ -377,7 +377,7 @@ export function registerReportRoutes(supabase: SupabaseClient) {
       }
       
       if (insights.length === 0) {
-        insights.push('🟢 A operação está estável, sem anomalias significativas de volume ou backlog.');
+        insights.push('🟢 A operação está estável, sem anomalias significativas de volume ou fila de tickets.');
       }
 
       const periodLabels = getPeriodLabels(period, currentRange.start, prevRange.start);
@@ -474,7 +474,7 @@ ATENÇÃO (CRÍTICO):
 1. O objeto "demandasInternas" representa chamados internos da própria organização (ajustes de infraestrutura, rotinas, desenvolvimento). Trate-os como "Demanda Interna / Backoffice" e não como um cliente que está reclamando.
 2. Apenas os clientes na lista "clientesTop" são clientes externos.
 3. NÃO descreva ou repita os números que já estão visíveis na tela. Em vez disso, responda tacitamente: O que preocupa? O que mudou? Qual a tendência? O que merece atenção amanhã?
-4. Seja analítico e aponte correlações (ex: aumento de entradas com queda de SLA, ou impacto de categorias específicas no backlog).
+4. Seja analítico e aponte correlações (ex: aumento de entradas com queda de SLA, ou impacto de categorias específicas nos tickets em aberto).
 5. OBRIGATÓRIO: Sua resposta final deve ser um objeto JSON válido. NENHUM texto fora do JSON. Não use bloco de código (marcador \`\`\`).
 
 FORMATO OBRIGATÓRIO (JSON):

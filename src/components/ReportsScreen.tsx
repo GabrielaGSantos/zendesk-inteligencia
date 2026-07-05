@@ -7,8 +7,60 @@ import {
 } from 'lucide-react';
 import { 
   ComposedChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, 
-  Tooltip, Legend, ResponsiveContainer, Cell
+  Tooltip, Legend, ResponsiveContainer, Cell, ReferenceLine
 } from 'recharts';
+
+const CustomEvolutionTooltip = ({ active, payload, label }: any) => {
+  if (active && payload && payload.length) {
+    const entradas = payload.find((p: any) => p.dataKey === 'entradas')?.value || 0;
+    const resolvidos = payload.find((p: any) => p.dataKey === 'resolvidos')?.value || 0;
+    const saldo = payload.find((p: any) => p.dataKey === 'saldo')?.value || 0;
+
+    let color = 'var(--color-text-secondary)';
+    let situation = '🟢 A fila permaneceu estável.';
+    if (saldo > 0) {
+      color = '#ef4444';
+      situation = `🔴 A fila aumentou em ${saldo} tickets.`;
+    } else if (saldo < 0) {
+      color = '#22c55e';
+      situation = `🟢 A fila reduziu em ${Math.abs(saldo)} tickets.`;
+    }
+
+    return (
+      <div style={{ backgroundColor: 'var(--color-bg-secondary)', padding: '16px', border: '1px solid var(--color-border)', borderRadius: '8px', minWidth: '220px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
+        <p style={{ margin: '0 0 12px 0', fontWeight: 'bold', color: 'var(--color-text-primary)' }}>{label}</p>
+        
+        <div style={{ marginBottom: '4px', color: 'var(--color-text-primary)' }}>
+          <span style={{ color: 'var(--color-text-secondary)', display: 'inline-block', width: '80px' }}>Entraram:</span>
+          <strong>{entradas} tickets</strong>
+        </div>
+        <div style={{ marginBottom: '12px', color: 'var(--color-text-primary)' }}>
+          <span style={{ color: 'var(--color-text-secondary)', display: 'inline-block', width: '80px' }}>Resolvidos:</span>
+          <strong>{resolvidos} tickets</strong>
+        </div>
+        
+        <div style={{ padding: '8px 0', borderTop: '1px solid var(--color-border)', borderBottom: '1px solid var(--color-border)', marginBottom: '8px' }}>
+          <span style={{ color: 'var(--color-text-secondary)', display: 'inline-block', width: '80px' }}>Saldo:</span>
+          <strong style={{ color }}>{saldo > 0 ? `+${saldo}` : saldo} tickets</strong>
+        </div>
+        
+        <p style={{ margin: 0, fontSize: '0.85rem', color, fontWeight: 500 }}>{situation}</p>
+      </div>
+    );
+  }
+  return null;
+};
+
+const CustomEvolutionDot = (props: any) => {
+  const { cx, cy, payload } = props;
+  const isPositive = payload.saldo > 0;
+  const isNegative = payload.saldo < 0;
+  const fill = isPositive ? '#ef4444' : isNegative ? '#22c55e' : '#9ca3af';
+  
+  return (
+    <circle cx={cx} cy={cy} r={5} stroke="var(--color-bg-primary)" strokeWidth={2} fill={fill} />
+  );
+};
 
 export const ReportsScreen: React.FC = () => {
   const [loading, setLoading] = useState(true);
@@ -412,7 +464,7 @@ export const ReportsScreen: React.FC = () => {
                       <Legend />
                       <Bar dataKey="entradas" name="Entradas Mês" fill="#ef4444" radius={[4, 4, 0, 0]} maxBarSize={50} />
                       <Bar dataKey="resolvidos" name="Resolvidos Mês" fill="#22c55e" radius={[4, 4, 0, 0]} maxBarSize={50} />
-                      <Line type="monotone" dataKey="saldo" name="Variação Mensal (Backlog)" stroke="#f59e0b" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} />
+                      <Line type="monotone" dataKey="saldo" name="Saldo Mensal da Fila" stroke="#f59e0b" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} />
                     </ComposedChart>
                   </ResponsiveContainer>
                 </div>
@@ -619,7 +671,7 @@ export const ReportsScreen: React.FC = () => {
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'center', gap: '16px', marginTop: 8, fontSize: '0.85rem', color: 'var(--color-text-secondary)' }}>
                     <span>SLA: {slaPct.toFixed(1)}%</span>
-                    <span>Backlog: {backlogCrescimento > 0 ? '+' : ''}{backlogCrescimento.toFixed(1)}%</span>
+                    <span>Fila: {backlogCrescimento > 0 ? '+' : ''}{backlogCrescimento.toFixed(1)}%</span>
                   </div>
                 </div>
               );
@@ -642,15 +694,15 @@ export const ReportsScreen: React.FC = () => {
             )}
 
             {data.comparison && renderComparativeCard(
-              "Backlog Atual", <Layers size={18} />, "#f59e0b", "rgba(245, 158, 11, 0.1)",
+              "Tickets em Aberto", <Layers size={18} />, "#f59e0b", "rgba(245, 158, 11, 0.1)",
               summary.backlog, summary.backlogPrev,
               summary.backlog - summary.backlogPrev,
               summary.backlogPrev === 0 ? 0 : ((summary.backlog - summary.backlogPrev) / summary.backlogPrev) * 100,
-              "down" // Backlog crescer é ruim
+              "down" // Fila crescer é ruim
             )}
 
             {data.comparison && renderComparativeCard(
-              "Variação do Backlog (Entradas - Resolvidos)", <Activity size={18} />, "#3b82f6", "rgba(59, 130, 246, 0.1)",
+              "Variação da Fila (Entradas - Resolvidos)", <Activity size={18} />, "#3b82f6", "rgba(59, 130, 246, 0.1)",
               summary.saldo > 0 ? `+${summary.saldo}` : summary.saldo,
               summary.saldoPrev > 0 ? `+${summary.saldoPrev}` : summary.saldoPrev,
               summary.saldo - summary.saldoPrev,
@@ -702,7 +754,7 @@ export const ReportsScreen: React.FC = () => {
                 
                 {backlogTrend > 5 && (
                   <div style={{ padding: '8px 16px', background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', borderRadius: '24px', fontSize: '0.9rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6, border: '1px solid rgba(239, 68, 68, 0.2)' }}>
-                    <TrendingUp size={16} /> Backlog +{backlogTrend.toFixed(0)}%
+                    <TrendingUp size={16} /> Fila +{backlogTrend.toFixed(0)}%
                   </div>
                 )}
                 
@@ -744,16 +796,18 @@ export const ReportsScreen: React.FC = () => {
                     <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
                     <XAxis dataKey="date" stroke="var(--color-text-secondary)" fontSize={12} tickMargin={10} />
                     <YAxis stroke="var(--color-text-secondary)" fontSize={12} />
-                    <Tooltip 
-                      contentStyle={{ backgroundColor: 'var(--color-bg-secondary)', borderColor: 'var(--color-border)', borderRadius: '8px', color: 'var(--color-text-primary)' }}
-                      itemStyle={{ fontWeight: 500 }}
-                    />
+                    <Tooltip content={<CustomEvolutionTooltip />} />
+                    <ReferenceLine y={0} stroke="var(--color-text-primary)" strokeOpacity={0.3} strokeWidth={2} />
                     <Legend wrapperStyle={{ paddingTop: '10px' }} />
                     <Bar dataKey="entradas" name="Entradas" fill="#ef4444" radius={[4, 4, 0, 0]} maxBarSize={50} />
                     <Bar dataKey="resolvidos" name="Resolvidos" fill="#22c55e" radius={[4, 4, 0, 0]} maxBarSize={50} />
-                    <Line type="monotone" dataKey="saldo" name="Acúmulo Diário" stroke="#3b82f6" strokeWidth={3} strokeDasharray="5 5" dot={{ r: 4 }} activeDot={{ r: 6 }} />
+                    <Line type="monotone" dataKey="saldo" name="Saldo do Dia" stroke="#9ca3af" strokeWidth={2} strokeDasharray="5 5" dot={<CustomEvolutionDot />} activeDot={{ r: 7 }} />
                   </ComposedChart>
                 </ResponsiveContainer>
+              </div>
+              <div style={{ marginTop: '16px', display: 'flex', justifyContent: 'center', gap: '24px', fontSize: '0.85rem' }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--color-text-secondary)' }}><div style={{ width: 10, height: 10, borderRadius: '50%', backgroundColor: '#22c55e' }}></div> Valor negativo = redução da fila de tickets</span>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--color-text-secondary)' }}><div style={{ width: 10, height: 10, borderRadius: '50%', backgroundColor: '#ef4444' }}></div> Valor positivo = aumento da fila de tickets</span>
               </div>
             </div>
 
