@@ -77,8 +77,11 @@ export const TaxonomyManager = () => {
       return;
     }
     try {
-      await supabase.from('catalog_products').update({ name: editingProductName.trim() }).eq('id', id);
-      await supabase.from('ticket_analysis').update({ product: editingProductName.trim() }).eq('product', oldName);
+      await fetch('/api/taxonomy/rename', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'product', id, oldName, newName: editingProductName.trim() })
+      });
       setEditingProductId(null);
       loadTaxonomy();
     } catch (err) {
@@ -92,8 +95,11 @@ export const TaxonomyManager = () => {
       return;
     }
     try {
-      await supabase.from('catalog_categories').update({ name: editingCategoryName.trim() }).eq('id', id);
-      await supabase.from('ticket_analysis').update({ category: editingCategoryName.trim() }).eq('category', oldName);
+      await fetch('/api/taxonomy/rename', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'category', id, oldName, newName: editingCategoryName.trim() })
+      });
       setEditingCategoryId(null);
       loadTaxonomy();
     } catch (err) {

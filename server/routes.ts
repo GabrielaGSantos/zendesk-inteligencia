@@ -188,6 +188,28 @@ export function createRoutes(supabase: SupabaseClient): Router {
     }
   });
 
+  // POST /api/taxonomy/rename
+  router.post('/api/taxonomy/rename', async (req, res) => {
+    try {
+      const { type, id, oldName, newName } = req.body;
+      if (!type || !id || !oldName || !newName) {
+        return res.status(400).json({ error: 'Faltam parâmetros' });
+      }
+
+      if (type === 'product') {
+        await supabase.from('catalog_products').update({ name: newName }).eq('id', id);
+        await supabase.from('ticket_analysis').update({ product: newName }).eq('product', oldName);
+      } else if (type === 'category') {
+        await supabase.from('catalog_categories').update({ name: newName }).eq('id', id);
+        await supabase.from('ticket_analysis').update({ category: newName }).eq('category', oldName);
+      }
+      
+      res.json({ success: true });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   // ─── Users (Admin only in production) ──────────────────────────
   
   router.get('/api/users', async (_req, res) => {
