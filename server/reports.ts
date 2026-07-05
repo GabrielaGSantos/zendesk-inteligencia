@@ -141,6 +141,45 @@ export function registerReportRoutes(supabase: SupabaseClient) {
     }
   }
 
+  const getBusinessHours = (startStr: string, endStr: string): number => {
+    const start = new Date(startStr);
+    const end = new Date(endStr);
+    if (start >= end) return 0;
+    let totalMs = 0;
+    let current = new Date(start);
+    while (current < end) {
+      const day = current.getDay();
+      const isWeekend = day === 0 || day === 6;
+      const nextDay = new Date(current);
+      nextDay.setDate(nextDay.getDate() + 1);
+      nextDay.setHours(0, 0, 0, 0);
+      const endOfDay = nextDay < end ? nextDay : end;
+      if (!isWeekend) {
+        const startWork = new Date(current);
+        startWork.setHours(9, 0, 0, 0);
+        const endWork = new Date(current);
+        endWork.setHours(18, 0, 0, 0);
+        const effectiveStart = current > startWork ? current : startWork;
+        const effectiveEnd = endOfDay < endWork ? endOfDay : endWork;
+        if (effectiveStart < effectiveEnd) {
+          totalMs += effectiveEnd.getTime() - effectiveStart.getTime();
+        }
+      }
+      current = nextDay;
+    }
+    return totalMs / 3600000;
+  };
+
+  const getMedian = (numbers: number[]): number => {
+    if (!numbers || numbers.length === 0) return 0;
+    const sorted = [...numbers].sort((a, b) => a - b);
+    const middle = Math.floor(sorted.length / 2);
+    if (sorted.length % 2 === 0) {
+      return (sorted[middle - 1] + sorted[middle]) / 2;
+    }
+    return sorted[middle];
+  };
+
   router.post('/api/reports/dashboard', async (req, res) => {
     try {
       const { period, customStart, customEnd, client, product, group, assignee, category, priority } = req.body;
@@ -182,12 +221,13 @@ export function registerReportRoutes(supabase: SupabaseClient) {
       let qSla = applyFiltersSafe(supabase.from('tickets').select(`id, created_at, solved_at, priority, ticket_analysis${joinType}(category, product)`).in('status', ['solved', 'closed']).gte('solved_at', currentRange.start).lte('solved_at', currentRange.end));
       const { data: slaTickets } = await qSla;
       
-      let slaCumprido = 0; let slaVencido = 0; let totalResolutionTimeHours = 0;
+      let slaCumprido = 0; let slaVencido = 0;
+      let resolutionTimesSla: number[] = [];
       if (slaTickets) {
         slaTickets.forEach((t) => {
           if (!t.solved_at || !t.created_at) return;
-          const hours = (new Date(t.solved_at).getTime() - new Date(t.created_at).getTime()) / 3600000;
-          totalResolutionTimeHours += hours;
+          const hours = getBusinessHours(t.created_at, t.solved_at);
+          resolutionTimesSla.push(hours);
           let limit = 24;
           if (t.priority === 'low') limit = 48;
           else if (t.priority === 'high') limit = 8;
@@ -196,18 +236,18 @@ export function registerReportRoutes(supabase: SupabaseClient) {
           if (hours <= limit) slaCumprido++; else slaVencido++;
         });
       }
-      const avgResolutionTime = slaTickets && slaTickets.length > 0 ? (totalResolutionTimeHours / slaTickets.length).toFixed(1) : '0.0';
+      const avgResolutionTime = getMedian(resolutionTimesSla).toFixed(1);
       
       let qSlaPrev = applyFiltersSafe(supabase.from('tickets').select(`id, created_at, solved_at, priority, ticket_analysis${joinType}(category, product)`).in('status', ['solved', 'closed']).gte('solved_at', prevRange.start).lte('solved_at', prevRange.end));
       const { data: slaTicketsPrev } = await qSlaPrev;
-      let totalResolutionTimeHoursPrev = 0;
+      let resolutionTimesSlaPrev: number[] = [];
       if (slaTicketsPrev) {
         slaTicketsPrev.forEach((t) => {
           if (!t.solved_at || !t.created_at) return;
-          totalResolutionTimeHoursPrev += (new Date(t.solved_at).getTime() - new Date(t.created_at).getTime()) / 3600000;
+          resolutionTimesSlaPrev.push(getBusinessHours(t.created_at, t.solved_at));
         });
       }
-      const avgResolutionTimePrev = slaTicketsPrev && slaTicketsPrev.length > 0 ? (totalResolutionTimeHoursPrev / slaTicketsPrev.length).toFixed(1) : '0.0';
+      const avgResolutionTimePrev = getMedian(resolutionTimesSlaPrev).toFixed(1);
 
       // Advanced Volumes
       let qAllCreated = applyFiltersSafe(supabase.from('tickets').select(`organization_name, priority, group_name, assignee_name, created_at, solved_at, status, ticket_analysis${joinType}(category, product, was_reopened)`).gte('created_at', currentRange.start).lte('created_at', currentRange.end));
@@ -232,34 +272,31 @@ export function registerReportRoutes(supabase: SupabaseClient) {
           const assigneeName = t.assignee_name && t.assignee_name.trim() !== '' ? t.assignee_name : 'Sem agente';
 
           if (groupName) {
-            if (!groupData[groupName]) groupData[groupName] = { entradas: 0, resolvidos: 0, pendentes: 0, totalHours: 0, solvedCount: 0 };
+            if (!groupData[groupName]) groupData[groupName] = { entradas: 0, resolvidos: 0, pendentes: 0, resolutionTimes: [] };
             if (isCreated) groupData[groupName].entradas++;
             if (isSolved) {
                groupData[groupName].resolvidos++;
-               groupData[groupName].totalHours += (new Date(t.solved_at).getTime() - new Date(t.created_at).getTime()) / 3600000;
-               groupData[groupName].solvedCount++;
+               groupData[groupName].resolutionTimes.push(getBusinessHours(t.created_at, t.solved_at));
             }
             if (isPending) groupData[groupName].pendentes++;
           }
           
           if (assigneeName) {
-            if (!agentData[assigneeName]) agentData[assigneeName] = { entradas: 0, resolvidos: 0, pendentes: 0, totalHours: 0, solvedCount: 0 };
+            if (!agentData[assigneeName]) agentData[assigneeName] = { entradas: 0, resolvidos: 0, pendentes: 0, resolutionTimes: [] };
             if (isCreated) agentData[assigneeName].entradas++;
             if (isSolved) {
                agentData[assigneeName].resolvidos++;
-               agentData[assigneeName].totalHours += (new Date(t.solved_at).getTime() - new Date(t.created_at).getTime()) / 3600000;
-               agentData[assigneeName].solvedCount++;
+               agentData[assigneeName].resolutionTimes.push(getBusinessHours(t.created_at, t.solved_at));
             }
             if (isPending) agentData[assigneeName].pendentes++;
           }
 
           if (t.organization_name) {
-            if (!clientData[t.organization_name]) clientData[t.organization_name] = { entradas: 0, reaberturas: 0, totalHours: 0, solvedCount: 0 };
+            if (!clientData[t.organization_name]) clientData[t.organization_name] = { entradas: 0, reaberturas: 0, resolutionTimes: [] };
             if (isCreated) clientData[t.organization_name].entradas++;
             if (t.ticket_analysis && t.ticket_analysis.length > 0 && t.ticket_analysis[0].was_reopened && isCreated) clientData[t.organization_name].reaberturas++;
             if (isSolved) {
-              clientData[t.organization_name].totalHours += (new Date(t.solved_at).getTime() - new Date(t.created_at).getTime()) / 3600000;
-              clientData[t.organization_name].solvedCount++;
+              clientData[t.organization_name].resolutionTimes.push(getBusinessHours(t.created_at, t.solved_at));
             }
           }
           
@@ -277,7 +314,7 @@ export function registerReportRoutes(supabase: SupabaseClient) {
         entradas: groupData[k].entradas,
         resolvidos: groupData[k].resolvidos,
         pendentes: groupData[k].pendentes,
-        avgTime: groupData[k].solvedCount > 0 ? (groupData[k].totalHours / groupData[k].solvedCount).toFixed(1) : '-'
+        avgTime: groupData[k].resolutionTimes.length > 0 ? getMedian(groupData[k].resolutionTimes).toFixed(1) : '-'
       })).sort((a,b) => b.entradas - a.entradas);
 
       const agentStats = Object.keys(agentData).map(k => ({
@@ -285,7 +322,7 @@ export function registerReportRoutes(supabase: SupabaseClient) {
         entradas: agentData[k].entradas,
         resolvidos: agentData[k].resolvidos,
         pendentes: agentData[k].pendentes,
-        avgTime: agentData[k].solvedCount > 0 ? (agentData[k].totalHours / agentData[k].solvedCount).toFixed(1) : '-'
+        avgTime: agentData[k].resolutionTimes.length > 0 ? getMedian(agentData[k].resolutionTimes).toFixed(1) : '-'
       })).sort((a,b) => b.resolvidos - a.resolvidos);
 
       let internalDemand = null;
@@ -296,7 +333,7 @@ export function registerReportRoutes(supabase: SupabaseClient) {
               name: k,
               entradas: clientData[k].entradas,
               reopenRate: clientData[k].entradas > 0 ? ((clientData[k].reaberturas / clientData[k].entradas) * 100).toFixed(0) : '0',
-              avgTime: clientData[k].solvedCount > 0 ? (clientData[k].totalHours / clientData[k].solvedCount).toFixed(1) : '-'
+              avgTime: clientData[k].resolutionTimes.length > 0 ? getMedian(clientData[k].resolutionTimes).toFixed(1) : '-'
             };
             return false;
           }
@@ -306,7 +343,7 @@ export function registerReportRoutes(supabase: SupabaseClient) {
           name: k,
           entradas: clientData[k].entradas,
           reopenRate: clientData[k].entradas > 0 ? ((clientData[k].reaberturas / clientData[k].entradas) * 100).toFixed(0) : '0',
-          avgTime: clientData[k].solvedCount > 0 ? (clientData[k].totalHours / clientData[k].solvedCount).toFixed(1) : '-'
+          avgTime: clientData[k].resolutionTimes.length > 0 ? getMedian(clientData[k].resolutionTimes).toFixed(1) : '-'
         })).sort((a,b) => b.entradas - a.entradas);
 
       // Prev Volumes for trends
