@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { Plus, ToggleLeft, ToggleRight, Trash2 } from 'lucide-react';
+import { Plus, ToggleLeft, ToggleRight, Trash2, Edit2, Check, X } from 'lucide-react';
 
 export const TaxonomyManager = () => {
   const [products, setProducts] = useState<any[]>([]);
@@ -13,6 +13,12 @@ export const TaxonomyManager = () => {
   // Formulário Categorias
   const [newCategoryName, setNewCategoryName] = useState('');
   const [newCategoryGroup, setNewCategoryGroup] = useState('Operacional');
+
+  // Estados de Edição
+  const [editingProductId, setEditingProductId] = useState<number | null>(null);
+  const [editingProductName, setEditingProductName] = useState('');
+  const [editingCategoryId, setEditingCategoryId] = useState<number | null>(null);
+  const [editingCategoryName, setEditingCategoryName] = useState('');
 
   useEffect(() => {
     loadTaxonomy();
@@ -65,6 +71,36 @@ export const TaxonomyManager = () => {
     loadTaxonomy();
   };
 
+  const handleSaveProductEdit = async (id: number, oldName: string) => {
+    if (!editingProductName.trim() || editingProductName === oldName) {
+      setEditingProductId(null);
+      return;
+    }
+    try {
+      await supabase.from('catalog_products').update({ name: editingProductName.trim() }).eq('id', id);
+      await supabase.from('ticket_analysis').update({ product: editingProductName.trim() }).eq('product', oldName);
+      setEditingProductId(null);
+      loadTaxonomy();
+    } catch (err) {
+      alert('Erro ao renomear produto');
+    }
+  };
+
+  const handleSaveCategoryEdit = async (id: number, oldName: string) => {
+    if (!editingCategoryName.trim() || editingCategoryName === oldName) {
+      setEditingCategoryId(null);
+      return;
+    }
+    try {
+      await supabase.from('catalog_categories').update({ name: editingCategoryName.trim() }).eq('id', id);
+      await supabase.from('ticket_analysis').update({ category: editingCategoryName.trim() }).eq('category', oldName);
+      setEditingCategoryId(null);
+      loadTaxonomy();
+    } catch (err) {
+      alert('Erro ao renomear categoria');
+    }
+  };
+
   if (loading) {
     return <div style={{ padding: 24, textAlign: 'center' }}>Carregando taxonomia...</div>;
   }
@@ -91,15 +127,38 @@ export const TaxonomyManager = () => {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {products.map(p => (
             <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px', background: 'var(--color-surface)', borderRadius: 6, border: '1px solid var(--color-border)', opacity: p.is_active ? 1 : 0.6 }}>
-              <span style={{ fontWeight: 500, textDecoration: p.is_active ? 'none' : 'line-through' }}>{p.name}</span>
-              <button 
-                onClick={() => toggleProduct(p.id, p.is_active)}
-                style={{ background: 'none', border: 'none', color: p.is_active ? 'var(--color-success)' : 'var(--color-text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
-                title={p.is_active ? "Desativar" : "Ativar"}
-              >
-                {p.is_active ? <ToggleRight size={20} /> : <ToggleLeft size={20} />}
-                <span style={{ fontSize: 12 }}>{p.is_active ? 'Ativo' : 'Inativo'}</span>
-              </button>
+              
+              {editingProductId === p.id ? (
+                <div style={{ display: 'flex', flex: 1, gap: 8, marginRight: 16 }}>
+                  <input 
+                    autoFocus
+                    type="text" 
+                    value={editingProductName}
+                    onChange={e => setEditingProductName(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && handleSaveProductEdit(p.id, p.name)}
+                    style={{ flex: 1, padding: '4px 8px', borderRadius: 4, border: '1px solid var(--color-primary)' }}
+                  />
+                  <button onClick={() => handleSaveProductEdit(p.id, p.name)} style={{ background: 'none', border: 'none', color: 'var(--color-success)', cursor: 'pointer' }}><Check size={18} /></button>
+                  <button onClick={() => setEditingProductId(null)} style={{ background: 'none', border: 'none', color: 'var(--color-danger)', cursor: 'pointer' }}><X size={18} /></button>
+                </div>
+              ) : (
+                <span style={{ fontWeight: 500, textDecoration: p.is_active ? 'none' : 'line-through' }}>{p.name}</span>
+              )}
+
+              {editingProductId !== p.id && (
+                <div style={{ display: 'flex', gap: 12 }}>
+                  <button onClick={() => { setEditingProductId(p.id); setEditingProductName(p.name); }} style={{ background: 'none', border: 'none', color: 'var(--color-text-muted)', cursor: 'pointer' }} title="Editar">
+                    <Edit2 size={16} />
+                  </button>
+                  <button 
+                    onClick={() => toggleProduct(p.id, p.is_active)}
+                    style={{ background: 'none', border: 'none', color: p.is_active ? 'var(--color-success)' : 'var(--color-text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
+                    title={p.is_active ? "Desativar" : "Ativar"}
+                  >
+                    {p.is_active ? <ToggleRight size={20} /> : <ToggleLeft size={20} />}
+                  </button>
+                </div>
+              )}
             </div>
           ))}
           {products.length === 0 && <p style={{ color: 'var(--color-text-muted)', fontSize: 13, textAlign: 'center' }}>Nenhum produto cadastrado. Crie as tabelas primeiro.</p>}
@@ -137,17 +196,41 @@ export const TaxonomyManager = () => {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {categories.map(c => (
             <div key={c.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px', background: 'var(--color-surface)', borderRadius: 6, border: '1px solid var(--color-border)', opacity: c.is_active ? 1 : 0.6 }}>
-              <div>
-                <span style={{ fontSize: 11, background: 'var(--color-border)', padding: '2px 6px', borderRadius: 4, marginRight: 8 }}>{c.group_type}</span>
-                <span style={{ fontWeight: 500, textDecoration: c.is_active ? 'none' : 'line-through' }}>{c.name}</span>
-              </div>
-              <button 
-                onClick={() => toggleCategory(c.id, c.is_active)}
-                style={{ background: 'none', border: 'none', color: c.is_active ? 'var(--color-success)' : 'var(--color-text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
-                title={c.is_active ? "Desativar" : "Ativar"}
-              >
-                {c.is_active ? <ToggleRight size={20} /> : <ToggleLeft size={20} />}
-              </button>
+              
+              {editingCategoryId === c.id ? (
+                <div style={{ display: 'flex', flex: 1, gap: 8, marginRight: 16 }}>
+                  <input 
+                    autoFocus
+                    type="text" 
+                    value={editingCategoryName}
+                    onChange={e => setEditingCategoryName(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && handleSaveCategoryEdit(c.id, c.name)}
+                    style={{ flex: 1, padding: '4px 8px', borderRadius: 4, border: '1px solid var(--color-primary)' }}
+                  />
+                  <button onClick={() => handleSaveCategoryEdit(c.id, c.name)} style={{ background: 'none', border: 'none', color: 'var(--color-success)', cursor: 'pointer' }}><Check size={18} /></button>
+                  <button onClick={() => setEditingCategoryId(null)} style={{ background: 'none', border: 'none', color: 'var(--color-danger)', cursor: 'pointer' }}><X size={18} /></button>
+                </div>
+              ) : (
+                <div>
+                  <span style={{ fontSize: 11, background: 'var(--color-border)', padding: '2px 6px', borderRadius: 4, marginRight: 8 }}>{c.group_type}</span>
+                  <span style={{ fontWeight: 500, textDecoration: c.is_active ? 'none' : 'line-through' }}>{c.name}</span>
+                </div>
+              )}
+
+              {editingCategoryId !== c.id && (
+                <div style={{ display: 'flex', gap: 12 }}>
+                  <button onClick={() => { setEditingCategoryId(c.id); setEditingCategoryName(c.name); }} style={{ background: 'none', border: 'none', color: 'var(--color-text-muted)', cursor: 'pointer' }} title="Editar">
+                    <Edit2 size={16} />
+                  </button>
+                  <button 
+                    onClick={() => toggleCategory(c.id, c.is_active)}
+                    style={{ background: 'none', border: 'none', color: c.is_active ? 'var(--color-success)' : 'var(--color-text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
+                    title={c.is_active ? "Desativar" : "Ativar"}
+                  >
+                    {c.is_active ? <ToggleRight size={20} /> : <ToggleLeft size={20} />}
+                  </button>
+                </div>
+              )}
             </div>
           ))}
           {categories.length === 0 && <p style={{ color: 'var(--color-text-muted)', fontSize: 13, textAlign: 'center' }}>Nenhuma categoria cadastrada. Crie as tabelas primeiro.</p>}
