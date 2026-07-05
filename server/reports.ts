@@ -269,7 +269,7 @@ export function registerReportRoutes(supabase: SupabaseClient) {
           const isPending = t.status !== 'solved' && t.status !== 'closed' && t.status !== 'deleted';
 
           const groupName = t.group_name && t.group_name.trim() !== '' ? t.group_name : 'Sem grupo definido';
-          const assigneeName = t.assignee_name && t.assignee_name.trim() !== '' ? t.assignee_name : 'Sem agente';
+          const assigneeName = t.assignee_name && t.assignee_name.trim() !== '' ? t.assignee_name : null;
 
           if (groupName) {
             if (!groupData[groupName]) groupData[groupName] = { entradas: 0, resolvidos: 0, pendentes: 0, resolutionTimes: [] };
@@ -294,17 +294,25 @@ export function registerReportRoutes(supabase: SupabaseClient) {
           if (t.organization_name) {
             if (!clientData[t.organization_name]) clientData[t.organization_name] = { entradas: 0, reaberturas: 0, resolutionTimes: [] };
             if (isCreated) clientData[t.organization_name].entradas++;
-            if (t.ticket_analysis && t.ticket_analysis.length > 0 && t.ticket_analysis[0].was_reopened && isCreated) clientData[t.organization_name].reaberturas++;
+            if (t.ticket_analysis && isCreated) {
+              const analysisObj = Array.isArray(t.ticket_analysis) ? t.ticket_analysis[0] : t.ticket_analysis;
+              if (analysisObj && analysisObj.was_reopened) {
+                clientData[t.organization_name].reaberturas++;
+              }
+            }
             if (isSolved) {
               clientData[t.organization_name].resolutionTimes.push(getBusinessHours(t.created_at, t.solved_at));
             }
           }
           
-          if (isCreated && t.ticket_analysis && t.ticket_analysis.length > 0) {
-             const prod = t.ticket_analysis[0].product;
-             const cat = t.ticket_analysis[0].category;
-             if (prod) volumeByProduct[prod] = (volumeByProduct[prod] || 0) + 1;
-             if (cat) volumeByCategory[cat] = (volumeByCategory[cat] || 0) + 1;
+          if (isCreated && t.ticket_analysis) {
+             const analysisObj = Array.isArray(t.ticket_analysis) ? t.ticket_analysis[0] : t.ticket_analysis;
+             if (analysisObj) {
+               const prod = analysisObj.product;
+               const cat = analysisObj.category;
+               if (prod) volumeByProduct[prod] = (volumeByProduct[prod] || 0) + 1;
+               if (cat) volumeByCategory[cat] = (volumeByCategory[cat] || 0) + 1;
+             }
           }
         });
       }
@@ -354,11 +362,14 @@ export function registerReportRoutes(supabase: SupabaseClient) {
       
       if (prevCreatedTickets) {
         prevCreatedTickets.forEach((t) => {
-          if (t.ticket_analysis && t.ticket_analysis.length > 0) {
-            const prod = t.ticket_analysis[0].product;
-            const cat = t.ticket_analysis[0].category;
-            if (prod) prevVolumeByProduct[prod] = (prevVolumeByProduct[prod] || 0) + 1;
-            if (cat) prevVolumeByCategory[cat] = (prevVolumeByCategory[cat] || 0) + 1;
+          if (t.ticket_analysis) {
+            const analysisObj = Array.isArray(t.ticket_analysis) ? t.ticket_analysis[0] : t.ticket_analysis;
+            if (analysisObj) {
+              const prod = analysisObj.product;
+              const cat = analysisObj.category;
+              if (prod) prevVolumeByProduct[prod] = (prevVolumeByProduct[prod] || 0) + 1;
+              if (cat) prevVolumeByCategory[cat] = (prevVolumeByCategory[cat] || 0) + 1;
+            }
           }
         });
       }
