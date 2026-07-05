@@ -7,7 +7,8 @@ import {
 } from 'lucide-react';
 import { 
   ComposedChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, 
-  Tooltip, Legend, ResponsiveContainer, Cell, ReferenceLine
+  Tooltip, Legend, ResponsiveContainer, Cell, ReferenceLine,
+  PieChart, Pie
 } from 'recharts';
 
 const CustomEvolutionTooltip = ({ active, payload, label }: any) => {
@@ -257,11 +258,21 @@ export const ReportsScreen: React.FC = () => {
     return <div style={{ whiteSpace: 'pre-wrap', lineHeight: '1.6', color: 'var(--color-text-primary)', fontSize: '1.05rem' }}>{text}</div>;
   };
 
-  if (!data && loading) {
+  if (loading) {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%', flexDirection: 'column' }}>
         <div className="spinner" style={{ marginBottom: 16 }}></div>
         <p style={{ color: 'var(--color-text-secondary)' }}>Compilando relatórios estratégicos...</p>
+      </div>
+    );
+  }
+
+  if (!data?.summary && activeTab === 'overview') {
+    return (
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%', flexDirection: 'column', gap: 16 }}>
+        <AlertTriangle size={48} color="#ef4444" />
+        <p style={{ color: 'var(--color-text-secondary)' }}>Ocorreu um erro ao carregar os dados. Verifique a conexão com o servidor e se as chaves da API estão corretas.</p>
+        <button className="btn btn--primary" onClick={() => fetchDashboard()}>Tentar Novamente</button>
       </div>
     );
   }
@@ -490,7 +501,7 @@ export const ReportsScreen: React.FC = () => {
         </div>
       )}
 
-      {activeTab === 'overview' && (
+      {data?.summary && activeTab === 'overview' && (
         <>
           {showFilters && (
         <div className="card no-print" style={{ padding: '20px', marginBottom: 24 }}>
