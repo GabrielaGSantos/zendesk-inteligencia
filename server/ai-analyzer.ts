@@ -772,6 +772,11 @@ export async function startAnalysis(apiKey: string, supabase: SupabaseClient): P
 
   try {
     let globalSuccessCount = 0;
+    let batchInputTokens = 0;
+    let batchOutputTokens = 0;
+    let batchApiCalls = 0;
+    let batchCost = 0;
+    let batchErrors = 0;
     let keepRunning = true;
     let initialCountSet = false;
     const failedTicketIds = new Set<number>();
@@ -789,7 +794,7 @@ export async function startAnalysis(apiKey: string, supabase: SupabaseClient): P
       while (hasMore) {
         const { data: ticketsData, error: ticketsError } = await supabase
           .from('tickets')
-          .select('*, ticket_analysis(id)')
+          .select('*, ticket_analysis(id, operational_effort)')
           .order('created_at', { ascending: false })
           .range(page * 1000, (page + 1) * 1000 - 1);
           
@@ -803,7 +808,10 @@ export async function startAnalysis(apiKey: string, supabase: SupabaseClient): P
         }
       }
 
-      const unanalyzedTickets = allTickets.filter(t => (!t.ticket_analysis || t.ticket_analysis.length === 0) && !failedTicketIds.has(t.zendesk_id));
+      const unanalyzedTickets = allTickets.filter(t => {
+        const ta = Array.isArray(t.ticket_analysis) ? t.ticket_analysis[0] : t.ticket_analysis;
+        return (!ta || !ta.operational_effort) && !failedTicketIds.has(t.zendesk_id);
+      });
 
       if (!initialCountSet) {
         analysisProgress.ticketsTotal = unanalyzedTickets.length;
@@ -831,11 +839,7 @@ export async function startAnalysis(apiKey: string, supabase: SupabaseClient): P
 
       const batchSize = 5;
       
-      let batchInputTokens = 0;
-      let batchOutputTokens = 0;
-      let batchApiCalls = 0;
-      let batchCost = 0;
-      let batchErrors = 0;
+
 
       for (let i = 0; i < unanalyzedTickets.length; i += batchSize) {
         if (isAnalysisPaused) {
