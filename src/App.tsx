@@ -40,7 +40,7 @@ function App() {
   const [showSyncModal, setShowSyncModal] = useState(false);
   const [currentTab, setCurrentTab] = useState(() => {
     const hash = window.location.hash.replace('#', '');
-    return ['principal', 'fechados', 'knowledge', 'agents', 'radar', 'spam'].includes(hash) ? hash : 'principal';
+    return ['principal', 'fechados', 'knowledge', 'agents', 'radar', 'reports', 'users', 'spam'].includes(hash) ? hash : 'principal';
   });
 
   useEffect(() => {
@@ -62,7 +62,7 @@ function App() {
   useEffect(() => {
     const handleHashChange = () => {
       const hash = window.location.hash.replace('#', '');
-      if (hash && ['principal', 'fechados', 'knowledge', 'agents', 'radar', 'users', 'spam'].includes(hash)) {
+      if (hash && ['principal', 'fechados', 'knowledge', 'agents', 'radar', 'reports', 'users', 'spam'].includes(hash)) {
         setCurrentTab(hash);
       }
     };
