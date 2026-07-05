@@ -246,55 +246,20 @@ async function findSimilarResolvedTickets(supabase: SupabaseClient, subject: str
 }
 
 async function fetchActiveRules(supabase: SupabaseClient): Promise<any[]> {
+  const { data } = await supabase.from('knowledge_rules').select('*').eq('is_active', true);
+  return data || [];
+}
+
+async function fetchTaxonomy(supabase: SupabaseClient): Promise<{products: string[], categories: string[]}> {
   try {
-    const { data } = await supabase.from('ai_knowledge_base').select('*').eq('is_active', true);
-    if (!data) return [];
-    
-    const allExampleIds = new Set<number>();
-    for (const rule of data) {
-      if (rule.examples && Array.isArray(rule.examples)) {
-        for (const id of rule.examples) allExampleIds.add(id);
-      }
-    }
-    
-    if (allExampleIds.size > 0) {
-      const { data: ticketsData } = await supabase
-        .from('tickets')
-        .select('zendesk_id, subject')
-        .in('zendesk_id', Array.from(allExampleIds));
-        
-      const { data: analysisData } = await supabase
-        .from('ticket_analysis')
-        .select('ticket_zendesk_id, category, problem_summary, suggested_response')
-        .in('ticket_zendesk_id', Array.from(allExampleIds));
-        
-      if (ticketsData) {
-        const ticketMap = new Map();
-        for (const t of ticketsData) {
-          const analysis = analysisData?.find(a => a.ticket_zendesk_id === t.zendesk_id);
-          let solution = analysis?.suggested_response || '';
-          if (solution.length > 200) solution = solution.substring(0, 200) + '...';
-          
-          ticketMap.set(t.zendesk_id, { 
-            subject: t.subject, 
-            category: analysis?.category || 'Desconhecida',
-            summary: analysis?.problem_summary || '',
-            solution: solution || 'Sem resposta disponível'
-          });
-        }
-        
-        for (const rule of data) {
-          if (rule.examples && Array.isArray(rule.examples)) {
-            rule.examples_data = rule.examples.map((id: number) => ticketMap.get(id)).filter(Boolean);
-          }
-        }
-      }
-    }
-    
-    return data;
-  } catch (err) {
-    console.error('Error fetching knowledge rules:', err);
-    return [];
+    const { data: pData } = await supabase.from('catalog_products').select('name').eq('is_active', true);
+    const { data: cData } = await supabase.from('catalog_categories').select('name').eq('is_active', true);
+    return {
+      products: pData ? pData.map(p => p.name) : [],
+      categories: cData ? cData.map(c => c.name) : []
+    };
+  } catch(e) {
+    return { products: [], categories: [] };
   }
 }
 
@@ -330,7 +295,8 @@ function buildAnalysisPrompt(
   similarTickets?: SimilarTicketContext[], 
   knowledgeRules?: any[],
   agentExpertise?: any[],
-  existingAnalysis?: any
+  existingAnalysis?: any,
+  taxonomy?: {products: string[], categories: string[]}
 ): string {
   // 1. Filtragem de Comentários (Otimização)
   const allComments = ticket.comments || [];
@@ -494,9 +460,15 @@ ${agentText}
 
 Com base em TODAS as informações acima (assunto, descrição, comentários públicos, comentários internos, tags, grupo, organização, status e histórico), identifique:
 
-1. **product**: O produto ou sistema principal relacionado ao ticket (ex: "Portal da Transparência", "Site Institucional", "E-mail", "DNS", "Hospedagem", "Ouvidoria", "LGPD", etc.)
+1. **product**: O produto ou sistema principal relacionado ao ticket.
+   VOCÊ DEVE ESCOLHER EXCLUSIVAMENTE DA SEGUINTE LISTA OFICIAL:
+   ${taxonomy?.products && taxonomy.products.length > 0 ? taxonomy.products.map(p => `- "${p}"`).join('\n   ') : 'Nenhuma lista fornecida, deduza com cautela.'}
+   Se nenhum se encaixar perfeitamente, classifique no que for mais provável ou use "Outros". NÃO INVENTE nomes novos.
 2. **request_type**: O tipo de solicitação (ex: "Bug Report", "Alteração de Conteúdo", "Criação de Usuário", "Dúvida", "Melhoria", "Configuração", etc.)
-3. **category**: A(s) categoria(s) técnica(s) ESPECÍFICA(S) E DETALHADA(S). Esta é a principal variável do sistema. NÃO use macro-categorias genéricas como "Gestão de Conteúdo". Você DEVE separar rigorosamente o que é "Operacional" (ex: cadastrar usuário, alterar texto, subir imagem no painel) do que é "Programação/Desenvolvimento" (ex: alterar código-fonte, criar script, editar banco de dados, configurar DNS). Use nomenclaturas que deixem clara a habilidade necessária (ex: "Desenvolvimento > Frontend", "Operacional > Edição via CMS", "Infraestrutura > Servidor", "Programação > Correção de Bug PHP"). IMPORTANTE: Se o ticket envolver mais de uma área de atuação, retorne TODAS as categorias relevantes separadas por " | " (pipe). Exemplo: "Operacional > Edição via CMS | Desenvolvimento > Frontend". Retorne no mínimo 1 e no máximo 3 categorias.
+3. **category**: A categoria técnica ESPECÍFICA do trabalho executado.
+   VOCÊ DEVE ESCOLHER EXCLUSIVAMENTE DA SEGUINTE LISTA OFICIAL:
+   ${taxonomy?.categories && taxonomy.categories.length > 0 ? taxonomy.categories.map(c => `- "${c}"`).join('\n   ') : 'Nenhuma lista fornecida, deduza com cautela.'}
+   NUNCA crie plural, singular ou variações de nomenclatura. NUNCA crie categoria contendo o nome do produto (ex: errado: "Gestão de Conteúdo do Site", certo: Produto "Site", Categoria "Gestão de Conteúdo"). IMPORTANTE: Se o ticket envolver mais de uma área, retorne TODAS as categorias aplicáveis da lista separadas por " | ". Ex: "Gestão de Conteúdo | Configuração".
 4. **client_intent**: O que o cliente realmente quer/precisa em uma frase curta
 5. **problem_summary**: Resumo claro do problema em 1-2 frases
 6. **detailed_requirements**: Liste detalhadamente e minuciosamente TODOS os requisitos, solicitações e detalhes técnicos que o cliente mencionou nas mensagens dele. Use bullet points se necessário. Este campo serve para que o programador/especialista saiba EXATAMENTE tudo o que precisa ser feito sem precisar ler o ticket original inteiro.
@@ -776,6 +748,7 @@ export async function startAnalysis(apiKey: string, supabase: SupabaseClient): P
 
       const knowledgeRules = await fetchActiveRules(supabase);
       const agentExpertise = await fetchAgentExpertise(supabase);
+      const taxonomy = await fetchTaxonomy(supabase);
 
       const { data: settings } = await supabase.from('system_settings').select('*').eq('id', 1).single();
       const provider = settings?.ai_provider || 'gemini';
@@ -809,7 +782,7 @@ export async function startAnalysis(apiKey: string, supabase: SupabaseClient): P
           const ticketData: TicketForAnalysis = { ...ticket, comments: comments || [] };
           try {
             const similarContext = await findSimilarResolvedTickets(supabase, ticketData.subject, ticketData.zendesk_id);
-            const prompt = buildAnalysisPrompt(ticketData, similarContext, knowledgeRules, agentExpertise);
+            const prompt = buildAnalysisPrompt(ticketData, similarContext, knowledgeRules, agentExpertise, undefined, taxonomy);
 
             let responseObj: AIResponse;
             if (provider === 'openai') {
@@ -1050,6 +1023,7 @@ export async function analyzeSingleTicket(apiKey: string, supabase: SupabaseClie
 
   const knowledgeRules = await fetchActiveRules(supabase);
   const agentExpertise = await fetchAgentExpertise(supabase);
+  const taxonomy = await fetchTaxonomy(supabase);
 
   const { data: comments } = await supabase
     .from('ticket_comments')
@@ -1097,7 +1071,7 @@ export async function analyzeSingleTicket(apiKey: string, supabase: SupabaseClie
   const provider = settings?.ai_provider || 'gemini';
   const model = settings?.ai_model || 'gemini-2.5-flash';
 
-  const prompt = buildAnalysisPrompt(ticketData, similarContext, knowledgeRules, agentExpertise, existingAnalysis);
+  const prompt = buildAnalysisPrompt(ticketData, similarContext, knowledgeRules, agentExpertise, existingAnalysis, taxonomy);
 
   let responseObj: AIResponse;
 
