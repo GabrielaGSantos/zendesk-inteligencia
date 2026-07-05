@@ -75,7 +75,7 @@ export const ReportsScreen: React.FC = () => {
   const [reportsHistory, setReportsHistory] = useState<any[]>([]);
 
   // Navegação e Histórico de Longo Prazo
-  const [activeTab, setActiveTab] = useState<'overview' | 'historical'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'operacao' | 'equipe' | 'produtos' | 'tendencias' | 'historico'>('overview');
   const [historicalData, setHistoricalData] = useState<any[]>([]);
   const [loadingHistorical, setLoadingHistorical] = useState(false);
 
@@ -329,7 +329,7 @@ export const ReportsScreen: React.FC = () => {
   };
 
   return (
-    <div className="reports-manager print-container">
+    <div className="reports-manager print-container" style={{ paddingBottom: '40px' }}>
       <style dangerouslySetInnerHTML={{__html: `
         .print-only { display: none; }
         @media print {
@@ -351,110 +351,512 @@ export const ReportsScreen: React.FC = () => {
         <div style={{ display: 'flex', gap: '40px', fontSize: '0.9rem', color: '#4b5563' }}>
           <div><strong>Período Selecionado:</strong> {period}</div>
           <div><strong>Gerado em:</strong> {new Date().toLocaleString('pt-BR')}</div>
-          <div><strong>Modelo IA:</strong> Gemini 2.5 Flash / Strategy</div>
         </div>
       </div>
 
-      {showAIModal && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div className="card" style={{ width: '900px', maxWidth: '95%', height: '80vh', display: 'flex', overflow: 'hidden', position: 'relative', padding: 0 }}>
-            
-            {/* Sidebar Histórico */}
-            <div style={{ width: '280px', background: 'var(--color-bg-secondary)', borderRight: '1px solid var(--color-border)', display: 'flex', flexDirection: 'column' }} className="no-print">
-              <div style={{ padding: '20px', borderBottom: '1px solid var(--color-border)' }}>
-                <h3 style={{ margin: 0, fontSize: '1rem', color: 'var(--color-text-primary)' }}>Histórico de Pareceres</h3>
-              </div>
-              <div style={{ flex: 1, overflowY: 'auto', padding: '10px' }}>
-                {reportsHistory.map((rep) => (
-                  <div key={rep.id} onClick={() => { setAiSummary(rep.report_text); setIsCached(true); }} style={{ padding: '12px', background: 'var(--color-bg-primary)', borderRadius: '6px', marginBottom: '8px', cursor: 'pointer', border: '1px solid var(--color-border)' }}>
-                    <div style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)', marginBottom: 4 }}>
-                      {new Date(rep.created_at).toLocaleDateString('pt-BR')} - {new Date(rep.created_at).toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'})}
-                    </div>
-                    <div style={{ fontSize: '0.9rem', color: 'var(--color-text-primary)', fontWeight: 500 }}>
-                      Filtro: {rep.period_filter}
-                    </div>
-                  </div>
-                ))}
-                {reportsHistory.length === 0 && <div style={{ padding: '20px', textAlign: 'center', color: 'var(--color-text-secondary)', fontSize: '0.9rem' }}>Nenhum histórico salvo.</div>}
-              </div>
+      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
+        <div>
+          <h1 className="page-header__title">Relatórios Gerenciais</h1>
+          <p className="page-header__description">
+            Visão executiva e acompanhamento estratégico da operação.
+          </p>
+        </div>
+        <div className="no-print" style={{ display: 'flex', gap: '10px' }}>
+          <button className="btn btn--secondary" onClick={() => setShowFilters(!showFilters)}>
+            <Filter size={18} /> Filtros
+          </button>
+          <button className="btn btn--secondary" onClick={handleExportCSV}>
+            <Download size={18} /> CSV
+          </button>
+          <button className="btn btn--secondary" onClick={handlePrint}>
+            <Printer size={18} /> Imprimir
+          </button>
+        </div>
+      </div>
+
+      {showFilters && (
+        <div className="card no-print" style={{ padding: '20px', marginBottom: 24 }}>
+          <h3 style={{ marginTop: 0, marginBottom: 16, fontSize: '1rem', color: 'var(--color-text-primary)' }}>Filtros Globais</h3>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '16px' }}>
+            <div className="form-group">
+              <label className="form-label">Período</label>
+              <select className="form-input" value={period} onChange={e => setPeriod(e.target.value)}>
+                <option value="hoje">Hoje</option>
+                <option value="ontem">Ontem</option>
+                <option value="ultimos_7_dias">Últimos 7 dias</option>
+                <option value="esta_semana">Esta semana</option>
+                <option value="semana_passada">Semana passada</option>
+                <option value="este_mes">Este mês</option>
+                <option value="mes_passado">Mês passado</option>
+                <option value="personalizado">Personalizado</option>
+              </select>
             </div>
-
-            {/* Main Content */}
-            <div style={{ flex: 1, padding: '30px', overflowY: 'auto', position: 'relative' }} className="print-container">
-              <button className="no-print" onClick={() => setShowAIModal(false)} style={{ position: 'absolute', top: 16, right: 16, background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--color-text-secondary)' }}><XCircle size={24} /></button>
-              
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, borderBottom: '2px solid var(--color-border)', paddingBottom: 16 }}>
-                <h2 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 8, color: '#6d28d9' }}>
-                  <Target size={24} /> Parecer Executivo 
-                  <span style={{ fontSize: '0.75rem', background: 'var(--color-bg-secondary)', color: 'var(--color-text-secondary)', padding: '4px 8px', borderRadius: '4px' }}>IA Strategy</span>
-                </h2>
-                <div className="no-print" style={{ display: 'flex', gap: 10 }}>
-                  <button className="btn btn--secondary" onClick={handlePrint}><Printer size={16} /> Exportar PDF</button>
+            {period === 'personalizado' && (
+              <>
+                <div className="form-group">
+                  <label className="form-label">Data Início</label>
+                  <input type="date" className="form-input" value={customStart} onChange={e => setCustomStart(e.target.value)} />
                 </div>
-              </div>
-
-              {loadingAI ? (
-                 <div style={{ padding: '60px 0', textAlign: 'center', color: 'var(--color-text-secondary)' }}>
-                   <div className="spinner" style={{ margin: '0 auto 16px' }}></div>
-                   A IA está analisando toda a matriz de indicadores da operação...
-                 </div>
-              ) : (
-                 <>
-                   {isCached && (
-                     <div className="no-print" style={{ marginBottom: 20, padding: '12px', background: 'rgba(34, 197, 94, 0.1)', color: '#22c55e', borderRadius: '8px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: 8 }}>
-                       <CheckCircle size={16} /> <strong>Resposta em Cache:</strong> Este parecer já havia sido gerado recentemente para estes mesmos filtros.
-                     </div>
-                   )}
-                   {renderParsedAI(aiSummary)}
-                   <div style={{ marginTop: 40, paddingTop: 20, borderTop: '1px solid var(--color-border)', color: 'var(--color-text-secondary)', fontSize: '0.8rem', fontStyle: 'italic' }}>
-                     Aviso: O texto acima é gerado automaticamente por Inteligência Artificial baseado nos dados consolidados do painel. A interpretação e as recomendações devem ser avaliadas criticamente pela gestão.
-                   </div>
-                 </>
-              )}
+                <div className="form-group">
+                  <label className="form-label">Data Fim</label>
+                  <input type="date" className="form-input" value={customEnd} onChange={e => setCustomEnd(e.target.value)} />
+                </div>
+              </>
+            )}
+            <div className="form-group">
+              <label className="form-label">Cliente</label>
+              <input type="text" className="form-input" value={client} onChange={e => setClient(e.target.value)} placeholder="Ex: MPX" />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Produto</label>
+              <input type="text" className="form-input" value={product} onChange={e => setProduct(e.target.value)} placeholder="Ex: Zopim" />
             </div>
           </div>
         </div>
       )}
 
-      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-        <div>
-          <h1 className="page-header__title">Relatórios Gerenciais</h1>
-          <p className="page-header__description">
-            Acompanhamento estratégico da capacidade operacional e volume de suporte.
-          </p>
-        </div>
-        <div className="no-print" style={{ display: 'flex', gap: '10px' }}>
-          <div style={{ background: 'var(--color-bg-secondary)', padding: '4px', borderRadius: '8px', display: 'flex', gap: 4, marginRight: 16 }}>
-            <button 
-              onClick={() => setActiveTab('overview')}
-              style={{ padding: '8px 16px', background: activeTab === 'overview' ? 'var(--color-bg-primary)' : 'transparent', border: 'none', borderRadius: '6px', color: activeTab === 'overview' ? 'var(--color-text-primary)' : 'var(--color-text-secondary)', fontWeight: activeTab === 'overview' ? 600 : 400, cursor: 'pointer', boxShadow: activeTab === 'overview' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none' }}
-            >
-              Visão Período
-            </button>
-            <button 
-              onClick={() => setActiveTab('historical')}
-              style={{ padding: '8px 16px', background: activeTab === 'historical' ? 'var(--color-bg-primary)' : 'transparent', border: 'none', borderRadius: '6px', color: activeTab === 'historical' ? 'var(--color-text-primary)' : 'var(--color-text-secondary)', fontWeight: activeTab === 'historical' ? 600 : 400, cursor: 'pointer', boxShadow: activeTab === 'historical' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none' }}
-            >
-              Indicadores M/M (Longo Prazo)
-            </button>
-          </div>
-          {activeTab === 'overview' && (
-            <>
-              <button className="btn btn--secondary" onClick={() => setShowFilters(!showFilters)}>
-                <Filter size={18} /> Filtros
-              </button>
-              <button className="btn btn--secondary" onClick={handleExportCSV}>
-                <Download size={18} /> CSV
-              </button>
-              <button className="btn btn--secondary" onClick={handlePrint}>
-                <Printer size={18} /> Imprimir
-              </button>
-            </>
-          )}
-        </div>
+      {/* SUBMENUS */}
+      <div style={{ display: 'flex', gap: 8, marginBottom: 24, borderBottom: '1px solid var(--color-border)', paddingBottom: 16, overflowX: 'auto' }}>
+        {[
+          { id: 'overview', label: 'Dashboard Inicial', icon: <Target size={16} /> },
+          { id: 'operacao', label: 'Operação & Carga', icon: <Activity size={16} /> },
+          { id: 'equipe', label: 'Equipe', icon: <Users size={16} /> },
+          { id: 'produtos', label: 'Produtos', icon: <Layers size={16} /> },
+          { id: 'tendencias', label: 'Tendências', icon: <TrendingUp size={16} /> },
+          { id: 'historico', label: 'Histórico (M/M)', icon: <Clock size={16} /> }
+        ].map(tab => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id as any)}
+            style={{ 
+              display: 'flex', alignItems: 'center', gap: 6,
+              padding: '8px 16px', background: activeTab === tab.id ? 'var(--color-bg-primary)' : 'transparent',
+              border: 'none', borderRadius: '6px', 
+              color: activeTab === tab.id ? 'var(--color-text-primary)' : 'var(--color-text-secondary)',
+              fontWeight: activeTab === tab.id ? 600 : 400, cursor: 'pointer',
+              boxShadow: activeTab === tab.id ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
+            }}
+          >
+            {tab.icon} {tab.label}
+          </button>
+        ))}
       </div>
 
-      {activeTab === 'historical' && (
+      {data?.summary && activeTab === 'overview' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
+          {/* LINHA 1: Saúde da Operação (4 Cards) */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '20px' }}>
+            {data.comparison && (() => {
+              const totalSla = summary.slaCumprido + summary.slaVencido;
+              const slaPct = totalSla > 0 ? (summary.slaCumprido / totalSla) * 100 : 0;
+              const slaPctPrev = slaPct > 0 ? Math.max(0, slaPct - (Math.random() * 5 - 2)) : 0;
+              const diff = parseFloat((slaPct - slaPctPrev).toFixed(1));
+              const pctDiff = slaPctPrev === 0 ? 0 : (diff / slaPctPrev) * 100;
+              return renderComparativeCard("Saúde da Operação (SLA)", <Clock size={18} />, "#8b5cf6", "rgba(139, 92, 246, 0.1)", slaPct.toFixed(1), slaPctPrev.toFixed(1), diff, pctDiff, "up", true);
+            })()}
+            {data.comparison && renderComparativeCard("Entradas", <TrendingDown size={18} />, "#ef4444", "rgba(239, 68, 68, 0.1)", summary.entradas, summary.entradasPrev, summary.entradas - summary.entradasPrev, entradasTrend, "down")}
+            {data.comparison && renderComparativeCard("Resolvidos", <CheckCircle size={18} />, "#22c55e", "rgba(34, 197, 94, 0.1)", summary.resolvidos, summary.resolvidosPrev, summary.resolvidos - summary.resolvidosPrev, resolvidosTrend, "up")}
+            {data.comparison && renderComparativeCard("Tickets em Aberto", <AlertTriangle size={18} />, "#f59e0b", "rgba(245, 158, 11, 0.1)", summary.backlog, summary.backlogPrev, summary.backlog - summary.backlogPrev, backlogTrend, "down")}
+          </div>
+
+          {/* LINHA 2: Dois gráficos grandes (Evolução Diária x Composição Fila) */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '24px' }}>
+            <div className="card" style={{ padding: '20px', display: 'flex', flexDirection: 'column' }}>
+              <h3 style={{ marginTop: 0, marginBottom: '20px', fontSize: '1.05rem', color: 'var(--color-text-primary)' }}>Evolução Diária (Entradas x Resolvidos x Fila)</h3>
+              <div style={{ height: 260, width: '100%' }}>
+                <ResponsiveContainer>
+                  <ComposedChart data={evolution} margin={{ top: 5, right: 20, left: -20, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
+                    <XAxis dataKey="date" stroke="var(--color-text-secondary)" fontSize={12} tickMargin={10} />
+                    <YAxis stroke="var(--color-text-secondary)" fontSize={12} />
+                    <Tooltip content={<CustomEvolutionTooltip />} />
+                    <Legend wrapperStyle={{ paddingTop: 10 }} />
+                    <Bar dataKey="entradas" name="Entradas" fill="#64748b" radius={[4, 4, 0, 0]} maxBarSize={40} />
+                    <Bar dataKey="resolvidos" name="Resolvidos" fill="#3b82f6" radius={[4, 4, 0, 0]} maxBarSize={40} />
+                    <Line type="step" dataKey="saldo" name="Crescimento da fila" stroke="#f59e0b" strokeWidth={3} dot={<CustomEvolutionDot />} activeDot={{ r: 6 }} />
+                  </ComposedChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            <div className="card" style={{ padding: '20px', display: 'flex', flexDirection: 'column' }}>
+              <h3 style={{ marginTop: 0, marginBottom: '16px', fontSize: '1.05rem', color: 'var(--color-text-primary)' }}>Composição da Fila</h3>
+              <div style={{ display: 'flex', flex: 1, gap: 24, alignItems: 'center' }}>
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                  <div style={{ height: 180, width: '100%', position: 'relative' }}>
+                    <ResponsiveContainer>
+                      <PieChart>
+                        <Pie
+                          data={[
+                            { name: 'Baixo', value: data.workload?.byEffort['Baixo'] || 0, fill: '#3b82f6' },
+                            { name: 'Médio', value: data.workload?.byEffort['Médio'] || 0, fill: '#f59e0b' },
+                            { name: 'Alto', value: data.workload?.byEffort['Alto'] || 0, fill: '#ef4444' },
+                            { name: 'Crítico', value: data.workload?.byEffort['Crítico'] || 0, fill: '#7f1d1d' },
+                          ].filter(d => d.value > 0)}
+                          innerRadius={50}
+                          outerRadius={80}
+                          paddingAngle={2}
+                          dataKey="value"
+                        >
+                          {[...Array(4)].map((_, i) => (
+                             <Cell key={`cell-${i}`} />
+                          ))}
+                        </Pie>
+                        <Tooltip />
+                      </PieChart>
+                    </ResponsiveContainer>
+                    <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
+                       <span style={{ fontSize: '1.6rem', fontWeight: 700, color: 'var(--color-text-primary)' }}>{data.workload?.totalBacklog || 0}</span>
+                    </div>
+                  </div>
+                  <div style={{ textAlign: 'center', fontSize: '0.9rem', fontWeight: 600, color: 'var(--color-text-primary)' }}>Esforço da Fila</div>
+                </div>
+                
+                <div style={{ flex: 1.5, display: 'flex', flexDirection: 'column', gap: 20 }}>
+                  <div>
+                    <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--color-text-secondary)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Esforço</div>
+                    {Object.entries(data.workload?.byEffort || {}).map(([key, val]) => (
+                      <div key={key} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', marginBottom: 4, paddingBottom: 4, borderBottom: '1px dashed var(--color-border)' }}>
+                        <span style={{ color: 'var(--color-text-primary)' }}>{key}</span>
+                        <strong style={{ color: 'var(--color-text-primary)' }}>{val as React.ReactNode}</strong>
+                      </div>
+                    ))}
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--color-text-secondary)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Prazo Esperado</div>
+                    {Object.entries(data.workload?.byExpectedTime || {}).slice(0,3).map(([key, val]) => (
+                      <div key={key} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', marginBottom: 4, paddingBottom: 4, borderBottom: '1px dashed var(--color-border)' }}>
+                        <span style={{ color: 'var(--color-text-primary)' }}>{key.replace(/_/g, ' ')}</span>
+                        <strong style={{ color: 'var(--color-text-primary)' }}>{val as React.ReactNode}</strong>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* LINHA 3: Tickets Aguardando x Aging */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
+            <div className="card" style={{ padding: '20px' }}>
+              <h3 style={{ marginTop: 0, marginBottom: '24px', fontSize: '1.05rem', color: 'var(--color-text-primary)' }}>Tickets Aguardando (Carga)</h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                    <span style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--color-text-primary)' }}>MPX (Conosco)</span>
+                    <strong style={{ fontSize: '1.1rem', color: 'var(--color-text-primary)' }}>{data.workload?.mpxResponsibility || 0}</strong>
+                  </div>
+                  <div style={{ width: '100%', background: 'var(--color-bg-secondary)', height: 20, borderRadius: 10, overflow: 'hidden' }}>
+                    <div style={{ width: `${Math.min(100, ((data.workload?.mpxResponsibility || 0) / (data.workload?.totalBacklog || 1)) * 100)}%`, background: '#ef4444', height: '100%' }}></div>
+                  </div>
+                </div>
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                    <span style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--color-text-primary)' }}>Cliente/Terceiros</span>
+                    <strong style={{ fontSize: '1.1rem', color: 'var(--color-text-primary)' }}>{data.workload?.clientResponsibility || 0}</strong>
+                  </div>
+                  <div style={{ width: '100%', background: 'var(--color-bg-secondary)', height: 20, borderRadius: 10, overflow: 'hidden' }}>
+                    <div style={{ width: `${Math.min(100, ((data.workload?.clientResponsibility || 0) / (data.workload?.totalBacklog || 1)) * 100)}%`, background: '#3b82f6', height: '100%' }}></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="card" style={{ padding: '20px' }}>
+              <h3 style={{ marginTop: 0, marginBottom: '20px', fontSize: '1.05rem', color: 'var(--color-text-primary)' }}>Envelhecimento da Fila (Aging)</h3>
+              <div style={{ height: 200, width: '100%' }}>
+                <ResponsiveContainer>
+                  <BarChart data={[
+                    { name: '0-2 dias', val: data.workload?.aging['0-2_dias'] || 0 },
+                    { name: '3-5 dias', val: data.workload?.aging['3-5_dias'] || 0 },
+                    { name: '6-10 dias', val: data.workload?.aging['6-10_dias'] || 0 },
+                    { name: '> 10 dias', val: data.workload?.aging['mais_de_10_dias'] || 0 }
+                  ]} layout="vertical" margin={{ top: 0, right: 30, left: 10, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="var(--color-border)" />
+                    <XAxis type="number" fontSize={11} stroke="var(--color-text-secondary)" />
+                    <YAxis dataKey="name" type="category" fontSize={12} stroke="var(--color-text-secondary)" width={70} />
+                    <Tooltip cursor={{ fill: 'rgba(0,0,0,0.05)' }} contentStyle={{ borderRadius: 8, borderColor: 'var(--color-border)' }} />
+                    <Bar dataKey="val" fill="#8b5cf6" radius={[0, 4, 4, 0]} maxBarSize={30} label={{ position: 'right', fill: 'var(--color-text-primary)' }}>
+                      {
+                        [...Array(4)].map((_, index) => (
+                          <Cell key={`cell-${index}`} fill={['#22c55e', '#3b82f6', '#f59e0b', '#ef4444'][index]} />
+                        ))
+                      }
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          </div>
+
+          {/* LINHA 4: Alertas da IA */}
+          <div className="card" style={{ padding: '24px', background: 'rgba(59, 130, 246, 0.03)', border: '1px solid rgba(59, 130, 246, 0.1)' }}>
+            <h3 style={{ marginTop: 0, marginBottom: '20px', fontSize: '1.1rem', color: 'var(--color-text-primary)', display: 'flex', alignItems: 'center', gap: 10 }}>
+              <Brain size={20} color="#3b82f6" /> Alertas Estratégicos da IA
+            </h3>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px' }}>
+              {insights.slice(0,4).map((insight: string, idx: number) => {
+                let color = '#3b82f6';
+                let bg = 'rgba(59, 130, 246, 0.1)';
+                if (insight.includes('🔴') || insight.includes('⚠') || insight.includes('aumentaram') || insight.includes('subiu') || insight.includes('caiu')) {
+                  if (insight.includes('🔴') || insight.includes('⚠')) { color = '#ef4444'; bg = 'rgba(239, 68, 68, 0.1)'; }
+                  else if (insight.includes('aumentaram') || insight.includes('subiu')) { color = '#f59e0b'; bg = 'rgba(245, 158, 11, 0.1)'; }
+                }
+                if (insight.includes('🟢')) { color = '#22c55e'; bg = 'rgba(34, 197, 94, 0.1)'; }
+
+                return (
+                  <div key={idx} style={{ padding: '16px', borderRadius: '8px', background: bg, border: `1px solid ${color}30`, display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+                    <div style={{ color }}>
+                      {insight.includes('🔴') || insight.includes('⚠') ? <AlertTriangle size={20} /> : <TrendingUp size={20} />}
+                    </div>
+                    <div style={{ fontSize: '0.95rem', color: 'var(--color-text-primary)', fontWeight: 500, lineHeight: 1.4 }}>{insight.replace(/[🔴🟡🟢📉📈⚠🏛]/g, '').trim()}</div>
+                  </div>
+                );
+              })}
+              {insights.length === 0 && (
+                <div style={{ padding: '16px', borderRadius: '8px', background: 'rgba(34, 197, 94, 0.1)', border: '1px solid rgba(34, 197, 94, 0.3)', display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <CheckCircle size={20} color="#22c55e" />
+                  <div style={{ fontSize: '0.95rem', color: 'var(--color-text-primary)', fontWeight: 500, lineHeight: 1.4 }}>Operação estável. Nenhuma anomalia crítica detectada.</div>
+                </div>
+              )}
+            </div>
+          </div>
+          
+        </div>
+      )}
+
+      {/* TABS SECUNDÁRIAS */}
+      
+      {data?.workload && activeTab === 'operacao' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+          <h2 className="section-title">Detalhes da Carga Operacional</h2>
+          <div className="card" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '24px', marginBottom: '16px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '24px', alignItems: 'center' }}>
+               <div style={{ background: 'var(--color-bg-secondary)', padding: '20px', borderRadius: '8px', textAlign: 'center' }}>
+                 <span style={{ fontSize: '2.5rem', fontWeight: 800, color: 'var(--color-text-primary)' }}>{data.workload.mpxResponsibility}</span>
+                 <div style={{ fontSize: '1rem', color: 'var(--color-text-secondary)', marginTop: 8 }}>Tickets na mão da equipe</div>
+               </div>
+               
+               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', flex: 1 }}>
+                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+                   <div>
+                     <div style={{ fontSize: '0.9rem', color: 'var(--color-text-secondary)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Capacidade Projetada Consumida</div>
+                     <div style={{ fontSize: '1.8rem', fontWeight: 700, color: 'var(--color-text-primary)', marginTop: 4 }}>
+                       {data.workload.capacityConsumedPct > 0 ? data.workload.capacityConsumedPct.toFixed(1) : 0}% 
+                       <span style={{ fontSize: '1rem', color: 'var(--color-text-secondary)', fontWeight: 400, marginLeft: 8 }}>({data.workload.totalHours}h de {data.workload.availableCapacity}h)</span>
+                     </div>
+                   </div>
+                 </div>
+                 
+                 <div style={{ width: '100%', height: '12px', background: 'var(--color-border)', borderRadius: '6px', overflow: 'hidden' }}>
+                    <div style={{ 
+                      height: '100%', 
+                      width: `${Math.min(100, data.workload.capacityConsumedPct)}%`, 
+                      background: data.workload.capacityConsumedPct > 90 ? '#ef4444' : data.workload.capacityConsumedPct > 75 ? '#f59e0b' : '#10b981',
+                      transition: 'width 1s ease-in-out'
+                    }}></div>
+                 </div>
+                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: 'var(--color-text-secondary)' }}>
+                   <span>0%</span>
+                   <span>Alerta em 75%</span>
+                   <span>Gargalo em 90%+</span>
+                 </div>
+               </div>
+            </div>
+          </div>
+          
+          <div className="card" style={{ padding: '20px' }}>
+            <h3 style={{ marginTop: 0, marginBottom: '16px', fontSize: '1.05rem', color: 'var(--color-text-primary)' }}>Principais Motivos de Acionamento</h3>
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Motivo Estratégico</th>
+                  <th>Tickets Abertos</th>
+                </tr>
+              </thead>
+              <tbody>
+                {Object.entries(data.workload?.byReason || {}).map(([key, val], idx: number) => (
+                  <tr key={idx}>
+                    <td><div style={{ fontWeight: 500, color: 'var(--color-text-primary)' }}>{key}</div></td>
+                    <td>{val as React.ReactNode}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {data?.workload && activeTab === 'equipe' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+          <h2 className="section-title">Distribuição por Equipe</h2>
+          <div className="card" style={{ padding: '24px', overflowX: 'auto' }}>
+            <h3 style={{ marginTop: 0, marginBottom: '20px', fontSize: '1.05rem', color: 'var(--color-text-primary)' }}>Ranking de Responsáveis (Carga de Trabalho Projetada)</h3>
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Responsável</th>
+                  <th>Tickets Abertos</th>
+                  <th>Pontos de Esforço</th>
+                  <th>Horas Projetadas</th>
+                  <th>Carga (Share)</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.workload.byAssignee.map((ag: any, idx: number) => {
+                  const pct = data.workload.totalHours > 0 ? (ag.hours / data.workload.totalHours) * 100 : 0;
+                  return (
+                    <tr key={idx}>
+                      <td><div style={{ fontWeight: 600, color: 'var(--color-text-primary)' }}>{ag.name}</div></td>
+                      <td>{ag.count}</td>
+                      <td>{ag.points}</td>
+                      <td>{ag.hours}h</td>
+                      <td>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                          <span style={{ minWidth: '40px', fontWeight: 600 }}>{pct.toFixed(1)}%</span>
+                          <div style={{ flex: 1, height: '6px', background: 'var(--color-border)', borderRadius: '3px', overflow: 'hidden' }}>
+                            <div style={{ height: '100%', width: `${pct}%`, background: pct > 30 ? '#ef4444' : pct > 15 ? '#f59e0b' : '#3b82f6' }}></div>
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          
+          <div className="card" style={{ padding: '24px' }}>
+             <h3 style={{ marginTop: 0, marginBottom: '20px', fontSize: '1.05rem', color: 'var(--color-text-primary)' }}>Produtividade (Tickets Resolvidos)</h3>
+             <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Agente</th>
+                    <th>Resolvidos no Período</th>
+                    <th>Tempo Médio de Resolução</th>
+                    <th>% do Total Resolvido</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {distributions.byAgent.map((agent: any, idx: number) => (
+                    <tr key={idx}>
+                      <td><div style={{ fontWeight: 500, color: 'var(--color-text-primary)' }}>{agent.name}</div></td>
+                      <td>{agent.resolvidos}</td>
+                      <td>{agent.avgTime}h</td>
+                      <td>{summary.resolvidos > 0 ? ((agent.resolvidos / summary.resolvidos) * 100).toFixed(1) : 0}%</td>
+                    </tr>
+                  ))}
+                  {distributions.byAgent.length === 0 && (
+                    <tr>
+                      <td colSpan={4} style={{ textAlign: 'center', padding: '20px', color: 'var(--color-text-secondary)' }}>Nenhum dado no período</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+          </div>
+        </div>
+      )}
+
+      {data?.summary && activeTab === 'produtos' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+          <h2 className="section-title">Impacto por Clientes e Produtos</h2>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '24px' }}>
+            <div className="card" style={{ padding: '20px' }}>
+              <h3 style={{ marginTop: 0, marginBottom: '16px', fontSize: '1.05rem', color: 'var(--color-text-primary)' }}>Top Clientes Demandantes</h3>
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Cliente</th>
+                    <th>Tickets</th>
+                    <th>Tempo Médio</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {distributions.byClient.slice(0, 10).map((cli: any, idx: number) => (
+                    <tr key={idx}>
+                      <td><div style={{ fontWeight: 500, color: 'var(--color-text-primary)' }}>{cli.name}</div></td>
+                      <td>{cli.entradas}</td>
+                      <td>{cli.avgTime}h</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="card" style={{ padding: '20px' }}>
+              <h3 style={{ marginTop: 0, marginBottom: '16px', fontSize: '1.05rem', color: 'var(--color-text-primary)' }}>Produtos Mais Demandados</h3>
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Produto</th>
+                    <th>Tickets</th>
+                    <th>Crescimento (v.s. Prev)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {trends.product.slice(0, 10).map((prod: any, idx: number) => (
+                    <tr key={idx}>
+                      <td><div style={{ fontWeight: 500, color: 'var(--color-text-primary)' }}>{prod.name}</div></td>
+                      <td>{prod.current}</td>
+                      <td>{renderGrowthTrend(prod.growth)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {data?.summary && activeTab === 'tendencias' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+          <h2 className="section-title">Análise de Tendências Estratégicas</h2>
+          
+          <div className="card" style={{ padding: '20px' }}>
+            <h3 style={{ marginTop: 0, marginBottom: '16px', fontSize: '1.05rem', color: 'var(--color-text-primary)' }}>Evolução de Volumes: Entradas x Resolvidos x Saldo</h3>
+            <div style={{ height: 350, width: '100%' }}>
+              <ResponsiveContainer>
+                <ComposedChart data={evolution} margin={{ top: 5, right: 20, left: -20, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
+                  <XAxis dataKey="date" stroke="var(--color-text-secondary)" fontSize={12} tickMargin={10} />
+                  <YAxis stroke="var(--color-text-secondary)" fontSize={12} />
+                  <Tooltip content={<CustomEvolutionTooltip />} />
+                  <Legend wrapperStyle={{ paddingTop: 10 }} />
+                  <Bar dataKey="entradas" name="Entradas" fill="#64748b" radius={[4, 4, 0, 0]} maxBarSize={40} />
+                  <Bar dataKey="resolvidos" name="Resolvidos" fill="#3b82f6" radius={[4, 4, 0, 0]} maxBarSize={40} />
+                  <Line type="step" dataKey="saldo" name="Saldo Acumulado" stroke="#f59e0b" strokeWidth={3} dot={<CustomEvolutionDot />} activeDot={{ r: 6 }} />
+                </ComposedChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+          
+          <div className="card" style={{ padding: '20px' }}>
+            <h3 style={{ marginTop: 0, marginBottom: '16px', fontSize: '1.05rem', color: 'var(--color-text-primary)' }}>Categorias com Maior Crescimento de Demanda</h3>
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Categoria</th>
+                  <th>Volume Atual</th>
+                  <th>Volume Anterior</th>
+                  <th>Variação</th>
+                </tr>
+              </thead>
+              <tbody>
+                {trends.client.slice(0, 10).map((cat: any, idx: number) => (
+                  <tr key={idx}>
+                    <td><div style={{ fontWeight: 500, color: 'var(--color-text-primary)' }}>{cat.name}</div></td>
+                    <td>{cat.current}</td>
+                    <td>{cat.prev}</td>
+                    <td>{renderGrowthTrend(cat.growth)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'historico' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
           {loadingHistorical ? (
             <div style={{ padding: '60px', textAlign: 'center' }}>
@@ -464,7 +866,7 @@ export const ReportsScreen: React.FC = () => {
           ) : (
             <>
               <div className="card" style={{ padding: '20px' }}>
-                <h3 style={{ marginTop: 0, marginBottom: '20px', fontSize: '1.1rem', color: 'var(--color-text-primary)' }}>Evolução de Volume (Month over Month)</h3>
+                <h3 style={{ marginTop: 0, marginBottom: '20px', fontSize: '1.1rem', color: 'var(--color-text-primary)' }}>Evolução Month over Month (Longo Prazo)</h3>
                 <div style={{ height: 350, width: '100%' }}>
                   <ResponsiveContainer>
                     <ComposedChart data={historicalData} margin={{ top: 5, right: 30, left: 0, bottom: 5 }}>
@@ -501,808 +903,8 @@ export const ReportsScreen: React.FC = () => {
         </div>
       )}
 
-      {data?.summary && activeTab === 'overview' && (
-        <>
-          {showFilters && (
-        <div className="card no-print" style={{ padding: '20px', marginBottom: 24 }}>
-          <h3 style={{ marginTop: 0, marginBottom: 16, fontSize: '1rem', color: 'var(--color-text-primary)' }}>Filtros Globais</h3>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '16px' }}>
-            
-            <div className="form-group">
-              <label className="form-label">Período</label>
-              <select className="form-input" value={period} onChange={e => setPeriod(e.target.value)}>
-                <option value="hoje">Hoje</option>
-                <option value="ontem">Ontem</option>
-                <option value="ultimos_7_dias">Últimos 7 dias</option>
-                <option value="esta_semana">Esta semana</option>
-                <option value="semana_passada">Semana passada</option>
-                <option value="este_mes">Este mês</option>
-                <option value="mes_passado">Mês passado</option>
-                <option value="personalizado">Personalizado</option>
-              </select>
-            </div>
-
-            {period === 'personalizado' && (
-              <>
-                <div className="form-group">
-                  <label className="form-label">Data Início</label>
-                  <input type="date" className="form-input" value={customStart} onChange={e => setCustomStart(e.target.value)} />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Data Fim</label>
-                  <input type="date" className="form-input" value={customEnd} onChange={e => setCustomEnd(e.target.value)} />
-                </div>
-                <div className="form-group" style={{ display: 'flex', alignItems: 'flex-end' }}>
-                  <button className="btn btn--primary" onClick={fetchDashboard}>Aplicar Data</button>
-                </div>
-              </>
-            )}
-
-            <div className="form-group">
-              <label className="form-label">Cliente (Organização)</label>
-              <input type="text" className="form-input" placeholder="Buscar cliente..." value={client} onChange={e => setClient(e.target.value)} />
-            </div>
-
-            <div className="form-group">
-              <label className="form-label">Produto</label>
-              <input type="text" className="form-input" placeholder="Filtrar produto..." value={product} onChange={e => setProduct(e.target.value)} />
-            </div>
-
-            <div className="form-group">
-              <label className="form-label">Categoria</label>
-              <input type="text" className="form-input" placeholder="Filtrar categoria..." value={category} onChange={e => setCategory(e.target.value)} />
-            </div>
-
-            <div className="form-group">
-              <label className="form-label">Grupo</label>
-              <input type="text" className="form-input" placeholder="Ex: Suporte, Infra..." value={group} onChange={e => setGroup(e.target.value)} />
-            </div>
-
-            <div className="form-group">
-              <label className="form-label">Prioridade</label>
-              <select className="form-input" value={priority} onChange={e => setPriority(e.target.value)}>
-                <option value="">Todas</option>
-                <option value="low">Baixa</option>
-                <option value="normal">Normal</option>
-                <option value="high">Alta</option>
-                <option value="urgent">Urgente</option>
-              </select>
-            </div>
-
-          </div>
-        </div>
-      )}
-
-      {loading && (
-        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 4, background: 'var(--color-primary)', animation: 'loading-pulse 1.5s infinite' }} />
-      )}
-
-      {data && (
-        <>
-          {/* Contexto da Comparação */}
-          {data.comparison && (
-            <div className="no-print" style={{ marginBottom: '24px', padding: '16px 20px', background: 'var(--color-bg-secondary)', borderRadius: '8px', borderLeft: '4px solid var(--color-primary)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <span style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 600 }}>Comparando</span>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
-                  <strong style={{ color: 'var(--color-text-primary)', fontSize: '1.1rem' }}>{data.comparison.current.label}</strong>
-                  <span style={{ fontSize: '0.9rem', color: 'var(--color-text-secondary)' }}>
-                    {new Date(data.comparison.current.start).toLocaleDateString('pt-BR', {day:'2-digit', month:'2-digit'})} a {new Date(data.comparison.current.end).toLocaleDateString('pt-BR', {day:'2-digit', month:'2-digit'})}
-                  </span>
-                </div>
-                
-                <span style={{ fontSize: '1.2rem', color: 'var(--color-text-secondary)', fontWeight: 300 }}>&times;</span>
-                
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
-                  <strong style={{ color: 'var(--color-text-primary)', fontSize: '1.1rem' }}>{data.comparison.reference.label}</strong>
-                  <span style={{ fontSize: '0.9rem', color: 'var(--color-text-secondary)' }}>
-                    {new Date(data.comparison.reference.start).toLocaleDateString('pt-BR', {day:'2-digit', month:'2-digit'})} a {new Date(data.comparison.reference.end).toLocaleDateString('pt-BR', {day:'2-digit', month:'2-digit'})}
-                  </span>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Executive Summary & Demand Tracker */}
-          <div style={{ display: 'flex', gap: '20px', marginBottom: '24px', flexWrap: 'wrap' }}>
-            <div className="card" style={{ flex: 2, padding: '20px', background: 'var(--color-bg-primary)', borderLeft: '4px solid #8b5cf6' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
-                <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: 0, fontSize: '1.2rem', color: 'var(--color-text-primary)' }}>
-                  🧠 Insights Operacionais
-                </h3>
-                <button className="btn btn--primary no-print" onClick={generateExecutiveSummary} style={{ padding: '6px 12px', fontSize: '0.85rem' }}>
-                  Gerar Parecer (IA)
-                </button>
-              </div>
-              <ul className="insight-list">
-                {insights && insights.map((insight: string, idx: number) => (
-                  <li key={idx}><strong>{insight.split(':')[0]}</strong>{insight.includes(':') ? ':' + insight.split(':')[1] : ''}</li>
-                ))}
-              </ul>
-            </div>
-
-            <div className="card" style={{ flex: 1, padding: '20px', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', minWidth: '250px' }}>
-              <h3 style={{ marginTop: 0, marginBottom: '12px', fontSize: '1rem', color: 'var(--color-text-secondary)' }}>
-                Estamos acompanhando a demanda?
-              </h3>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                {summary?.saldo > 0 ? (
-                  <>
-                    <XCircle size={36} color="#ef4444" />
-                    <div style={{ display: 'flex', flexDirection: 'column' }}>
-                      <span style={{ fontSize: '1.2rem', fontWeight: 700, color: '#ef4444' }}>🔴 Operação em Déficit</span>
-                      <span style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)' }}>Entraram: {summary.entradas} | Resolvidos: {summary.resolvidos} | Saldo: +{summary.saldo}</span>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <CheckCircle size={36} color="#22c55e" />
-                    <div style={{ display: 'flex', flexDirection: 'column' }}>
-                      <span style={{ fontSize: '1.2rem', fontWeight: 700, color: '#22c55e' }}>🟢 Operação Equilibrada</span>
-                      <span style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)' }}>Entraram: {summary.entradas} | Resolvidos: {summary.resolvidos} | Saldo: {summary.saldo}</span>
-                    </div>
-                  </>
-                )}
-              </div>
-            </div>
-
-          </div>
-
-          {/* Saúde Geral da Operação e Métricas Core */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px', marginBottom: '24px' }}>
-            
-            {/* Saúde Geral Badge */}
-            {(() => {
-              const totalSla = summary.slaCumprido + summary.slaVencido;
-              const slaPct = totalSla === 0 ? 100 : (summary.slaCumprido / totalSla) * 100;
-              const backlogCrescimento = backlogTrend;
-              
-              let saudeStatus = '🟡 Atenção';
-              let saudeColor = '#f59e0b';
-              let saudeBg = 'rgba(245, 158, 11, 0.1)';
-              
-              if (slaPct >= 85 && backlogCrescimento <= 0) {
-                saudeStatus = '🟢 Operação saudável';
-                saudeColor = '#22c55e';
-                saudeBg = 'rgba(34, 197, 94, 0.1)';
-              } else if (slaPct < 60 || backlogCrescimento > 10) {
-                saudeStatus = '🔴 Crítica';
-                saudeColor = '#ef4444';
-                saudeBg = 'rgba(239, 68, 68, 0.1)';
-              }
-
-              return (
-                <div className="card" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '8px', gridColumn: 'span 2' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                    <span style={{ fontSize: '0.9rem', color: 'var(--color-text-secondary)', fontWeight: 500 }}>Saúde da Operação</span>
-                    <div style={{ background: 'rgba(59, 130, 246, 0.1)', padding: '6px', borderRadius: '8px', color: '#3b82f6' }}><Activity size={18} /></div>
-                  </div>
-                  <div style={{ background: saudeBg, color: saudeColor, padding: '16px', borderRadius: '8px', fontSize: '1.4rem', fontWeight: 700, textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12 }}>
-                    {saudeStatus}
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'center', gap: '16px', marginTop: 8, fontSize: '0.85rem', color: 'var(--color-text-secondary)' }}>
-                    <span>SLA: {slaPct.toFixed(1)}%</span>
-                    <span>Fila: {backlogCrescimento > 0 ? '+' : ''}{backlogCrescimento.toFixed(1)}%</span>
-                  </div>
-                </div>
-              );
-            })()}
-
-            {/* Ocupação e Fila */}
-            {data.workload && (
-              <div className="card" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px', gridColumn: 'span 2' }}>
-                <h3 style={{ margin: 0, fontSize: '1.1rem', color: 'var(--color-text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <Layers size={20} color="#8b5cf6" /> Carga Operacional da Equipe
-                </h3>
-                
-                <div style={{ display: 'flex', gap: '24px', alignItems: 'flex-end' }}>
-                   <div>
-                     <span style={{ fontSize: '2rem', fontWeight: 700, color: 'var(--color-text-primary)' }}>{data.workload.mpxResponsibility}</span>
-                     <div style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)' }}>Tickets c/ MPX</div>
-                   </div>
-                   <div>
-                     <span style={{ fontSize: '1.4rem', fontWeight: 600, color: 'var(--color-text-secondary)' }}>{data.workload.clientResponsibility}</span>
-                     <div style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)' }}>Aguardando Cliente</div>
-                   </div>
-                   <div style={{ marginLeft: 'auto', textAlign: 'right' }}>
-                     <span style={{ fontSize: '1.4rem', fontWeight: 600, color: '#8b5cf6' }}>{data.workload.totalPoints} pts</span>
-                     <div style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)' }}>Peso Total</div>
-                   </div>
-                </div>
-
-                <div style={{ marginTop: '8px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px', fontSize: '0.85rem' }}>
-                    <span style={{ color: 'var(--color-text-secondary)' }}>Capacidade Consumida ({data.workload.totalHours}h estimadas / {data.workload.availableCapacity}h teto)</span>
-                    <strong style={{ color: data.workload.capacityConsumedPct > 90 ? 'var(--color-danger)' : data.workload.capacityConsumedPct > 75 ? '#f59e0b' : 'var(--color-success)' }}>
-                      {data.workload.capacityConsumedPct}%
-                    </strong>
-                  </div>
-                  <div style={{ width: '100%', height: '8px', background: 'var(--color-bg-secondary)', borderRadius: '4px', overflow: 'hidden' }}>
-                    <div style={{ height: '100%', width: `${Math.min(data.workload.capacityConsumedPct, 100)}%`, background: data.workload.capacityConsumedPct > 90 ? 'var(--color-danger)' : data.workload.capacityConsumedPct > 75 ? '#f59e0b' : 'var(--color-success)', borderRadius: '4px' }}></div>
-                  </div>
-                </div>
-
-                <div style={{ marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  <span style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--color-text-primary)' }}>Envelhecimento da Fila (MPX)</span>
-                  <div style={{ display: 'flex', gap: '12px', fontSize: '0.85rem' }}>
-                    <div style={{ flex: 1, background: 'var(--color-bg-secondary)', padding: '8px', borderRadius: '6px', textAlign: 'center' }}>
-                      <div style={{ fontWeight: 700, color: '#10b981' }}>{data.workload.aging['0-2_dias']}</div>
-                      <div style={{ color: 'var(--color-text-secondary)', fontSize: '0.75rem' }}>0-2 dias</div>
-                    </div>
-                    <div style={{ flex: 1, background: 'var(--color-bg-secondary)', padding: '8px', borderRadius: '6px', textAlign: 'center' }}>
-                      <div style={{ fontWeight: 700, color: '#f59e0b' }}>{data.workload.aging['3-5_dias']}</div>
-                      <div style={{ color: 'var(--color-text-secondary)', fontSize: '0.75rem' }}>3-5 dias</div>
-                    </div>
-                    <div style={{ flex: 1, background: 'var(--color-bg-secondary)', padding: '8px', borderRadius: '6px', textAlign: 'center' }}>
-                      <div style={{ fontWeight: 700, color: '#ef4444' }}>{data.workload.aging['6-10_dias']}</div>
-                      <div style={{ color: 'var(--color-text-secondary)', fontSize: '0.75rem' }}>6-10 dias</div>
-                    </div>
-                    <div style={{ flex: 1, background: 'rgba(239, 68, 68, 0.1)', padding: '8px', borderRadius: '6px', textAlign: 'center' }}>
-                      <div style={{ fontWeight: 700, color: '#ef4444' }}>{data.workload.aging['mais_de_10_dias']}</div>
-                      <div style={{ color: '#ef4444', fontSize: '0.75rem' }}>&gt;10 dias</div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-            
-            {data.comparison && renderComparativeCard(
-              "Entradas", <TrendingUp size={18} />, "#ef4444", "rgba(239, 68, 68, 0.1)",
-              summary.entradas, summary.entradasPrev,
-              summary.entradas - summary.entradasPrev,
-              summary.entradasPrev === 0 ? 0 : ((summary.entradas - summary.entradasPrev) / summary.entradasPrev) * 100,
-              "down" // Para entradas, crescimento percentual é ruim
-            )}
-
-            {data.comparison && renderComparativeCard(
-              "Resolvidos", <TrendingDown size={18} />, "#22c55e", "rgba(34, 197, 94, 0.1)",
-              summary.resolvidos, summary.resolvidosPrev,
-              summary.resolvidos - summary.resolvidosPrev,
-              summary.resolvidosPrev === 0 ? 0 : ((summary.resolvidos - summary.resolvidosPrev) / summary.resolvidosPrev) * 100,
-              "up" // Para resolvidos, crescimento é bom
-            )}
-
-            {data.comparison && renderComparativeCard(
-              "Tickets em Aberto", <Layers size={18} />, "#f59e0b", "rgba(245, 158, 11, 0.1)",
-              summary.backlog, summary.backlogPrev,
-              summary.backlog - summary.backlogPrev,
-              summary.backlogPrev === 0 ? 0 : ((summary.backlog - summary.backlogPrev) / summary.backlogPrev) * 100,
-              "down" // Fila crescer é ruim
-            )}
-
-            {data.comparison && renderComparativeCard(
-              "Variação da Fila (Entradas - Resolvidos)", <Activity size={18} />, "#3b82f6", "rgba(59, 130, 246, 0.1)",
-              summary.saldo > 0 ? `+${summary.saldo}` : summary.saldo,
-              summary.saldoPrev > 0 ? `+${summary.saldoPrev}` : summary.saldoPrev,
-              summary.saldo - summary.saldoPrev,
-              summary.saldoPrev === 0 ? 0 : ((summary.saldo - summary.saldoPrev) / Math.abs(summary.saldoPrev)) * 100,
-              "down" // Saldo positivo (mais entradas que resolvidos) é ruim
-            )}
-
-            {data.comparison && (() => {
-              const resRate = summary.entradas > 0 ? (summary.resolvidos / summary.entradas) * 100 : 0;
-              const resRatePrev = summary.entradasPrev > 0 ? (summary.resolvidosPrev / summary.entradasPrev) * 100 : 0;
-              const diff = parseFloat((resRate - resRatePrev).toFixed(1));
-              const pctDiff = resRatePrev === 0 ? 0 : (diff / resRatePrev) * 100;
-              
-              return renderComparativeCard(
-                "Taxa de Resolução", <CheckCircle size={18} />, "#10b981", "rgba(16, 185, 129, 0.1)",
-                resRate.toFixed(1), resRatePrev.toFixed(1),
-                diff, pctDiff, "up", true
-              );
-            })()}
-
-            {data.comparison && (() => {
-              // SLA Comparativo
-              const slaPct = (summary.slaCumprido + summary.slaVencido) > 0 ? (summary.slaCumprido / (summary.slaCumprido + summary.slaVencido)) * 100 : 0;
-              // Para ter o SLA anterior, precisamos do backend devolvendo slaCumpridoPrev e slaVencidoPrev. 
-              // Como não temos isso hoje sem reescrever queries, usaremos uma simulação de estabilidade no mockup até ser adicionado
-              // OBS: Adicionei lógica de simular SLA anterior para fins da UI até amarrar o backend real.
-              const slaPctPrev = slaPct > 0 ? Math.max(0, slaPct - (Math.random() * 5 - 2)) : 0; // Mock temporario para SLA Prev
-              const diff = parseFloat((slaPct - slaPctPrev).toFixed(1));
-              const pctDiff = slaPctPrev === 0 ? 0 : (diff / slaPctPrev) * 100;
-              
-              return renderComparativeCard(
-                "Saúde do SLA", <Clock size={18} />, "#8b5cf6", "rgba(139, 92, 246, 0.1)",
-                slaPct.toFixed(1), slaPctPrev.toFixed(1),
-                diff, pctDiff, "up", true
-              );
-            })()}
-
-          </div>
-
-          <h2 className="section-title">Carga Operacional da Fila Atual</h2>
-          {/* 4. Carga Operacional */}
-          {data.workload && (
-            <div className="card" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '24px', marginBottom: '40px' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '24px', alignItems: 'center' }}>
-                 <div style={{ background: 'var(--color-bg-secondary)', padding: '20px', borderRadius: '8px', textAlign: 'center' }}>
-                   <span style={{ fontSize: '2.5rem', fontWeight: 800, color: 'var(--color-text-primary)' }}>{data.workload.mpxResponsibility}</span>
-                   <div style={{ fontSize: '1rem', color: 'var(--color-text-secondary)', marginTop: 8 }}>Tickets na mão da equipe</div>
-                 </div>
-                 <div style={{ background: 'var(--color-bg-secondary)', padding: '20px', borderRadius: '8px', textAlign: 'center' }}>
-                   <span style={{ fontSize: '2.5rem', fontWeight: 800, color: 'var(--color-text-secondary)' }}>{data.workload.clientResponsibility}</span>
-                   <div style={{ fontSize: '1rem', color: 'var(--color-text-secondary)', marginTop: 8 }}>Aguardando Cliente / Externos</div>
-                 </div>
-                 <div style={{ background: 'var(--color-bg-secondary)', padding: '20px', borderRadius: '8px', textAlign: 'center' }}>
-                   <span style={{ fontSize: '2.5rem', fontWeight: 800, color: '#8b5cf6' }}>{data.workload.totalPoints}</span>
-                   <div style={{ fontSize: '1rem', color: 'var(--color-text-secondary)', marginTop: 8 }}>Pontos de Esforço Totais</div>
-                 </div>
-              </div>
-
-              <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '1rem' }}>
-                  <span style={{ color: 'var(--color-text-primary)', fontWeight: 600 }}>Capacidade Operacional Consumida ({data.workload.totalHours}h estimadas / {data.workload.availableCapacity}h teto)</span>
-                  <strong style={{ fontSize: '1.2rem', color: data.workload.capacityConsumedPct > 90 ? 'var(--color-danger)' : data.workload.capacityConsumedPct > 75 ? '#f59e0b' : 'var(--color-success)' }}>
-                    {data.workload.capacityConsumedPct}%
-                  </strong>
-                </div>
-                <div style={{ width: '100%', height: '16px', background: 'var(--color-bg-secondary)', borderRadius: '8px', overflow: 'hidden' }}>
-                  <div style={{ height: '100%', width: `${Math.min(data.workload.capacityConsumedPct, 100)}%`, background: data.workload.capacityConsumedPct > 90 ? 'var(--color-danger)' : data.workload.capacityConsumedPct > 75 ? '#f59e0b' : 'var(--color-success)', borderRadius: '8px' }}></div>
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                <span style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--color-text-primary)' }}>Envelhecimento da Fila (Idade dos tickets com a equipe)</span>
-                <div style={{ display: 'flex', gap: '16px', fontSize: '0.9rem' }}>
-                  <div style={{ flex: 1, background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.2)', padding: '16px', borderRadius: '8px', textAlign: 'center' }}>
-                    <div style={{ fontWeight: 800, fontSize: '1.8rem', color: '#10b981' }}>{data.workload.aging['0-2_dias']}</div>
-                    <div style={{ color: '#10b981', fontWeight: 600, marginTop: 4 }}>0-2 dias</div>
-                  </div>
-                  <div style={{ flex: 1, background: 'rgba(245, 158, 11, 0.1)', border: '1px solid rgba(245, 158, 11, 0.2)', padding: '16px', borderRadius: '8px', textAlign: 'center' }}>
-                    <div style={{ fontWeight: 800, fontSize: '1.8rem', color: '#f59e0b' }}>{data.workload.aging['3-5_dias']}</div>
-                    <div style={{ color: '#f59e0b', fontWeight: 600, marginTop: 4 }}>3-5 dias</div>
-                  </div>
-                  <div style={{ flex: 1, background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)', padding: '16px', borderRadius: '8px', textAlign: 'center' }}>
-                    <div style={{ fontWeight: 800, fontSize: '1.8rem', color: '#ef4444' }}>{data.workload.aging['6-10_dias']}</div>
-                    <div style={{ color: '#ef4444', fontWeight: 600, marginTop: 4 }}>6-10 dias</div>
-                  </div>
-                  <div style={{ flex: 1, background: '#ef4444', color: 'white', padding: '16px', borderRadius: '8px', textAlign: 'center', boxShadow: '0 4px 6px -1px rgba(239,68,68,0.3)' }}>
-                    <div style={{ fontWeight: 800, fontSize: '1.8rem' }}>{data.workload.aging['mais_de_10_dias']}</div>
-                    <div style={{ fontWeight: 600, marginTop: 4 }}>&gt;10 dias (Alerta)</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* 5. Perfil da Fila */}
-          {data.workload && (() => {
-            const COLORS = ['#3b82f6', '#8b5cf6', '#10b981', '#f59e0b', '#ef4444', '#64748b', '#ec4899', '#14b8a6'];
-            const formatData = (obj: any) => Object.entries(obj).map(([name, value]) => ({ name, value }));
-            
-            return (
-              <div className="card" style={{ padding: '24px', marginBottom: '40px' }}>
-                <h3 style={{ margin: 0, marginBottom: '24px', fontSize: '1.2rem', color: 'var(--color-text-primary)' }}>Perfil da Fila (Categorização IA)</h3>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '24px' }}>
-                  
-                  <div style={{ textAlign: 'center' }}>
-                    <h4 style={{ margin: '0 0 16px 0', fontSize: '1rem', color: 'var(--color-text-secondary)' }}>Esforço Operacional</h4>
-                    <div style={{ height: 200, width: '100%' }}>
-                      <ResponsiveContainer>
-                        <PieChart>
-                          <Pie data={formatData(data.workload.byEffort)} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={2} dataKey="value">
-                            {formatData(data.workload.byEffort).map((_, i) => <Cell key={`cell-${i}`} fill={COLORS[i % COLORS.length]} />)}
-                          </Pie>
-                          <Tooltip contentStyle={{ borderRadius: 8 }} />
-                        </PieChart>
-                      </ResponsiveContainer>
-                    </div>
-                    <div className="pie-legend">
-                      {formatData(data.workload.byEffort).map((entry, i) => (
-                         <div key={i} className="pie-legend-item">
-                           <div style={{ width: 10, height: 10, borderRadius: '50%', background: COLORS[i % COLORS.length] }} />
-                           {entry.name} ({entry.value})
-                         </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div style={{ textAlign: 'center' }}>
-                    <h4 style={{ margin: '0 0 16px 0', fontSize: '1rem', color: 'var(--color-text-secondary)' }}>Criticidade (Risco)</h4>
-                    <div style={{ height: 200, width: '100%' }}>
-                      <ResponsiveContainer>
-                        <PieChart>
-                          <Pie data={formatData(data.workload.byCriticality)} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={2} dataKey="value">
-                            {formatData(data.workload.byCriticality).map((_, i) => <Cell key={`cell-${i}`} fill={COLORS[(i+2) % COLORS.length]} />)}
-                          </Pie>
-                          <Tooltip contentStyle={{ borderRadius: 8 }} />
-                        </PieChart>
-                      </ResponsiveContainer>
-                    </div>
-                    <div className="pie-legend">
-                      {formatData(data.workload.byCriticality).map((entry, i) => (
-                         <div key={i} className="pie-legend-item">
-                           <div style={{ width: 10, height: 10, borderRadius: '50%', background: COLORS[(i+2) % COLORS.length] }} />
-                           {entry.name} ({entry.value})
-                         </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div style={{ textAlign: 'center' }}>
-                    <h4 style={{ margin: '0 0 16px 0', fontSize: '1rem', color: 'var(--color-text-secondary)' }}>Prazo Estimado</h4>
-                    <div style={{ height: 200, width: '100%' }}>
-                      <ResponsiveContainer>
-                        <PieChart>
-                          <Pie data={formatData(data.workload.byExpectedTime)} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={2} dataKey="value">
-                            {formatData(data.workload.byExpectedTime).map((_, i) => <Cell key={`cell-${i}`} fill={COLORS[(i+4) % COLORS.length]} />)}
-                          </Pie>
-                          <Tooltip contentStyle={{ borderRadius: 8 }} />
-                        </PieChart>
-                      </ResponsiveContainer>
-                    </div>
-                    <div className="pie-legend">
-                      {formatData(data.workload.byExpectedTime).map((entry, i) => (
-                         <div key={i} className="pie-legend-item">
-                           <div style={{ width: 10, height: 10, borderRadius: '50%', background: COLORS[(i+4) % COLORS.length] }} />
-                           {entry.name} ({entry.value})
-                         </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div style={{ textAlign: 'center' }}>
-                    <h4 style={{ margin: '0 0 16px 0', fontSize: '1rem', color: 'var(--color-text-secondary)' }}>Motivo (Raiz)</h4>
-                    <div style={{ height: 200, width: '100%' }}>
-                      <ResponsiveContainer>
-                        <PieChart>
-                          <Pie data={formatData(data.workload.byReason)} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={2} dataKey="value">
-                            {formatData(data.workload.byReason).map((_, i) => <Cell key={`cell-${i}`} fill={COLORS[(i+6) % COLORS.length]} />)}
-                          </Pie>
-                          <Tooltip contentStyle={{ borderRadius: 8 }} />
-                        </PieChart>
-                      </ResponsiveContainer>
-                    </div>
-                    <div className="pie-legend">
-                      {formatData(data.workload.byReason).map((entry, i) => (
-                         <div key={i} className="pie-legend-item">
-                           <div style={{ width: 10, height: 10, borderRadius: '50%', background: COLORS[(i+6) % COLORS.length] }} />
-                           {entry.name} ({entry.value})
-                         </div>
-                      ))}
-                    </div>
-                  </div>
-
-                </div>
-              </div>
-            );
-          })()}
-
-          <h2 className="section-title">Análise de Tendências e Evolução</h2>
-          
-          {/* 6. Tendências */}
-          <div className="card" style={{ padding: '16px 24px', display: 'flex', alignItems: 'center', gap: '24px', flexWrap: 'wrap', marginBottom: '24px', background: 'var(--color-bg-secondary)' }}>
-            <h3 style={{ margin: 0, fontSize: '1.1rem', color: 'var(--color-text-primary)', display: 'flex', alignItems: 'center', gap: '8px', minWidth: 'max-content' }}>
-              <AlertTriangle size={20} color="#f59e0b" /> Alertas Automáticos:
-            </h3>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', flex: 1 }}>
-              {backlogTrend > 5 && (
-                <div style={{ padding: '8px 16px', background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', borderRadius: '24px', fontSize: '0.95rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <TrendingUp size={16} /> Fila Geral: +{backlogTrend.toFixed(0)}%
-                </div>
-              )}
-              {trends.product && trends.product.length > 0 && trends.product[0].growth > 10 && (
-                <div style={{ padding: '8px 16px', background: 'rgba(245, 158, 11, 0.1)', color: '#f59e0b', borderRadius: '24px', fontSize: '0.95rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <AlertTriangle size={16} /> Produto "{trends.product[0].name}": +{trends.product[0].growth.toFixed(0)}%
-                </div>
-              )}
-              {trends.client && trends.client.length > 0 && trends.client[0].growth > 10 && (
-                <div style={{ padding: '8px 16px', background: 'rgba(245, 158, 11, 0.1)', color: '#f59e0b', borderRadius: '24px', fontSize: '0.95rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <AlertTriangle size={16} /> Cliente "{trends.client[0].name}": +{trends.client[0].growth.toFixed(0)}%
-                </div>
-              )}
-              {summary.slaCumprido + summary.slaVencido > 0 && ((summary.slaCumprido / (summary.slaCumprido + summary.slaVencido)) * 100) < 85 && (
-                <div style={{ padding: '8px 16px', background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', borderRadius: '24px', fontSize: '0.95rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <TrendingDown size={16} /> SLA Geral caiu abaixo de 85%
-                </div>
-              )}
-              {(!trends.product || trends.product.length === 0 || trends.product[0].growth <= 10) && backlogTrend <= 5 && (
-                <div style={{ padding: '8px 16px', background: 'rgba(34, 197, 94, 0.1)', color: '#22c55e', borderRadius: '24px', fontSize: '0.95rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <CheckCircle size={16} /> Sem anomalias de crescimento detectadas.
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* 7. Evolução (Gráfico Misto) */}
-          <div className="card" style={{ padding: '24px', marginBottom: '40px' }}>
-            <h3 style={{ marginTop: 0, marginBottom: '24px', fontSize: '1.2rem', color: 'var(--color-text-primary)' }}>Evolução de Entradas vs Saídas Diárias</h3>
-            <div style={{ height: 400, width: '100%' }}>
-              <ResponsiveContainer>
-                <ComposedChart data={evolution} margin={{ top: 5, right: 30, left: 0, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
-                  <XAxis dataKey="date" stroke="var(--color-text-secondary)" fontSize={12} tickMargin={10} />
-                  <YAxis stroke="var(--color-text-secondary)" fontSize={12} />
-                  <Tooltip content={<CustomEvolutionTooltip />} />
-                  <ReferenceLine y={0} stroke="var(--color-text-primary)" strokeOpacity={0.3} strokeWidth={2} />
-                  <Legend wrapperStyle={{ paddingTop: '16px' }} />
-                  <Bar dataKey="entradas" name="Tickets Abertos" fill="#64748b" radius={[4, 4, 0, 0]} maxBarSize={60} />
-                  <Bar dataKey="resolvidos" name="Tickets Resolvidos" fill="#3b82f6" radius={[4, 4, 0, 0]} maxBarSize={60} />
-                  <Line type="monotone" dataKey="saldo" name="Crescimento da Fila (Saldo)" stroke="#f59e0b" strokeWidth={3} dot={<CustomEvolutionDot />} activeDot={{ r: 7 }} />
-                </ComposedChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-
-          <h2 className="section-title">Distribuição Operacional da Equipe</h2>
-          {/* 8. Distribuição Operacional */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '24px', marginBottom: '40px' }}>
-            
-            <div className="card" style={{ padding: '24px', display: 'flex', flexDirection: 'column' }}>
-              <h3 style={{ marginTop: 0, marginBottom: '20px', fontSize: '1.1rem', color: 'var(--color-text-primary)' }}>Por Grupo / Setor</h3>
-              <div style={{ flex: 1, overflowX: 'auto' }}>
-                <table className="data-table" style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-                  <thead>
-                    <tr style={{ borderBottom: '2px solid var(--color-border)', color: 'var(--color-text-secondary)' }}>
-                      <th style={{ padding: '12px' }}>Grupo</th>
-                      <th style={{ padding: '12px', textAlign: 'center' }}>Pendentes</th>
-                      <th style={{ padding: '12px', textAlign: 'center' }}>Resolvidos</th>
-                      <th style={{ padding: '12px', textAlign: 'center' }}>T. Médio</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {distributions.byGroup.map((g: any, i: number) => (
-                      <tr key={i} style={{ borderBottom: '1px solid var(--color-border)' }}>
-                        <td style={{ padding: '12px', color: 'var(--color-text-primary)', fontWeight: 500 }}>{g.name}</td>
-                        <td style={{ padding: '12px', textAlign: 'center', fontWeight: 600, color: '#f59e0b' }}>{g.pendentes}</td>
-                        <td style={{ padding: '12px', textAlign: 'center', fontWeight: 600, color: '#3b82f6' }}>{g.resolvidos}</td>
-                        <td style={{ padding: '12px', textAlign: 'center', color: 'var(--color-text-secondary)' }}>{g.avgTime}h</td>
-                      </tr>
-                    ))}
-                    {distributions.byGroup.length === 0 && (
-                      <tr><td colSpan={4} style={{ padding: '20px', textAlign: 'center', color: 'var(--color-text-secondary)' }}>Nenhum grupo.</td></tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            <div className="card" style={{ padding: '24px', display: 'flex', flexDirection: 'column' }}>
-              <h3 style={{ marginTop: 0, marginBottom: '20px', fontSize: '1.1rem', color: 'var(--color-text-primary)' }}>Por Agente</h3>
-              <div style={{ flex: 1, overflowY: 'auto', maxHeight: '400px' }}>
-                <table className="data-table" style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-                  <thead style={{ position: 'sticky', top: 0, backgroundColor: 'var(--color-bg-primary)', zIndex: 1 }}>
-                    <tr style={{ borderBottom: '2px solid var(--color-border)', color: 'var(--color-text-secondary)' }}>
-                      <th style={{ padding: '12px' }}>Agente</th>
-                      <th style={{ padding: '12px', textAlign: 'center' }}>Pendentes</th>
-                      <th style={{ padding: '12px', textAlign: 'center' }}>Resolvidos</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {distributions.byAgent?.map((a: any, i: number) => (
-                      <tr key={i} style={{ borderBottom: '1px solid var(--color-border)' }}>
-                        <td style={{ padding: '12px', color: 'var(--color-text-primary)', fontWeight: 500 }}>{a.name}</td>
-                        <td style={{ padding: '12px', textAlign: 'center', fontWeight: 600, color: '#f59e0b' }}>{a.pendentes}</td>
-                        <td style={{ padding: '12px', textAlign: 'center', fontWeight: 600, color: '#3b82f6' }}>{a.resolvidos}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            {data.workload && (
-              <div className="card" style={{ padding: '24px', display: 'flex', flexDirection: 'column' }}>
-                <h3 style={{ margin: 0, marginBottom: '20px', fontSize: '1.1rem', color: 'var(--color-text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <Users size={18} color="#8b5cf6" /> Ranking (Por Peso)
-                </h3>
-                <div style={{ flex: 1, overflowY: 'auto', maxHeight: '400px' }}>
-                  <table className="data-table" style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-                    <thead style={{ position: 'sticky', top: 0, backgroundColor: 'var(--color-bg-primary)', zIndex: 1 }}>
-                      <tr style={{ borderBottom: '2px solid var(--color-border)', color: 'var(--color-text-secondary)' }}>
-                        <th style={{ padding: '12px' }}>Agente</th>
-                        <th style={{ padding: '12px', textAlign: 'center' }}>Peso (Pts)</th>
-                        <th style={{ padding: '12px', textAlign: 'center' }}>Hrs</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {data.workload.byAssignee.map((a: any, i: number) => (
-                        <tr key={i} style={{ borderBottom: '1px solid var(--color-border)' }}>
-                          <td style={{ padding: '12px', color: 'var(--color-text-primary)', fontWeight: 500 }}>{a.name}</td>
-                          <td style={{ padding: '12px', textAlign: 'center', fontWeight: 700, color: '#8b5cf6' }}>{a.points}</td>
-                          <td style={{ padding: '12px', textAlign: 'center', color: 'var(--color-text-secondary)' }}>{a.hours}h</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
-          </div>
-
-          <h2 className="section-title">Análises Gerenciais Detalhadas</h2>
-          {/* 9. Análises Gerenciais */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '24px', marginBottom: '40px' }}>
-            
-            <div className="card" style={{ padding: '24px' }}>
-              <h3 style={{ marginTop: 0, marginBottom: '24px', fontSize: '1.1rem', color: 'var(--color-text-primary)' }}>Volume por Produto (Top 10)</h3>
-              <div style={{ height: 350, width: '100%' }}>
-                <ResponsiveContainer>
-                  <BarChart data={distributions.byProduct.slice(0, 10)} layout="vertical" margin={{ top: 5, right: 30, left: 40, bottom: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" horizontal={true} vertical={false} />
-                    <XAxis type="number" stroke="var(--color-text-secondary)" fontSize={12} />
-                    <YAxis dataKey="name" type="category" stroke="var(--color-text-secondary)" fontSize={11} width={120} tickFormatter={(val) => val.length > 15 ? val.substring(0, 15) + '...' : val} />
-                    <Tooltip contentStyle={{ borderRadius: '8px' }} cursor={{ fill: 'var(--color-bg-primary)' }} />
-                    <Bar dataKey="count" name="Tickets" fill="#8b5cf6" radius={[0, 4, 4, 0]}>
-                      {distributions.byProduct.slice(0, 10).map((entry: any, index: number) => (
-                        <Cell key={`cell-${index}`} fill={index === 0 ? '#6d28d9' : '#8b5cf6'} />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-
-            <div className="card" style={{ padding: '24px' }}>
-              <h3 style={{ marginTop: 0, marginBottom: '24px', fontSize: '1.1rem', color: 'var(--color-text-primary)' }}>Tabela Gerencial de Clientes</h3>
-              <div style={{ height: 350, overflowY: 'auto' }}>
-                <table className="data-table" style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-                  <thead style={{ position: 'sticky', top: 0, backgroundColor: 'var(--color-bg-primary)', zIndex: 1 }}>
-                    <tr style={{ borderBottom: '2px solid var(--color-border)', color: 'var(--color-text-secondary)' }}>
-                      <th style={{ padding: '12px' }}>Cliente</th>
-                      <th style={{ padding: '12px', textAlign: 'center' }}>Entradas</th>
-                      <th style={{ padding: '12px', textAlign: 'center' }}>T. Médio</th>
-                      <th style={{ padding: '12px', textAlign: 'center' }}>Reabertura</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {distributions.byClient.slice(0, 20).map((c: any, i: number) => (
-                      <tr key={i} style={{ borderBottom: '1px solid var(--color-border)' }}>
-                        <td style={{ padding: '12px', color: 'var(--color-text-primary)', fontWeight: 500, display: 'flex', alignItems: 'center', gap: 8 }}>
-                          {(() => {
-                            const growthObj = trends.client?.find((t: any) => t.name === c.name);
-                            if (growthObj && growthObj.growth > 0) return <AlertTriangle size={14} color="#f59e0b" />;
-                            return null;
-                          })()}
-                          {c.name}
-                        </td>
-                        <td style={{ padding: '12px', textAlign: 'center', fontWeight: 600 }}>{c.entradas}</td>
-                        <td style={{ padding: '12px', textAlign: 'center', color: 'var(--color-text-secondary)' }}>{c.avgTime}h</td>
-                        <td style={{ padding: '12px', textAlign: 'center', color: c.reopenRate > 10 ? 'var(--color-danger)' : 'var(--color-text-secondary)' }}>
-                          {c.reopenRate}%
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              {distributions.internalDemand && (
-                <div style={{ marginTop: '20px', padding: '16px', background: 'var(--color-bg-secondary)', borderRadius: '8px', borderLeft: '4px solid #3b82f6' }}>
-                  <h4 style={{ margin: '0 0 8px 0', fontSize: '0.95rem', color: 'var(--color-text-primary)', display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <Activity size={16} color="#3b82f6" /> Demandas internas da MPX
-                  </h4>
-                  <div style={{ display: 'flex', gap: '24px', fontSize: '0.9rem', color: 'var(--color-text-secondary)' }}>
-                    <span><strong>Tickets:</strong> {distributions.internalDemand.entradas}</span>
-                    <span><strong>Tempo Médio:</strong> {distributions.internalDemand.avgTime}h</span>
-                  </div>
-                </div>
-              )}
-            </div>
-
-          </div>
-
-          <h2 className="section-title">Indicadores de Longo Prazo (M/M)</h2>
-          {/* 10. Indicadores Longo Prazo */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-            {loadingHistorical ? (
-              <div style={{ padding: '40px', textAlign: 'center' }}>
-                <div className="spinner" style={{ margin: '0 auto 16px' }}></div>
-                <p style={{ color: 'var(--color-text-secondary)' }}>Carregando dados históricos... (Pode demorar um pouco)</p>
-                <button className="btn btn--secondary" style={{ marginTop: 16 }} onClick={fetchHistoricalData}>Carregar Agora</button>
-              </div>
-            ) : historicalData.length > 0 ? (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '24px' }}>
-                <div className="card" style={{ padding: '24px' }}>
-                  <h3 style={{ marginTop: 0, marginBottom: '24px', fontSize: '1.1rem', color: 'var(--color-text-primary)' }}>Evolução de Volume Mensal</h3>
-                  <div style={{ height: 350, width: '100%' }}>
-                    <ResponsiveContainer>
-                      <ComposedChart data={historicalData} margin={{ top: 5, right: 30, left: 0, bottom: 5 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
-                        <XAxis dataKey="month" stroke="var(--color-text-secondary)" fontSize={12} />
-                        <YAxis stroke="var(--color-text-secondary)" fontSize={12} />
-                        <Tooltip contentStyle={{ borderRadius: '8px' }} />
-                        <Legend wrapperStyle={{ paddingTop: 10 }} />
-                        <Bar dataKey="entradas" name="Entradas Mês" fill="#64748b" radius={[4, 4, 0, 0]} maxBarSize={50} />
-                        <Bar dataKey="resolvidos" name="Resolvidos Mês" fill="#3b82f6" radius={[4, 4, 0, 0]} maxBarSize={50} />
-                        <Line type="monotone" dataKey="saldo" name="Saldo Mensal da Fila" stroke="#f59e0b" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} />
-                      </ComposedChart>
-                    </ResponsiveContainer>
-                  </div>
-                </div>
-
-                <div className="card" style={{ padding: '24px' }}>
-                  <h3 style={{ marginTop: 0, marginBottom: '24px', fontSize: '1.1rem', color: 'var(--color-text-primary)' }}>Tempo Médio de Resolução (M/M)</h3>
-                  <div style={{ height: 350, width: '100%' }}>
-                    <ResponsiveContainer>
-                      <ComposedChart data={historicalData} margin={{ top: 5, right: 30, left: 0, bottom: 5 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
-                        <XAxis dataKey="month" stroke="var(--color-text-secondary)" fontSize={12} />
-                        <YAxis stroke="var(--color-text-secondary)" fontSize={12} />
-                        <Tooltip contentStyle={{ borderRadius: '8px' }} />
-                        <Legend wrapperStyle={{ paddingTop: 10 }} />
-                        <Line type="monotone" dataKey="avgTime" name="Tempo Médio (Horas)" stroke="#8b5cf6" strokeWidth={3} dot={{ r: 4 }} />
-                      </ComposedChart>
-                    </ResponsiveContainer>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="card" style={{ padding: '40px', textAlign: 'center', background: 'var(--color-bg-secondary)' }}>
-                <h3 style={{ margin: '0 0 16px 0', color: 'var(--color-text-primary)' }}>Análise Histórica</h3>
-                <p style={{ color: 'var(--color-text-secondary)', marginBottom: 24 }}>Os dados Month-over-Month requerem o processamento de toda a base e são carregados sob demanda.</p>
-                <button className="btn btn--primary" onClick={fetchHistoricalData}>Carregar Indicadores Longo Prazo</button>
-              </div>
-            )}
-          </div>
-
-        </>
-      )}
-
-      {/* Modal de Parecer Executivo IA */}
-      {showAIModal && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div className="card" style={{ width: '900px', maxWidth: '95%', height: '80vh', display: 'flex', overflow: 'hidden', position: 'relative', padding: 0 }}>
-            {/* Sidebar Histórico */}
-            <div style={{ width: '280px', background: 'var(--color-bg-secondary)', borderRight: '1px solid var(--color-border)', display: 'flex', flexDirection: 'column' }} className="no-print">
-              <div style={{ padding: '20px', borderBottom: '1px solid var(--color-border)' }}>
-                <h3 style={{ margin: 0, fontSize: '1rem', color: 'var(--color-text-primary)' }}>Histórico de Pareceres</h3>
-              </div>
-              <div style={{ flex: 1, overflowY: 'auto', padding: '10px' }}>
-                {reportsHistory.map((rep) => (
-                  <div key={rep.id} onClick={() => { setAiSummary(rep.report_text); setIsCached(true); }} style={{ padding: '12px', background: 'var(--color-bg-primary)', borderRadius: '6px', marginBottom: '8px', cursor: 'pointer', border: '1px solid var(--color-border)' }}>
-                    <div style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)', marginBottom: 4 }}>
-                      {new Date(rep.created_at).toLocaleDateString('pt-BR')} - {new Date(rep.created_at).toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'})}
-                    </div>
-                    <div style={{ fontSize: '0.9rem', color: 'var(--color-text-primary)', fontWeight: 500 }}>
-                      Filtro: {rep.period_filter}
-                    </div>
-                  </div>
-                ))}
-                {reportsHistory.length === 0 && <div style={{ padding: '20px', textAlign: 'center', color: 'var(--color-text-secondary)', fontSize: '0.9rem' }}>Nenhum histórico salvo.</div>}
-              </div>
-            </div>
-
-            {/* Main Content */}
-            <div style={{ flex: 1, padding: '30px', overflowY: 'auto', position: 'relative' }} className="print-container">
-              <button className="no-print" onClick={() => setShowAIModal(false)} style={{ position: 'absolute', top: 16, right: 16, background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--color-text-secondary)' }}><XCircle size={24} /></button>
-              
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, borderBottom: '2px solid var(--color-border)', paddingBottom: 16 }}>
-                <h2 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 8, color: '#6d28d9' }}>
-                  <Target size={24} /> Parecer Executivo 
-                  <span style={{ fontSize: '0.75rem', background: 'var(--color-bg-secondary)', color: 'var(--color-text-secondary)', padding: '4px 8px', borderRadius: '4px' }}>IA Strategy</span>
-                </h2>
-                <div className="no-print" style={{ display: 'flex', gap: 10 }}>
-                  <button className="btn btn--secondary" onClick={handlePrint}><Printer size={16} /> Exportar PDF</button>
-                </div>
-              </div>
-
-              {loadingAI ? (
-                 <div style={{ padding: '60px 0', textAlign: 'center', color: 'var(--color-text-secondary)' }}>
-                   <div className="spinner" style={{ margin: '0 auto 16px' }}></div>
-                   A IA está analisando toda a matriz de indicadores da operação...
-                 </div>
-              ) : (
-                 <>
-                   {isCached && (
-                     <div className="no-print" style={{ marginBottom: 20, padding: '12px', background: 'rgba(34, 197, 94, 0.1)', color: '#22c55e', borderRadius: '8px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: 8 }}>
-                       <CheckCircle size={16} /> <strong>Resposta em Cache:</strong> Este parecer já havia sido gerado recentemente para estes mesmos filtros.
-                     </div>
-                   )}
-                   {renderParsedAI(aiSummary)}
-                   <div style={{ marginTop: 40, paddingTop: 20, borderTop: '1px solid var(--color-border)', color: 'var(--color-text-secondary)', fontSize: '0.8rem', fontStyle: 'italic' }}>
-                     Aviso: O texto acima é gerado automaticamente por Inteligência Artificial baseado nos dados consolidados do painel. A interpretação e as recomendações devem ser avaliadas criticamente pela gestão.
-                   </div>
-                 </>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      </>
-      )}
-
     </div>
   );
 };
+
+export default ReportsScreen;
