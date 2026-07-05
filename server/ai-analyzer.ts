@@ -6,6 +6,52 @@ import OpenAI from 'openai';
 // Analyzes tickets semantically and saves results in Supabase
 // ─────────────────────────────────────────────────────────────
 
+function applyDeterministicLogic(parsed: AnalysisResult, ticket: any, existingAnalysis?: any) {
+  if (existingAnalysis && existingAnalysis.operational_effort) {
+    parsed.operational_effort = existingAnalysis.operational_effort;
+    parsed.criticality = existingAnalysis.criticality;
+    parsed.expected_completion_effort = existingAnalysis.expected_completion_effort;
+    parsed.effort_reason = existingAnalysis.effort_reason;
+    return;
+  }
+
+  const cat = (parsed.category || '').toLowerCase();
+  const type = (parsed.request_type || '').toLowerCase();
+  const group = (ticket.group_name || '').toLowerCase();
+  const subject = (ticket.subject || '').toLowerCase();
+  const priority = (ticket.priority || '').toLowerCase();
+
+  // 1. Criticidade
+  if (priority === 'urgente' || subject.includes('fora do ar') || subject.includes('indisponível') || subject.includes('parou') || subject.includes('caiu')) {
+    parsed.criticality = 'Crítica';
+    if (!parsed.effort_reason) parsed.effort_reason = 'Correção crítica';
+    if (!parsed.expected_completion_effort) parsed.expected_completion_effort = 'Mesmo dia';
+  } else if (priority === 'alta' || cat.includes('incidente') || cat.includes('segurança')) {
+    if (!parsed.criticality) parsed.criticality = 'Alta';
+  } else if (priority === 'baixa') {
+    if (!parsed.criticality) parsed.criticality = 'Baixa';
+  } else {
+    if (!parsed.criticality) parsed.criticality = 'Normal';
+  }
+
+  // 2. Esforço e Motivo
+  if (cat.includes('nova funcionalidade') || type.includes('desenvolvimento') || group.includes('desenvolvimento')) {
+    if (!parsed.operational_effort) parsed.operational_effort = 'Alto';
+    if (!parsed.effort_reason) parsed.effort_reason = 'Desenvolvimento';
+    if (!parsed.expected_completion_effort) parsed.expected_completion_effort = 'Mais de 5 dias úteis';
+  } else if (cat.includes('conteúdo') || cat.includes('cadastro') || cat.includes('senha') || cat.includes('acesso')) {
+    if (!parsed.operational_effort) parsed.operational_effort = 'Baixo';
+    if (!parsed.effort_reason) parsed.effort_reason = 'Outro';
+    if (!parsed.expected_completion_effort) parsed.expected_completion_effort = 'Mesmo dia';
+  } else if (cat.includes('integração') || cat.includes('api')) {
+    if (!parsed.operational_effort) parsed.operational_effort = 'Alto';
+    if (!parsed.effort_reason) parsed.effort_reason = 'Integração';
+  } else if (group.includes('infraestrutura') || cat.includes('servidor') || cat.includes('banco de dados')) {
+    if (!parsed.operational_effort) parsed.operational_effort = 'Médio';
+    if (!parsed.effort_reason) parsed.effort_reason = 'Infraestrutura';
+  }
+}
+
 interface AnalysisProgress {
   status: 'idle' | 'running' | 'completed' | 'error';
   phase: string;
@@ -76,6 +122,10 @@ interface AnalysisResult {
   recommended_expert?: string | null;
   expert_reasoning?: string | null;
   predicted_resolution_time_hours?: number | null;
+  operational_effort?: string | null;
+  criticality?: string | null;
+  expected_completion_effort?: string | null;
+  effort_reason?: string | null;
 }
 
 export interface AIResponse {
@@ -410,6 +460,18 @@ Campos já definidos pelo humano que você NÃO PODE alterar:
 `;
   }
 
+  let operationalLockText = '';
+  if (existingAnalysis && existingAnalysis.operational_effort) {
+    operationalLockText = `
+## 🔒 DADOS OPERACIONAIS JÁ DEFINIDOS (ONE-SHOT)
+Este ticket já teve sua Carga Operacional calculada anteriormente. Para não corromper o dashboard histórico e manter estabilidade métrica, você DEVE OBRIGATORIAMENTE REPETIR os exatos valores abaixo no seu JSON final para os seguintes campos, SEM QUESTIONAR:
+- operational_effort: "${existingAnalysis.operational_effort}"
+- criticality: "${existingAnalysis.criticality}"
+- expected_completion_effort: "${existingAnalysis.expected_completion_effort}"
+- effort_reason: "${existingAnalysis.effort_reason}"
+`;
+  }
+
   let agentText = '';
   let filteredAgents: any[] = [];
   let discardedAgents: any[] = [];
@@ -456,6 +518,7 @@ ${ticket.description || 'Sem descrição'}
 ${commentsText || 'Sem comentários'}
 
 ${manualCorrectionText}
+${operationalLockText}
 ${similarContextText}
 ${knowledgeText}
 ${agentText}
@@ -495,6 +558,10 @@ Com base em TODAS as informações acima (assunto, descrição, comentários pú
 19. **expert_reasoning**: Justificativa detalhada citando os indicadores numéricos (taxa, tempo, etc) que te levaram a escolher esses dois especialistas.
 20. **rule_particularities**: Se o ticket utiliza uma regra existente mas apresenta uma particularidade, exceção ou nuance importante observada nos comentários, descreva-a de forma sucinta aqui. Se não houver particularidade, retorne null.
 21. **predicted_resolution_time_hours**: Estimativa numérica (em horas) de quanto tempo este ticket levará para ser resolvido (da abertura até a solução), considerando a complexidade e casos similares. Ex: 2.5 (2 horas e meia), 48 (2 dias). Se não tiver como prever, retorne null.
+22. **operational_effort**: Mensure o esforço ESPECÍFICO até a conclusão final da demanda (incluindo desenvolvimento, homologação, acompanhamento, etc) e não apenas a execução de uma configuração. Opções OBRIGATÓRIAS: "Crítico" (Risco alto/Parada), "Alto" (Dev grande/investigação extensa), "Médio" (Análise/implementação moderada), ou "Baixo" (Ajuste simples/Tarefa rápida).
+23. **criticality**: O grau de impacto no negócio do cliente, INDEPENDENTE do esforço. Um ticket pode ser "Crítica" (ex: site fora do ar) mas levar apenas 5 min (Esforço "Baixo"). Opções OBRIGATÓRIAS: "Crítica", "Alta", "Normal", "Baixa".
+24. **expected_completion_effort**: Uma janela de esforço estimado para a conclusão. ISSO NÃO É SLA DE CONTRATO. Opções OBRIGATÓRIAS: "Mesmo dia", "Até 2 dias úteis", "Até 5 dias úteis", "Mais de 5 dias úteis".
+25. **effort_reason**: A raiz do porquê esse ticket demanda esse esforço. Opções OBRIGATÓRIAS: "Desenvolvimento", "Investigação", "Dependência externa", "Correção crítica", "Homologação", "Infraestrutura", "Integração", ou "Outro".
 
 Responda APENAS com um JSON válido contendo exatamente esses campos. Não inclua explicações extras.`;
 
@@ -810,6 +877,8 @@ export async function startAnalysis(apiKey: string, supabase: SupabaseClient): P
             let cleanText = responseObj.text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
             const parsed: AnalysisResult = JSON.parse(cleanText);
 
+            applyDeterministicLogic(parsed, ticketData, undefined); // Batch não usa existingAnalysis pois são tickets não analisados
+
             let patternGroupId = null;
             if (parsed.pattern_group) {
               const { data: pg, error: pgErr } = await supabase.from('pattern_groups').upsert(
@@ -864,6 +933,10 @@ export async function startAnalysis(apiKey: string, supabase: SupabaseClient): P
               applied_rules: parsed.applied_rules || [],
               resolution_time_hours: netTimeHours,
               gross_resolution_time_hours: grossTimeHours,
+              operational_effort: parsed.operational_effort || null,
+              criticality: parsed.criticality || null,
+              expected_completion_effort: parsed.expected_completion_effort || null,
+              effort_reason: parsed.effort_reason || null,
               analyzed_at: new Date().toISOString()
             }, { onConflict: 'ticket_zendesk_id' });
 
@@ -1096,6 +1169,7 @@ export async function analyzeSingleTicket(apiKey: string, supabase: SupabaseClie
   try {
     let cleanText = responseObj.text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
     parsed = JSON.parse(cleanText);
+    applyDeterministicLogic(parsed, ticketData, existingAnalysis);
   } catch (e: any) {
     throw new Error(`JSON parse error: ${e.message} in response: ${responseObj.text}`);
   }
@@ -1154,7 +1228,12 @@ export async function analyzeSingleTicket(apiKey: string, supabase: SupabaseClie
     was_reopened: ticket.tags?.includes('reopened') || false,
     resolution_time_hours: resolutionHours,
     predicted_resolution_time_hours: parsed.predicted_resolution_time_hours || null,
-    applied_rules: parsed.applied_rules || []
+    applied_rules: parsed.applied_rules || [],
+    operational_effort: parsed.operational_effort || null,
+    criticality: parsed.criticality || null,
+    expected_completion_effort: parsed.expected_completion_effort || null,
+    effort_reason: parsed.effort_reason || null,
+    analyzed_at: new Date().toISOString()
   }, { onConflict: 'ticket_zendesk_id' }).select().single();
 
   if (analysisError) throw analysisError;

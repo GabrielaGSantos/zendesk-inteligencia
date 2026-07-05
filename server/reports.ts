@@ -449,6 +449,94 @@ export function registerReportRoutes(supabase: SupabaseClient) {
         insights.push('🟢 A operação está estável, sem anomalias significativas de volume ou fila de tickets.');
       }
 
+      // ─────────────────────────────────────────────────────────────
+      // CARGA OPERACIONAL (WORKLOAD)
+      // ─────────────────────────────────────────────────────────────
+      const { data: workloadSettings } = await supabase.from('system_settings').select('workload_config').eq('id', 1).single();
+      const workloadConfig = workloadSettings?.workload_config || {
+        capacity: { total_hours_available: 320 },
+        points: { "Crítico": 5, "Alto": 4, "Médio": 2, "Baixo": 1 },
+        hours: { "Crítico": 8, "Alto": 12, "Médio": 4, "Baixo": 1 }
+      };
+
+      let qWorkload = applyFiltersSafe(supabase.from('tickets').select(`
+        id, zendesk_id, status, assignee_name, group_name, created_at, updated_at,
+        ticket_analysis (operational_effort, criticality, expected_completion_effort, effort_reason)
+      `).not('status', 'in', '("solved","closed","deleted")'));
+      
+      const { data: workloadTickets } = await qWorkload;
+      
+      const mpxResponsibilityStatuses = ['new', 'open'];
+      let workloadStats = {
+        totalBacklog: 0,
+        mpxResponsibility: 0,
+        clientResponsibility: 0,
+        totalPoints: 0,
+        totalHours: 0,
+        capacityConsumedPct: 0,
+        availableCapacity: workloadConfig.capacity.total_hours_available,
+        aging: { '0-2_dias': 0, '3-5_dias': 0, '6-10_dias': 0, 'mais_de_10_dias': 0 },
+        byEffort: {},
+        byCriticality: {},
+        byExpectedTime: {},
+        byReason: {},
+        byAssignee: [] as any[]
+      };
+
+      const assigneeMap = {};
+
+      if (workloadTickets) {
+        workloadStats.totalBacklog = workloadTickets.length;
+        workloadTickets.forEach(t => {
+          if (mpxResponsibilityStatuses.includes(t.status)) {
+            workloadStats.mpxResponsibility++;
+            
+            // Envelhecimento (Aging)
+            const ageDays = differenceInCalendarDays(new Date(), new Date(t.created_at));
+            if (ageDays <= 2) workloadStats.aging['0-2_dias']++;
+            else if (ageDays <= 5) workloadStats.aging['3-5_dias']++;
+            else if (ageDays <= 10) workloadStats.aging['6-10_dias']++;
+            else workloadStats.aging['mais_de_10_dias']++;
+
+            // Extração da IA
+            const analysis = Array.isArray(t.ticket_analysis) ? t.ticket_analysis[0] : t.ticket_analysis;
+            if (analysis) {
+              const effort = analysis.operational_effort || 'Não Classificado';
+              const crit = analysis.criticality || 'Não Classificado';
+              const expTime = analysis.expected_completion_effort || 'Não Classificado';
+              const reason = analysis.effort_reason || 'Não Classificado';
+
+              workloadStats.byEffort[effort] = (workloadStats.byEffort[effort] || 0) + 1;
+              workloadStats.byCriticality[crit] = (workloadStats.byCriticality[crit] || 0) + 1;
+              workloadStats.byExpectedTime[expTime] = (workloadStats.byExpectedTime[expTime] || 0) + 1;
+              workloadStats.byReason[reason] = (workloadStats.byReason[reason] || 0) + 1;
+
+              const pts = workloadConfig.points[effort] || 0;
+              const hrs = workloadConfig.hours[effort] || 0;
+              
+              workloadStats.totalPoints += pts;
+              workloadStats.totalHours += hrs;
+
+              const assignee = t.assignee_name || 'Sem Responsável';
+              if (!assigneeMap[assignee]) {
+                assigneeMap[assignee] = { name: assignee, tickets: 0, points: 0, hours: 0 };
+              }
+              assigneeMap[assignee].tickets++;
+              assigneeMap[assignee].points += pts;
+              assigneeMap[assignee].hours += hrs;
+            }
+          } else {
+            workloadStats.clientResponsibility++;
+          }
+        });
+      }
+
+      workloadStats.byAssignee = Object.values(assigneeMap).sort((a: any, b: any) => b.points - a.points);
+      
+      workloadStats.capacityConsumedPct = workloadStats.availableCapacity > 0 
+        ? Math.round((workloadStats.totalHours / workloadStats.availableCapacity) * 100) 
+        : 0;
+
       const periodLabels = getPeriodLabels(period, currentRange.start, prevRange.start);
 
       res.json({
@@ -483,6 +571,7 @@ export function registerReportRoutes(supabase: SupabaseClient) {
           category: categoryGrowth.slice(0, 3)
         },
         evolution: evolutionData,
+        workload: workloadStats,
         insights: insights
       });
 

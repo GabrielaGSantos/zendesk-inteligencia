@@ -740,9 +740,147 @@ export const ReportsScreen: React.FC = () => {
               );
             })()}
 
-
-            
           </div>
+
+          {/* Workload Section */}
+          {data.workload && (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px', marginBottom: '24px' }}>
+              
+              {/* Ocupação e Fila */}
+              <div className="card" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <h3 style={{ margin: 0, fontSize: '1.1rem', color: 'var(--color-text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Layers size={20} color="#8b5cf6" /> Carga Operacional da Equipe
+                </h3>
+                
+                <div style={{ display: 'flex', gap: '24px', alignItems: 'flex-end' }}>
+                   <div>
+                     <span style={{ fontSize: '2rem', fontWeight: 700, color: 'var(--color-text-primary)' }}>{data.workload.mpxResponsibility}</span>
+                     <div style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)' }}>Tickets c/ MPX</div>
+                   </div>
+                   <div>
+                     <span style={{ fontSize: '1.4rem', fontWeight: 600, color: 'var(--color-text-secondary)' }}>{data.workload.clientResponsibility}</span>
+                     <div style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)' }}>Aguardando Cliente</div>
+                   </div>
+                   <div style={{ marginLeft: 'auto', textAlign: 'right' }}>
+                     <span style={{ fontSize: '1.4rem', fontWeight: 600, color: '#8b5cf6' }}>{data.workload.totalPoints} pts</span>
+                     <div style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)' }}>Peso Total</div>
+                   </div>
+                </div>
+
+                <div style={{ marginTop: '8px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px', fontSize: '0.85rem' }}>
+                    <span style={{ color: 'var(--color-text-secondary)' }}>Capacidade Consumida ({data.workload.totalHours}h estimadas / {data.workload.availableCapacity}h teto)</span>
+                    <strong style={{ color: data.workload.capacityConsumedPct > 90 ? 'var(--color-danger)' : data.workload.capacityConsumedPct > 75 ? '#f59e0b' : 'var(--color-success)' }}>
+                      {data.workload.capacityConsumedPct}%
+                    </strong>
+                  </div>
+                  <div style={{ width: '100%', height: '8px', background: 'var(--color-bg-secondary)', borderRadius: '4px', overflow: 'hidden' }}>
+                    <div style={{ height: '100%', width: `${Math.min(data.workload.capacityConsumedPct, 100)}%`, background: data.workload.capacityConsumedPct > 90 ? 'var(--color-danger)' : data.workload.capacityConsumedPct > 75 ? '#f59e0b' : 'var(--color-success)', borderRadius: '4px' }}></div>
+                  </div>
+                </div>
+
+                <div style={{ marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <span style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--color-text-primary)' }}>Envelhecimento da Fila (MPX)</span>
+                  <div style={{ display: 'flex', gap: '12px', fontSize: '0.85rem' }}>
+                    <div style={{ flex: 1, background: 'var(--color-bg-secondary)', padding: '8px', borderRadius: '6px', textAlign: 'center' }}>
+                      <div style={{ fontWeight: 700, color: '#10b981' }}>{data.workload.aging['0-2_dias']}</div>
+                      <div style={{ color: 'var(--color-text-secondary)', fontSize: '0.75rem' }}>0-2 dias</div>
+                    </div>
+                    <div style={{ flex: 1, background: 'var(--color-bg-secondary)', padding: '8px', borderRadius: '6px', textAlign: 'center' }}>
+                      <div style={{ fontWeight: 700, color: '#f59e0b' }}>{data.workload.aging['3-5_dias']}</div>
+                      <div style={{ color: 'var(--color-text-secondary)', fontSize: '0.75rem' }}>3-5 dias</div>
+                    </div>
+                    <div style={{ flex: 1, background: 'var(--color-bg-secondary)', padding: '8px', borderRadius: '6px', textAlign: 'center' }}>
+                      <div style={{ fontWeight: 700, color: '#ef4444' }}>{data.workload.aging['6-10_dias']}</div>
+                      <div style={{ color: 'var(--color-text-secondary)', fontSize: '0.75rem' }}>6-10 dias</div>
+                    </div>
+                    <div style={{ flex: 1, background: 'rgba(239, 68, 68, 0.1)', padding: '8px', borderRadius: '6px', textAlign: 'center' }}>
+                      <div style={{ fontWeight: 700, color: '#ef4444' }}>{data.workload.aging['mais_de_10_dias']}</div>
+                      <div style={{ color: '#ef4444', fontSize: '0.75rem' }}>&gt;10 dias</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Ranking de Analistas por Peso */}
+              <div className="card" style={{ padding: '20px', display: 'flex', flexDirection: 'column' }}>
+                <h3 style={{ margin: 0, marginBottom: '16px', fontSize: '1.1rem', color: 'var(--color-text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Users size={20} color="#3b82f6" /> Ranking de Responsáveis (Por Peso)
+                </h3>
+                <div style={{ flex: 1, overflowY: 'auto', maxHeight: '250px', paddingRight: '8px' }}>
+                  <table className="data-table" style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                    <thead style={{ position: 'sticky', top: 0, backgroundColor: 'var(--color-bg-primary)', zIndex: 1 }}>
+                      <tr style={{ borderBottom: '2px solid var(--color-border)', color: 'var(--color-text-secondary)' }}>
+                        <th style={{ padding: '8px' }}>Agente</th>
+                        <th style={{ padding: '8px', textAlign: 'center' }}>Peso (Pts)</th>
+                        <th style={{ padding: '8px', textAlign: 'center' }}>Tempo Estimado</th>
+                        <th style={{ padding: '8px', textAlign: 'center' }}>Tickets</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {data.workload.byAssignee.map((a: any, i: number) => (
+                        <tr key={i} style={{ borderBottom: '1px solid var(--color-border)' }}>
+                          <td style={{ padding: '8px', color: 'var(--color-text-primary)', fontWeight: 500 }}>{a.name}</td>
+                          <td style={{ padding: '8px', textAlign: 'center', fontWeight: 700, color: '#8b5cf6' }}>{a.points}</td>
+                          <td style={{ padding: '8px', textAlign: 'center', color: 'var(--color-text-secondary)' }}>{a.hours}h</td>
+                          <td style={{ padding: '8px', textAlign: 'center', color: 'var(--color-text-secondary)' }}>{a.tickets}</td>
+                        </tr>
+                      ))}
+                      {data.workload.byAssignee.length === 0 && (
+                        <tr><td colSpan={4} style={{ padding: '20px', textAlign: 'center', color: 'var(--color-text-secondary)' }}>Nenhum ticket pendente com MPX.</td></tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+              
+              {/* Distribuição da Carga */}
+              <div className="card" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gridColumn: '1 / -1' }}>
+                <h3 style={{ margin: 0, marginBottom: '16px', fontSize: '1.1rem', color: 'var(--color-text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Activity size={20} color="#10b981" /> Perfil da Fila Atual
+                </h3>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px' }}>
+                  <div>
+                    <h4 style={{ margin: '0 0 12px 0', fontSize: '0.9rem', color: 'var(--color-text-secondary)' }}>Por Esforço Operacional</h4>
+                    {Object.entries(data.workload.byEffort).map(([k, v]: any) => (
+                      <div key={k} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '0.9rem' }}>
+                        <span>{k}</span>
+                        <strong style={{ color: 'var(--color-text-primary)' }}>{v}</strong>
+                      </div>
+                    ))}
+                  </div>
+                  <div>
+                    <h4 style={{ margin: '0 0 12px 0', fontSize: '0.9rem', color: 'var(--color-text-secondary)' }}>Por Criticidade</h4>
+                    {Object.entries(data.workload.byCriticality).map(([k, v]: any) => (
+                      <div key={k} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '0.9rem' }}>
+                        <span>{k}</span>
+                        <strong style={{ color: 'var(--color-text-primary)' }}>{v}</strong>
+                      </div>
+                    ))}
+                  </div>
+                  <div>
+                    <h4 style={{ margin: '0 0 12px 0', fontSize: '0.9rem', color: 'var(--color-text-secondary)' }}>Por Janela de Esforço Estimado</h4>
+                    {Object.entries(data.workload.byExpectedTime).map(([k, v]: any) => (
+                      <div key={k} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '0.9rem' }}>
+                        <span>{k}</span>
+                        <strong style={{ color: 'var(--color-text-primary)' }}>{v}</strong>
+                      </div>
+                    ))}
+                  </div>
+                  <div>
+                    <h4 style={{ margin: '0 0 12px 0', fontSize: '0.9rem', color: 'var(--color-text-secondary)' }}>Por Natureza / Motivo</h4>
+                    {Object.entries(data.workload.byReason).map(([k, v]: any) => (
+                      <div key={k} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '0.9rem' }}>
+                        <span>{k}</span>
+                        <strong style={{ color: 'var(--color-text-primary)' }}>{v}</strong>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          )}
 
           {/* AI Trends Alerts */}
           <div style={{ display: 'flex', gap: '20px', marginBottom: '24px' }}>
