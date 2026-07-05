@@ -2,9 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { BookOpen, Plus, Search, Star, Edit2, Trash2, Copy, Filter, Clock } from 'lucide-react';
 import { api } from '../services/api';
 import type { KnowledgeRule, PatternGroup } from '../types';
+import { TaxonomyManager } from './TaxonomyManager';
 
 export const KnowledgeManager: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'rules' | 'patterns'>('rules');
+  const [activeTab, setActiveTab] = useState<'rules' | 'patterns' | 'taxonomy'>('rules');
   const [rules, setRules] = useState<KnowledgeRule[]>([]);
   const [patterns, setPatterns] = useState<PatternGroup[]>([]);
   const [loading, setLoading] = useState(true);
@@ -231,143 +232,164 @@ export const KnowledgeManager: React.FC = () => {
         >
           Padrões Identificados
         </button>
+        <button 
+          onClick={() => setActiveTab('taxonomy')}
+          style={{ 
+            padding: '8px 16px', 
+            background: 'none', 
+            border: 'none', 
+            borderBottom: activeTab === 'taxonomy' ? '2px solid var(--color-primary)' : '2px solid transparent',
+            color: activeTab === 'taxonomy' ? 'var(--color-primary)' : 'var(--color-text-secondary)',
+            fontWeight: activeTab === 'taxonomy' ? 600 : 500,
+            cursor: 'pointer',
+            fontSize: 14
+          }}
+        >
+          Taxonomia da IA
+        </button>
       </div>
 
-      <div className="km-toolbar" style={{ display: 'flex', gap: 16, marginBottom: 24 }}>
-        <div className="km-search" style={{ flex: 1, position: 'relative' }}>
-          <Search size={18} style={{ position: 'absolute', left: 12, top: 10, color: 'var(--color-text-muted)' }} />
-          <input 
-            type="text" 
-            placeholder="Pesquisar regra pelo título ou conteúdo..." 
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            style={{ width: '100%', padding: '10px 10px 10px 38px', borderRadius: 8, border: '1px solid var(--color-border)', background: 'var(--color-surface)' }}
-          />
-        </div>
-        <div className="km-filters" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <Filter size={18} color="var(--color-text-muted)" />
-          <select 
-            value={categoryFilter} 
-            onChange={e => setCategoryFilter(e.target.value)}
-            style={{ padding: '10px', borderRadius: 8, border: '1px solid var(--color-border)', background: 'var(--color-surface)' }}
-          >
-            <option value="">Todas as Categorias</option>
-            {categories.map(c => <option key={c} value={c}>{c}</option>)}
-          </select>
-        </div>
-      </div>
-
-      {loading ? (
-        <div className="loading-spinner" style={{ marginTop: 40 }}><div className="loading-spinner__icon">Z</div></div>
-      ) : activeTab === 'rules' ? (
-        filteredRules.length === 0 ? (
-          <div className="empty-state" style={{ marginTop: 40 }}>
-            <BookOpen size={32} />
-            <div className="empty-state__title">Nenhuma regra encontrada</div>
-            <div className="empty-state__text">Nenhuma regra corresponde à sua busca ou filtro.</div>
-          </div>
-        ) : (
-          <div className="km-grid">
-          {filteredRules.map(rule => (
-            <div key={rule.id} className={`km-card ${rule.is_favorite ? 'km-card--favorite' : ''} ${!rule.is_active ? 'km-card--inactive' : ''}`}>
-              <div className="km-card__header">
-                <div className="km-card__title">
-                  <button className="km-card__star" onClick={() => handleToggleFavorite(rule)} title={rule.is_favorite ? "Remover dos favoritos" : "Favoritar"}>
-                    <Star size={18} fill={rule.is_favorite ? 'gold' : 'none'} color={rule.is_favorite ? 'gold' : 'var(--color-text-muted)'} />
-                  </button>
-                  <span style={{ fontWeight: 600, fontSize: 16 }}>{rule.title || 'Sem título'}</span>
-                </div>
-                <label className="toggle" title={rule.is_active ? "Desativar regra" : "Ativar regra"}>
-                  <input type="checkbox" checked={rule.is_active} onChange={() => handleToggleActive(rule)} />
-                  <span className="toggle-slider"></span>
-                </label>
-              </div>
-
-              <div className="km-card__body">
-                <p>{(rule.description || '').length > 180 ? (rule.description || '').substring(0, 180) + '...' : rule.description}</p>
-              </div>
-
-              <div className="km-card__meta">
-                <span className="badge badge--neutral">{rule.category || 'Sem Categoria'}</span>
-                <span className={`badge badge--priority-${(rule.priority || 'baixa').toLowerCase()}`}>{rule.priority}</span>
-              </div>
-
-              <div className="km-card__actions">
-                <button className="km-btn-action" onClick={() => openEditModal(rule)}><Edit2 size={14} /> Editar</button>
-                <button className="km-btn-action" onClick={() => handleDuplicate(rule)}><Copy size={14} /> Duplicar</button>
-                <button className="km-btn-action km-btn-action--danger" onClick={() => handleDelete(rule.id)}><Trash2 size={14} /> Excluir</button>
-              </div>
-            </div>
-          ))}
-        </div>
-      )) : (
-        /* ─── Padrões Identificados Tab ─── */
-        <div>
-          <div style={{ marginBottom: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={{ color: 'var(--color-text-secondary)', fontSize: 13 }}>
-              {patterns.length} padrões identificados pela IA
-            </span>
-            <div style={{ position: 'relative' }}>
-              <Search size={16} style={{ position: 'absolute', left: 10, top: 10, color: 'var(--color-text-muted)' }} />
-              <input
-                type="text"
-                placeholder="Buscar padrão..."
+      {activeTab === 'taxonomy' ? (
+        <TaxonomyManager />
+      ) : (
+        <>
+          <div className="km-toolbar" style={{ display: 'flex', gap: 16, marginBottom: 24 }}>
+            <div className="km-search" style={{ flex: 1, position: 'relative' }}>
+              <Search size={18} style={{ position: 'absolute', left: 12, top: 10, color: 'var(--color-text-muted)' }} />
+              <input 
+                type="text" 
+                placeholder="Pesquisar regra pelo título ou conteúdo..." 
                 value={search}
                 onChange={e => setSearch(e.target.value)}
-                style={{ padding: '8px 8px 8px 34px', borderRadius: 6, border: '1px solid var(--color-border)', background: 'var(--color-surface)', width: 260, fontSize: 13 }}
+                style={{ width: '100%', padding: '10px 10px 10px 38px', borderRadius: 8, border: '1px solid var(--color-border)', background: 'var(--color-surface)' }}
               />
+            </div>
+            <div className="km-filters" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <Filter size={18} color="var(--color-text-muted)" />
+              <select 
+                value={categoryFilter} 
+                onChange={e => setCategoryFilter(e.target.value)}
+                style={{ padding: '10px', borderRadius: 8, border: '1px solid var(--color-border)', background: 'var(--color-surface)' }}
+              >
+                <option value="">Todas as Categorias</option>
+                {categories.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
             </div>
           </div>
 
-          {patterns.filter(p => (p.name || '').toLowerCase().includes(search.toLowerCase()) || (p.description || '').toLowerCase().includes(search.toLowerCase())).length === 0 ? (
-            <div className="empty-state" style={{ marginTop: 40 }}>
-              <BookOpen size={32} />
-              <div className="empty-state__title">Nenhum padrão encontrado</div>
-              <div className="empty-state__text">A IA ainda não identificou padrões nos tickets.</div>
+          {loading ? (
+            <div className="loading-spinner" style={{ marginTop: 40 }}><div className="loading-spinner__icon">Z</div></div>
+          ) : activeTab === 'rules' ? (
+            filteredRules.length === 0 ? (
+              <div className="empty-state" style={{ marginTop: 40 }}>
+                <BookOpen size={32} />
+                <div className="empty-state__title">Nenhuma regra encontrada</div>
+                <div className="empty-state__text">Nenhuma regra corresponde à sua busca ou filtro.</div>
+              </div>
+            ) : (
+              <div className="km-grid">
+              {filteredRules.map(rule => (
+                <div key={rule.id} className={`km-card ${rule.is_favorite ? 'km-card--favorite' : ''} ${!rule.is_active ? 'km-card--inactive' : ''}`}>
+                  <div className="km-card__header">
+                    <div className="km-card__title">
+                      <button className="km-card__star" onClick={() => handleToggleFavorite(rule)} title={rule.is_favorite ? "Remover dos favoritos" : "Favoritar"}>
+                        <Star size={18} fill={rule.is_favorite ? 'gold' : 'none'} color={rule.is_favorite ? 'gold' : 'var(--color-text-muted)'} />
+                      </button>
+                      <span style={{ fontWeight: 600, fontSize: 16 }}>{rule.title || 'Sem título'}</span>
+                    </div>
+                    <label className="toggle" title={rule.is_active ? "Desativar regra" : "Ativar regra"}>
+                      <input type="checkbox" checked={rule.is_active} onChange={() => handleToggleActive(rule)} />
+                      <span className="toggle-slider"></span>
+                    </label>
+                  </div>
+
+                  <div className="km-card__body">
+                    <p>{(rule.description || '').length > 180 ? (rule.description || '').substring(0, 180) + '...' : rule.description}</p>
+                  </div>
+
+                  <div className="km-card__meta">
+                    <span className="badge badge--neutral">{rule.category || 'Sem Categoria'}</span>
+                    <span className={`badge badge--priority-${(rule.priority || 'baixa').toLowerCase()}`}>{rule.priority}</span>
+                  </div>
+
+                  <div className="km-card__actions">
+                    <button className="km-btn-action" onClick={() => openEditModal(rule)}><Edit2 size={14} /> Editar</button>
+                    <button className="km-btn-action" onClick={() => handleDuplicate(rule)}><Copy size={14} /> Duplicar</button>
+                    <button className="km-btn-action km-btn-action--danger" onClick={() => handleDelete(rule.id)}><Trash2 size={14} /> Excluir</button>
+                  </div>
+                </div>
+              ))}
             </div>
-          ) : (
-            <div className="card" style={{ overflow: 'hidden' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-                <thead>
-                  <tr style={{ borderBottom: '1px solid var(--color-border)', fontSize: 12, color: 'var(--color-text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                    <th style={{ padding: '12px 16px', fontWeight: 600 }}>Padrão</th>
-                    <th style={{ padding: '12px 16px', fontWeight: 600, width: 90, textAlign: 'center' }}>Tickets</th>
-                    <th style={{ padding: '12px 16px', fontWeight: 600 }}>Descrição</th>
-                    <th style={{ padding: '12px 16px', fontWeight: 600, width: 120, textAlign: 'right' }}>Ações</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {patterns
-                    .filter(p => (p.name || '').toLowerCase().includes(search.toLowerCase()) || (p.description || '').toLowerCase().includes(search.toLowerCase()))
-                    .map(pattern => (
-                    <tr key={pattern.id} style={{ borderBottom: '1px solid var(--color-border)', transition: 'background 0.15s' }}
-                        onMouseEnter={e => (e.currentTarget.style.background = 'var(--color-bg-alt)')}
-                        onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-                    >
-                      <td style={{ padding: '12px 16px', fontWeight: 500, fontSize: 14, maxWidth: 250 }}>
-                        {pattern.name || 'Sem nome'}
-                      </td>
-                      <td style={{ padding: '12px 16px', textAlign: 'center' }}>
-                        <span style={{ background: 'var(--color-primary-bg)', color: 'var(--color-primary)', padding: '2px 10px', borderRadius: 12, fontWeight: 600, fontSize: 13 }}>
-                          {pattern.ticket_count}
-                        </span>
-                      </td>
-                      <td style={{ padding: '12px 16px', color: 'var(--color-text-secondary)', fontSize: 13, maxWidth: 350, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {pattern.description || '—'}
-                      </td>
-                      <td style={{ padding: '12px 16px', textAlign: 'right' }}>
-                        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-                          <button className="km-btn-action" onClick={() => openEditPatternModal(pattern)}><Edit2 size={14} /> Editar</button>
-                          <button className="km-btn-action km-btn-action--danger" onClick={() => handleDeletePattern(pattern.id)}><Trash2 size={14} /> Excluir</button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+          )) : (
+            /* ─── Padrões Identificados Tab ─── */
+            <div>
+              <div style={{ marginBottom: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ color: 'var(--color-text-secondary)', fontSize: 13 }}>
+                  {patterns.length} padrões identificados pela IA
+                </span>
+                <div style={{ position: 'relative' }}>
+                  <Search size={16} style={{ position: 'absolute', left: 10, top: 10, color: 'var(--color-text-muted)' }} />
+                  <input
+                    type="text"
+                    placeholder="Buscar padrão..."
+                    value={search}
+                    onChange={e => setSearch(e.target.value)}
+                    style={{ padding: '8px 8px 8px 34px', borderRadius: 6, border: '1px solid var(--color-border)', background: 'var(--color-surface)', width: 260, fontSize: 13 }}
+                  />
+                </div>
+              </div>
+
+              {patterns.filter(p => (p.name || '').toLowerCase().includes(search.toLowerCase()) || (p.description || '').toLowerCase().includes(search.toLowerCase())).length === 0 ? (
+                <div className="empty-state" style={{ marginTop: 40 }}>
+                  <BookOpen size={32} />
+                  <div className="empty-state__title">Nenhum padrão encontrado</div>
+                  <div className="empty-state__text">A IA ainda não identificou padrões nos tickets.</div>
+                </div>
+              ) : (
+                <div className="card" style={{ overflow: 'hidden' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                    <thead>
+                      <tr style={{ borderBottom: '1px solid var(--color-border)', fontSize: 12, color: 'var(--color-text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                        <th style={{ padding: '12px 16px', fontWeight: 600 }}>Padrão</th>
+                        <th style={{ padding: '12px 16px', fontWeight: 600, width: 90, textAlign: 'center' }}>Tickets</th>
+                        <th style={{ padding: '12px 16px', fontWeight: 600 }}>Descrição</th>
+                        <th style={{ padding: '12px 16px', fontWeight: 600, width: 120, textAlign: 'right' }}>Ações</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {patterns
+                        .filter(p => (p.name || '').toLowerCase().includes(search.toLowerCase()) || (p.description || '').toLowerCase().includes(search.toLowerCase()))
+                        .map(pattern => (
+                        <tr key={pattern.id} style={{ borderBottom: '1px solid var(--color-border)', transition: 'background 0.15s' }}
+                            onMouseEnter={e => (e.currentTarget.style.background = 'var(--color-bg-alt)')}
+                            onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                        >
+                          <td style={{ padding: '12px 16px', fontWeight: 500, fontSize: 14, maxWidth: 250 }}>
+                            {pattern.name || 'Sem nome'}
+                          </td>
+                          <td style={{ padding: '12px 16px', textAlign: 'center' }}>
+                            <span style={{ background: 'var(--color-primary-bg)', color: 'var(--color-primary)', padding: '2px 10px', borderRadius: 12, fontWeight: 600, fontSize: 13 }}>
+                              {pattern.ticket_count}
+                            </span>
+                          </td>
+                          <td style={{ padding: '12px 16px', color: 'var(--color-text-secondary)', fontSize: 13, maxWidth: 350, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {pattern.description || '—'}
+                          </td>
+                          <td style={{ padding: '12px 16px', textAlign: 'right' }}>
+                            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                              <button className="km-btn-action" onClick={() => openEditPatternModal(pattern)}><Edit2 size={14} /> Editar</button>
+                              <button className="km-btn-action km-btn-action--danger" onClick={() => handleDeletePattern(pattern.id)}><Trash2 size={14} /> Excluir</button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           )}
-        </div>
+        </>
       )}
 
       {/* Pattern Edit Modal */}
