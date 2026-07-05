@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { supabase } from '../supabaseClient';
+import { supabase } from '../lib/supabase';
 import { Plus, ToggleLeft, ToggleRight, Trash2 } from 'lucide-react';
 
 export const TaxonomyManager = () => {
