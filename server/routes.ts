@@ -478,7 +478,7 @@ export function createRoutes(supabase: SupabaseClient): Router {
     try {
       const { count: totalTickets } = await supabase.from('tickets').select('*', { count: 'exact', head: true });
       const { count: analyzedTickets } = await supabase.from('ticket_analysis').select('*', { count: 'exact', head: true });
-      const { count: totalPatterns } = await supabase.from('pattern_groups').select('*', { count: 'exact', head: true });
+      const { count: totalPatterns } = await supabase.from('pattern_groups').select('*', { count: 'exact', head: true }).eq('status', 'active');
 
       const { data: lastSync } = await supabase
         .from('sync_log')
@@ -537,6 +537,7 @@ export function createRoutes(supabase: SupabaseClient): Router {
       const { data: patterns, error } = await supabase
         .from('pattern_groups')
         .select('*')
+        .eq('status', 'active')
         .order('ticket_count', { ascending: false });
       
       if (error) throw error;
