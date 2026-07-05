@@ -163,7 +163,7 @@ export function registerReportRoutes(supabase: SupabaseClient) {
       let qEntradasPrev = applyFiltersSafe(supabase.from('tickets').select(`id, ticket_analysis${joinType}(category, product)`, { count: 'exact', head: true }).gte('created_at', prevRange.start).lte('created_at', prevRange.end));
       let qResolvidos = applyFiltersSafe(supabase.from('tickets').select(`id, ticket_analysis${joinType}(category, product)`, { count: 'exact', head: true }).in('status', ['solved', 'closed']).gte('solved_at', currentRange.start).lte('solved_at', currentRange.end));
       let qResolvidosPrev = applyFiltersSafe(supabase.from('tickets').select(`id, ticket_analysis${joinType}(category, product)`, { count: 'exact', head: true }).in('status', ['solved', 'closed']).gte('solved_at', prevRange.start).lte('solved_at', prevRange.end));
-      let qBacklog = applyFiltersSafe(supabase.from('tickets').select(`id, ticket_analysis${joinType}(category, product)`, { count: 'exact', head: true }).not('status', 'in', '("solved","closed")'));
+      let qBacklog = applyFiltersSafe(supabase.from('tickets').select(`id, ticket_analysis${joinType}(category, product)`, { count: 'exact', head: true }).not('status', 'in', '("solved","closed","deleted")'));
 
       const [entradasRes, entradasPrevRes, resolvidosRes, resolvidosPrevRes, backlogRes] = await Promise.all([
         qEntradas, qEntradasPrev, qResolvidos, qResolvidosPrev, qBacklog
@@ -226,7 +226,7 @@ export function registerReportRoutes(supabase: SupabaseClient) {
         activeTickets.forEach((t) => {
           const isCreated = new Date(t.created_at).getTime() >= new Date(currentRange.start).getTime() && new Date(t.created_at).getTime() <= new Date(currentRange.end).getTime();
           const isSolved = t.status === 'solved' || t.status === 'closed' ? (new Date(t.solved_at).getTime() >= new Date(currentRange.start).getTime() && new Date(t.solved_at).getTime() <= new Date(currentRange.end).getTime()) : false;
-          const isPending = t.status !== 'solved' && t.status !== 'closed';
+          const isPending = t.status !== 'solved' && t.status !== 'closed' && t.status !== 'deleted';
 
           const groupName = t.group_name && t.group_name.trim() !== '' ? t.group_name : 'Sem grupo definido';
           const assigneeName = t.assignee_name && t.assignee_name.trim() !== '' ? t.assignee_name : 'Sem agente';
