@@ -587,9 +587,14 @@ export function createRoutes(supabase: SupabaseClient): Router {
     try {
       const statuses = ['new', 'open', 'pending', 'hold', 'solved', 'closed'];
 
-      const { data: analysisData } = await supabase.from('ticket_analysis').select('category, product, identified_pattern, request_type');
-      const categories = [...new Set((analysisData || []).flatMap(a => (a.category || '').split(' | ').map((c: string) => c.trim())).filter(Boolean))].sort();
-      const products = [...new Set((analysisData || []).map(a => a.product).filter(Boolean))].sort();
+      // Puxa as opções oficiais do catálogo para preencher os dropdowns (UI e Filtros)
+      const { data: catData } = await supabase.from('catalog_categories').select('name').eq('is_active', true).order('name');
+      const { data: prodData } = await supabase.from('catalog_products').select('name').eq('is_active', true).order('name');
+      
+      const categories = catData ? catData.map(c => c.name) : [];
+      const products = prodData ? prodData.map(p => p.name) : [];
+
+      const { data: analysisData } = await supabase.from('ticket_analysis').select('identified_pattern, request_type');
       const patterns = [...new Set((analysisData || []).map(a => a.identified_pattern).filter(Boolean))].sort();
       const requestTypes = [...new Set((analysisData || []).map(a => a.request_type).filter(Boolean))].sort();
 
