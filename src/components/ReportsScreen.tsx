@@ -27,20 +27,20 @@ const CustomEvolutionTooltip = ({ active, payload, label }: any) => {
     }
 
     return (
-      <div style={{ backgroundColor: 'var(--color-bg-secondary)', padding: '16px', border: '1px solid var(--color-border)', borderRadius: '8px', minWidth: '220px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
-        <p style={{ margin: '0 0 12px 0', fontWeight: 'bold', color: 'var(--color-text-primary)' }}>{label}</p>
+      <div style={{ backgroundColor: '#ffffff', padding: '16px', border: '1px solid var(--color-border)', borderRadius: '8px', minWidth: '220px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
+        <p style={{ margin: '0 0 12px 0', fontWeight: 'bold', color: '#1e293b' }}>{label}</p>
         
-        <div style={{ marginBottom: '4px', color: 'var(--color-text-primary)' }}>
-          <span style={{ color: 'var(--color-text-secondary)', display: 'inline-block', width: '80px' }}>Entraram:</span>
+        <div style={{ marginBottom: '4px', color: '#1e293b' }}>
+          <span style={{ color: '#64748b', display: 'inline-block', width: '80px' }}>Entraram:</span>
           <strong>{entradas} tickets</strong>
         </div>
-        <div style={{ marginBottom: '12px', color: 'var(--color-text-primary)' }}>
-          <span style={{ color: 'var(--color-text-secondary)', display: 'inline-block', width: '80px' }}>Resolvidos:</span>
+        <div style={{ marginBottom: '12px', color: '#1e293b' }}>
+          <span style={{ color: '#64748b', display: 'inline-block', width: '80px' }}>Resolvidos:</span>
           <strong>{resolvidos} tickets</strong>
         </div>
         
         <div style={{ padding: '8px 0', borderTop: '1px solid var(--color-border)', borderBottom: '1px solid var(--color-border)', marginBottom: '8px' }}>
-          <span style={{ color: 'var(--color-text-secondary)', display: 'inline-block', width: '80px' }}>Saldo:</span>
+          <span style={{ color: '#64748b', display: 'inline-block', width: '80px' }}>Saldo:</span>
           <strong style={{ color }}>{saldo > 0 ? `+${saldo}` : saldo} tickets</strong>
         </div>
         
@@ -460,10 +460,10 @@ export const ReportsScreen: React.FC = () => {
                       <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
                       <XAxis dataKey="month" stroke="var(--color-text-secondary)" fontSize={12} />
                       <YAxis stroke="var(--color-text-secondary)" fontSize={12} />
-                      <Tooltip contentStyle={{ backgroundColor: 'var(--color-bg-secondary)', borderColor: 'var(--color-border)', borderRadius: '8px' }} />
+                      <Tooltip contentStyle={{ backgroundColor: '#ffffff', borderColor: 'var(--color-border)', borderRadius: '8px', color: '#1e293b' }} itemStyle={{ color: '#1e293b' }} />
                       <Legend />
-                      <Bar dataKey="entradas" name="Entradas Mês" fill="#ef4444" radius={[4, 4, 0, 0]} maxBarSize={50} />
-                      <Bar dataKey="resolvidos" name="Resolvidos Mês" fill="#22c55e" radius={[4, 4, 0, 0]} maxBarSize={50} />
+                      <Bar dataKey="entradas" name="Entradas Mês" fill="#64748b" radius={[4, 4, 0, 0]} maxBarSize={50} />
+                      <Bar dataKey="resolvidos" name="Resolvidos Mês" fill="#3b82f6" radius={[4, 4, 0, 0]} maxBarSize={50} />
                       <Line type="monotone" dataKey="saldo" name="Saldo Mensal da Fila" stroke="#f59e0b" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} />
                     </ComposedChart>
                   </ResponsiveContainer>
@@ -478,7 +478,7 @@ export const ReportsScreen: React.FC = () => {
                       <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
                       <XAxis dataKey="month" stroke="var(--color-text-secondary)" fontSize={12} />
                       <YAxis stroke="var(--color-text-secondary)" fontSize={12} />
-                      <Tooltip contentStyle={{ backgroundColor: 'var(--color-bg-secondary)', borderColor: 'var(--color-border)', borderRadius: '8px' }} />
+                      <Tooltip contentStyle={{ backgroundColor: '#ffffff', borderColor: 'var(--color-border)', borderRadius: '8px', color: '#1e293b' }} itemStyle={{ color: '#1e293b' }} />
                       <Legend />
                       <Line type="monotone" dataKey="avgTime" name="Tempo Médio (Horas)" stroke="#8b5cf6" strokeWidth={3} dot={{ r: 4 }} />
                     </ComposedChart>
@@ -799,8 +799,8 @@ export const ReportsScreen: React.FC = () => {
                     <Tooltip content={<CustomEvolutionTooltip />} />
                     <ReferenceLine y={0} stroke="var(--color-text-primary)" strokeOpacity={0.3} strokeWidth={2} />
                     <Legend wrapperStyle={{ paddingTop: '10px' }} />
-                    <Bar dataKey="entradas" name="Entradas" fill="#ef4444" radius={[4, 4, 0, 0]} maxBarSize={50} />
-                    <Bar dataKey="resolvidos" name="Resolvidos" fill="#22c55e" radius={[4, 4, 0, 0]} maxBarSize={50} />
+                    <Bar dataKey="entradas" name="Entradas" fill="#64748b" radius={[4, 4, 0, 0]} maxBarSize={50} />
+                    <Bar dataKey="resolvidos" name="Resolvidos" fill="#3b82f6" radius={[4, 4, 0, 0]} maxBarSize={50} />
                     <Line type="monotone" dataKey="saldo" name="Saldo do Dia" stroke="#9ca3af" strokeWidth={2} strokeDasharray="5 5" dot={<CustomEvolutionDot />} activeDot={{ r: 7 }} />
                   </ComposedChart>
                 </ResponsiveContainer>
@@ -830,8 +830,8 @@ export const ReportsScreen: React.FC = () => {
                       <tr key={i} style={{ borderBottom: '1px solid var(--color-border)' }}>
                         <td style={{ padding: '12px', color: 'var(--color-text-primary)', fontWeight: 500 }}>{g.name}</td>
                         <td style={{ padding: '12px', textAlign: 'center', fontWeight: 600, color: '#f59e0b' }}>{g.pendentes}</td>
-                        <td style={{ padding: '12px', textAlign: 'center', fontWeight: 600, color: '#22c55e' }}>{g.resolvidos}</td>
-                        <td style={{ padding: '12px', textAlign: 'center', fontWeight: 600, color: '#ef4444' }}>{g.entradas}</td>
+                        <td style={{ padding: '12px', textAlign: 'center', fontWeight: 600, color: '#3b82f6' }}>{g.resolvidos}</td>
+                        <td style={{ padding: '12px', textAlign: 'center', fontWeight: 600, color: '#64748b' }}>{g.entradas}</td>
                         <td style={{ padding: '12px', textAlign: 'center', color: 'var(--color-text-secondary)' }}>{g.avgTime}h</td>
                       </tr>
                     ))}
@@ -857,7 +857,8 @@ export const ReportsScreen: React.FC = () => {
                     <XAxis type="number" stroke="var(--color-text-secondary)" fontSize={12} />
                     <YAxis dataKey="name" type="category" stroke="var(--color-text-secondary)" fontSize={11} width={120} tickFormatter={(val) => val.length > 15 ? val.substring(0, 15) + '...' : val} />
                     <Tooltip 
-                      contentStyle={{ backgroundColor: 'var(--color-bg-secondary)', borderColor: 'var(--color-border)', borderRadius: '8px', color: 'var(--color-text-primary)' }}
+                      contentStyle={{ backgroundColor: '#ffffff', borderColor: 'var(--color-border)', borderRadius: '8px', color: '#1e293b' }}
+                      itemStyle={{ color: '#1e293b' }}
                       cursor={{ fill: 'var(--color-bg-primary)' }}
                     />
                     <Bar dataKey="count" name="Tickets" fill="#8b5cf6" radius={[0, 4, 4, 0]}>
