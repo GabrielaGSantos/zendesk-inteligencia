@@ -210,13 +210,14 @@ export function registerReportRoutes(supabase: SupabaseClient) {
       const avgResolutionTimePrev = slaTicketsPrev && slaTicketsPrev.length > 0 ? (totalResolutionTimeHoursPrev / slaTicketsPrev.length).toFixed(1) : '0.0';
 
       // Advanced Volumes
-      let qAllCreated = applyFiltersSafe(supabase.from('tickets').select(`organization_name, priority, group_name, created_at, solved_at, status, ticket_analysis${joinType}(category, product, was_reopened)`).gte('created_at', currentRange.start).lte('created_at', currentRange.end));
+      let qAllCreated = applyFiltersSafe(supabase.from('tickets').select(`organization_name, priority, group_name, assignee_name, created_at, solved_at, status, ticket_analysis${joinType}(category, product, was_reopened)`).gte('created_at', currentRange.start).lte('created_at', currentRange.end));
       const { data: createdTickets } = await qAllCreated;
       
-      let qAllActive = applyFiltersSafe(supabase.from('tickets').select(`organization_name, priority, group_name, created_at, solved_at, status, ticket_analysis${joinType}(category, product, was_reopened)`).or(`created_at.gte.${currentRange.start},solved_at.gte.${currentRange.start}`));
+      let qAllActive = applyFiltersSafe(supabase.from('tickets').select(`organization_name, priority, group_name, assignee_name, created_at, solved_at, status, ticket_analysis${joinType}(category, product, was_reopened)`).or(`created_at.gte.${currentRange.start},solved_at.gte.${currentRange.start}`));
       const { data: activeTickets } = await qAllActive;
       
       const groupData = {};
+      const agentData = {};
       const clientData = {};
       const volumeByProduct = {};
       const volumeByCategory = {};
@@ -228,6 +229,7 @@ export function registerReportRoutes(supabase: SupabaseClient) {
           const isPending = t.status !== 'solved' && t.status !== 'closed';
 
           const groupName = t.group_name && t.group_name.trim() !== '' ? t.group_name : 'Sem grupo definido';
+          const assigneeName = t.assignee_name && t.assignee_name.trim() !== '' ? t.assignee_name : 'Sem agente';
 
           if (groupName) {
             if (!groupData[groupName]) groupData[groupName] = { entradas: 0, resolvidos: 0, pendentes: 0, totalHours: 0, solvedCount: 0 };
@@ -238,6 +240,17 @@ export function registerReportRoutes(supabase: SupabaseClient) {
                groupData[groupName].solvedCount++;
             }
             if (isPending) groupData[groupName].pendentes++;
+          }
+          
+          if (assigneeName) {
+            if (!agentData[assigneeName]) agentData[assigneeName] = { entradas: 0, resolvidos: 0, pendentes: 0, totalHours: 0, solvedCount: 0 };
+            if (isCreated) agentData[assigneeName].entradas++;
+            if (isSolved) {
+               agentData[assigneeName].resolvidos++;
+               agentData[assigneeName].totalHours += (new Date(t.solved_at).getTime() - new Date(t.created_at).getTime()) / 3600000;
+               agentData[assigneeName].solvedCount++;
+            }
+            if (isPending) agentData[assigneeName].pendentes++;
           }
 
           if (t.organization_name) {
@@ -266,6 +279,14 @@ export function registerReportRoutes(supabase: SupabaseClient) {
         pendentes: groupData[k].pendentes,
         avgTime: groupData[k].solvedCount > 0 ? (groupData[k].totalHours / groupData[k].solvedCount).toFixed(1) : '-'
       })).sort((a,b) => b.entradas - a.entradas);
+
+      const agentStats = Object.keys(agentData).map(k => ({
+        name: k,
+        entradas: agentData[k].entradas,
+        resolvidos: agentData[k].resolvidos,
+        pendentes: agentData[k].pendentes,
+        avgTime: agentData[k].solvedCount > 0 ? (agentData[k].totalHours / agentData[k].solvedCount).toFixed(1) : '-'
+      })).sort((a,b) => b.resolvidos - a.resolvidos);
 
       let internalDemand = null;
       const clientStats = Object.keys(clientData)
@@ -404,8 +425,9 @@ export function registerReportRoutes(supabase: SupabaseClient) {
         distributions: {
           byProduct: Object.entries(volumeByProduct).map(([name, count]) => ({ name, count })).sort((a,b) => b.count - a.count),
           byCategory: Object.entries(volumeByCategory).map(([name, count]) => ({ name, count })).sort((a,b) => b.count - a.count),
-          byClient: clientStats,
           byGroup: groupStats,
+          byAgent: agentStats,
+          byClient: clientStats,
           internalDemand
         },
         trends: {

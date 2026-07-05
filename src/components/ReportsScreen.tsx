@@ -843,6 +843,38 @@ export const ReportsScreen: React.FC = () => {
               </div>
             </div>
 
+            {/* Capacity (Distribution by Agent) */}
+            <div className="card" style={{ padding: '20px', display: 'flex', flexDirection: 'column' }}>
+              <h3 style={{ marginTop: 0, marginBottom: '20px', fontSize: '1.1rem', color: 'var(--color-text-primary)' }}>Capacidade Operacional por Agente</h3>
+              <div style={{ flex: 1, overflowX: 'auto', maxHeight: '400px' }}>
+                <table className="data-table" style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                  <thead style={{ position: 'sticky', top: 0, backgroundColor: 'var(--color-bg-primary)', zIndex: 1 }}>
+                    <tr style={{ borderBottom: '2px solid var(--color-border)', color: 'var(--color-text-secondary)' }}>
+                      <th style={{ padding: '12px' }}>Agente</th>
+                      <th style={{ padding: '12px', textAlign: 'center' }}>Pendentes</th>
+                      <th style={{ padding: '12px', textAlign: 'center' }}>Resolvidos</th>
+                      <th style={{ padding: '12px', textAlign: 'center' }}>Entradas</th>
+                      <th style={{ padding: '12px', textAlign: 'center' }}>Tempo Médio</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {distributions.byAgent?.map((a: any, i: number) => (
+                      <tr key={i} style={{ borderBottom: '1px solid var(--color-border)' }}>
+                        <td style={{ padding: '12px', color: 'var(--color-text-primary)', fontWeight: 500 }}>{a.name}</td>
+                        <td style={{ padding: '12px', textAlign: 'center', fontWeight: 600, color: '#f59e0b' }}>{a.pendentes}</td>
+                        <td style={{ padding: '12px', textAlign: 'center', fontWeight: 600, color: '#3b82f6' }}>{a.resolvidos}</td>
+                        <td style={{ padding: '12px', textAlign: 'center', fontWeight: 600, color: '#64748b' }}>{a.entradas}</td>
+                        <td style={{ padding: '12px', textAlign: 'center', color: 'var(--color-text-secondary)' }}>{a.avgTime}h</td>
+                      </tr>
+                    ))}
+                    {(!distributions.byAgent || distributions.byAgent.length === 0) && (
+                      <tr><td colSpan={5} style={{ padding: '20px', textAlign: 'center', color: 'var(--color-text-secondary)' }}>Nenhum agente encontrado no período.</td></tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
