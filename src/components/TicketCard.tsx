@@ -239,7 +239,7 @@ export const TicketCard: React.FC<TicketCardProps> = ({ ticket, onClick, onNotSp
             </button>
           )}
           <a
-            href={ticket.zendesk_url}
+            href={ticket.zendesk_url || `https://mpxbrasil.zendesk.com/agent/tickets/${ticket.zendesk_id}`}
             target="_blank"
             rel="noopener noreferrer"
             className="btn btn--ghost btn--sm"
