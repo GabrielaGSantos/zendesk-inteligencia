@@ -541,6 +541,17 @@ export function registerReportRoutes(supabase: SupabaseClient) {
               assigneeMap[assignee].tickets++;
               assigneeMap[assignee].points += pts;
               assigneeMap[assignee].hours += hrs;
+            } else {
+              workloadStats.byEffort['Não Classificado'] = (workloadStats.byEffort['Não Classificado'] || 0) + 1;
+              workloadStats.byCriticality['Não Classificado'] = (workloadStats.byCriticality['Não Classificado'] || 0) + 1;
+              workloadStats.byExpectedTime['Não Classificado'] = (workloadStats.byExpectedTime['Não Classificado'] || 0) + 1;
+              workloadStats.byReason['Sem Análise'] = (workloadStats.byReason['Sem Análise'] || 0) + 1;
+              
+              const assignee = t.assignee_name || 'Sem Responsável';
+              if (!assigneeMap[assignee]) {
+                assigneeMap[assignee] = { name: assignee, tickets: 0, points: 0, hours: 0 };
+              }
+              assigneeMap[assignee].tickets++;
             }
           } else {
             workloadStats.clientResponsibility++;

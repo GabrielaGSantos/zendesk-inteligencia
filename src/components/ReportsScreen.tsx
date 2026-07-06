@@ -603,6 +603,7 @@ export const ReportsScreen: React.FC = () => {
                       <PieChart>
                         <Pie
                           data={[
+                            { name: 'Não Classificado', value: data.workload?.byEffort['Não Classificado'] || 0, fill: '#9ca3af' },
                             { name: 'Baixo', value: data.workload?.byEffort['Baixo'] || 0, fill: '#3b82f6' },
                             { name: 'Médio', value: data.workload?.byEffort['Médio'] || 0, fill: '#f59e0b' },
                             { name: 'Alto', value: data.workload?.byEffort['Alto'] || 0, fill: '#ef4444' },
@@ -613,7 +614,7 @@ export const ReportsScreen: React.FC = () => {
                           paddingAngle={2}
                           dataKey="value"
                         >
-                          {[...Array(4)].map((_, i) => (
+                          {[...Array(5)].map((_, i) => (
                              <Cell key={`cell-${i}`} />
                           ))}
                         </Pie>
@@ -621,7 +622,7 @@ export const ReportsScreen: React.FC = () => {
                       </PieChart>
                     </ResponsiveContainer>
                     <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
-                       <span style={{ fontSize: '1.6rem', fontWeight: 700, color: 'var(--color-text-primary)' }}>{data.workload?.totalBacklog || 0}</span>
+                       <span style={{ fontSize: '1.6rem', fontWeight: 700, color: 'var(--color-text-primary)' }}>{data.workload?.mpxResponsibility || 0}</span>
                     </div>
                   </div>
                   <div style={{ textAlign: 'center', fontSize: '0.9rem', fontWeight: 600, color: 'var(--color-text-primary)' }}>Esforço da Fila</div>
@@ -639,7 +640,7 @@ export const ReportsScreen: React.FC = () => {
                   </div>
                   <div>
                     <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--color-text-secondary)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Prazo Esperado</div>
-                    {Object.entries(data.workload?.byExpectedTime || {}).slice(0,3).map(([key, val]) => (
+                    {Object.entries(data.workload?.byExpectedTime || {}).map(([key, val]) => (
                       <div key={key} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', marginBottom: 4, paddingBottom: 4, borderBottom: '1px dashed var(--color-border)' }}>
                         <span style={{ color: 'var(--color-text-primary)' }}>{key.replace(/_/g, ' ')}</span>
                         <strong style={{ color: 'var(--color-text-primary)' }}>{val as React.ReactNode}</strong>
