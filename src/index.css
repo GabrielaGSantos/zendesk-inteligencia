@@ -1670,27 +1670,4 @@ a:hover {
     background: #fff !important;
     margin-bottom: 24px !important;
   }
-
-  /* Flatten grid columns to stack vertically */
-  div[style*="display: grid"],
-  .grid {
-    display: block !important;
-  }
-
-  /* Fix overlapping in flex items, specifically the pie chart and side lists */
-  div[style*="display: flex"] {
-    flex-wrap: wrap !important;
-  }
-
-  /* Pie Chart containers */
-  div[style*="flex: 1.5"] {
-    flex: 1 1 100% !important;
-    width: 100% !important;
-  }
-
-  /* Ensure charts fit */
-  .recharts-responsive-container {
-    width: 100% !important;
-    max-height: 350px !important;
-  }
 }

@@ -12,6 +12,8 @@ import {
 } from 'recharts';
 import { ClientsBI } from './reports/ClientsBI';
 import { ClientProfile } from './reports/ClientProfile';
+// @ts-ignore
+import html2pdf from 'html2pdf.js';
 
 const CustomEvolutionTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
@@ -240,8 +242,29 @@ export const ReportsScreen: React.FC = () => {
     document.body.removeChild(link);
   };
 
-  const handlePrint = () => {
-    window.print();
+  const handlePrint = async () => {
+    const container = document.getElementById('report-export-container');
+    if (!container) return;
+
+    // Adiciona classe para esconder elementos no-print durante a exportação
+    container.classList.add('is-exporting');
+
+    const opt = {
+      margin:       [10, 10, 10, 10],
+      filename:     `relatorio_gerencial_${period}.pdf`,
+      image:        { type: 'jpeg', quality: 0.98 },
+      html2canvas:  { scale: 2, useCORS: true, windowWidth: 1200 }, // Força renderização desktop
+      jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' },
+      pagebreak:    { mode: ['avoid-all', 'css'] }
+    };
+
+    try {
+      await html2pdf().set(opt).from(container).save();
+    } catch (err) {
+      console.error('Erro ao gerar PDF', err);
+    } finally {
+      container.classList.remove('is-exporting');
+    }
   };
 
   const renderTrend = (value: number) => {
@@ -362,9 +385,14 @@ export const ReportsScreen: React.FC = () => {
   };
 
   return (
-    <div className="reports-manager print-container" style={{ paddingBottom: '40px' }}>
+    <div id="report-export-container" className="reports-manager print-container" style={{ paddingBottom: '40px' }}>
       <style dangerouslySetInnerHTML={{__html: `
         .print-only { display: none; }
+        .is-exporting .no-print { display: none !important; }
+        .is-exporting .print-only { display: block !important; margin-bottom: 20px; border-bottom: 2px solid #ddd; padding-bottom: 10px; }
+        .is-exporting { background: white; color: black; padding: 20px !important; }
+        .is-exporting .card { border: 1px solid #ddd; box-shadow: none; break-inside: avoid; }
+        
         @media print {
           .no-print { display: none !important; }
           .print-only { display: block !important; margin-bottom: 20px; border-bottom: 2px solid #ddd; padding-bottom: 10px; }
