@@ -457,6 +457,25 @@ export function registerReportRoutes(supabase: SupabaseClient) {
         hours: { "Crítico": 8, "Alto": 12, "Médio": 4, "Baixo": 1 }
       };
 
+      let dynamicCapacity = 0;
+      try {
+        const { data: agents } = await supabase.from('zendesk_agents').select('cargo');
+        if (agents && agents.length > 0) {
+          agents.forEach(a => {
+            const cargo = (a.cargo || '').toLowerCase();
+            if (cargo.includes('estagiário') || cargo.includes('estagiario') || cargo.includes('jovem aprendiz')) {
+              dynamicCapacity += 100; // Carga reduzida
+            } else if (!cargo.includes('gerente') && !cargo.includes('diretor') && !cargo.includes('ceo') && cargo.trim() !== '') {
+              dynamicCapacity += 160; // Carga integral padrão (aprox 160h/mês)
+            }
+          });
+        }
+      } catch (e) {
+        console.error("Erro ao calcular capacidade dinâmica", e);
+      }
+      
+      const finalCapacity = dynamicCapacity > 0 ? dynamicCapacity : workloadConfig.capacity.total_hours_available;
+
       let qWorkload = applyFiltersSafe(supabase.from('tickets').select(`
         id, zendesk_id, status, assignee_name, group_name, created_at, updated_at,
         ticket_analysis (operational_effort, criticality, expected_completion_effort, effort_reason)
@@ -472,7 +491,7 @@ export function registerReportRoutes(supabase: SupabaseClient) {
         totalPoints: 0,
         totalHours: 0,
         capacityConsumedPct: 0,
-        availableCapacity: workloadConfig.capacity.total_hours_available,
+        availableCapacity: finalCapacity,
         aging: { '0-2_dias': 0, '3-5_dias': 0, '6-10_dias': 0, 'mais_de_10_dias': 0 },
         byEffort: {},
         byCriticality: {},
