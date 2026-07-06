@@ -480,7 +480,7 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({ ticket: in
                   <div className="modal__info-item">
                     <span className="modal__info-label">
                       <Activity size={10} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 4 }} />
-                      Esforço Operacional
+                      Complexidade (Esforço)
                     </span>
                     {isEditing ? (
                       <ComboInput 

@@ -113,11 +113,11 @@ export function ClientProfile({ clientName, filters, onBack }: any) {
            </div>
            
            {!aiAnalysis && (
-             <button className="btn-primary" onClick={generateStrategicAnalysis} disabled={analyzing} style={{ display: 'flex', alignItems: 'center', gap: 8, whiteSpace: 'nowrap' }}>
-               {analyzing ? <RefreshCw size={18} className="spin" /> : <Zap size={18} />}
-               {analyzing ? 'Gerando Análise...' : 'Gerar Análise Estratégica'}
-             </button>
-           )}
+              <button className="btn btn--primary" onClick={generateStrategicAnalysis} disabled={analyzing} style={{ display: 'flex', alignItems: 'center', gap: 8, whiteSpace: 'nowrap' }}>
+                {analyzing ? <RefreshCw size={18} className="spin" /> : <Zap size={18} />}
+                {analyzing ? 'Gerando Análise...' : 'Gerar Análise Estratégica'}
+              </button>
+            )}
         </div>
       </div>
 
