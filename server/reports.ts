@@ -827,12 +827,17 @@ FORMATO OBRIGATÓRIO (JSON):
          const totalScore = Math.round(scoreSla + scoreReopen + scoreFila + scorePeso);
 
          const trend = trendsMap[c.name] || [0,0,0,0,0,0,0,0];
-         let avgTrend = trend.reduce((a,b)=>a+b, 0) / 8;
+         let totalTrend = trend.reduce((a,b)=>a+b, 0);
+         let avgTrend = totalTrend / 8;
          let variance = trend.reduce((a,b)=>a + Math.pow(b-avgTrend, 2), 0) / 8;
          let stdDev = Math.sqrt(variance);
          let stability = 'Estável';
-         if (stdDev > avgTrend * 0.5) stability = 'Oscilando';
-         if (stdDev > avgTrend) stability = 'Instável';
+         // Só calculamos instabilidade estatística se houver volume mínimo (ex: > 3 chamados em 8 semanas)
+         // e se o desvio padrão for maior que 1 chamado.
+         if (totalTrend > 3 && stdDev >= 1) {
+           if (stdDev > avgTrend * 0.5) stability = 'Oscilando';
+           if (stdDev > avgTrend) stability = 'Instável';
+         }
 
          return {
            name: c.name,
