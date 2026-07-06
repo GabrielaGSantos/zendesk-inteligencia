@@ -186,7 +186,9 @@ export function registerReportRoutes(supabase: SupabaseClient) {
 
       const joinType = (category || product) ? '!inner' : '!left';
       const applyFiltersSafe = (query) => {
-        query = query.neq('status', 'deleted');
+        query = query.neq('status', 'deleted')
+                     .neq('status', 'suspended')
+                     .not('subject', 'ilike', '\\*\\*\\*SPAM%');
         if (client) query = query.eq('organization_name', client);
         if (group) query = query.eq('group_name', group);
         if (assignee) query = query.eq('assignee_name', assignee);
@@ -391,22 +393,47 @@ export function registerReportRoutes(supabase: SupabaseClient) {
       if (bucketCount < 1) bucketCount = 1;
       const bucketSize = (new Date(currentRange.end).getTime() - new Date(currentRange.start).getTime()) / bucketCount;
       
-      let qEvolCreated = supabase.from('tickets').select('created_at').gte('created_at', currentRange.start).lte('created_at', currentRange.end);
-      let qEvolSolved = supabase.from('tickets').select('solved_at').in('status', ['solved', 'closed']).gte('solved_at', currentRange.start).lte('solved_at', currentRange.end);
+      let qEvolCreated = applyFiltersSafe(supabase.from('tickets').select('created_at').gte('created_at', currentRange.start).lte('created_at', currentRange.end));
+      let qEvolSolved = applyFiltersSafe(supabase.from('tickets').select('solved_at').in('status', ['solved', 'closed']).gte('solved_at', currentRange.start).lte('solved_at', currentRange.end));
       const [evolC, evolS] = await Promise.all([qEvolCreated, qEvolSolved]);
       
       if (evolC.data && evolS.data) {
-        for (let i = 0; i < bucketCount; i++) {
-          const bStart = new Date(currentRange.start).getTime() + i * bucketSize;
-          const bEnd = bStart + bucketSize;
-          const inCount = evolC.data.filter(t => new Date(t.created_at).getTime() >= bStart && new Date(t.created_at).getTime() < bEnd).length;
-          const outCount = evolS.data.filter(t => new Date(t.solved_at).getTime() >= bStart && new Date(t.solved_at).getTime() < bEnd).length;
-          evolutionData.push({
-            date: new Date(bStart).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
-            entradas: inCount,
-            resolvidos: outCount,
-            saldo: inCount - outCount
+        if (diffDays <= 14) {
+          const dateMap = {};
+          const startDt = new Date(currentRange.start);
+          for (let i = 0; i <= Math.ceil(diffDays); i++) {
+            const d = new Date(startDt);
+            d.setDate(d.getDate() + i);
+            if (d.getTime() > new Date(currentRange.end).getTime()) continue;
+            const dateStr = d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+            if (!dateMap[dateStr]) dateMap[dateStr] = { date: dateStr, entradas: 0, resolvidos: 0, saldo: 0 };
+          }
+
+          evolC.data.forEach(t => {
+            const dateStr = new Date(t.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+            if (dateMap[dateStr]) dateMap[dateStr].entradas++;
           });
+          
+          evolS.data.forEach(t => {
+            const dateStr = new Date(t.solved_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+            if (dateMap[dateStr]) dateMap[dateStr].resolvidos++;
+          });
+          
+          evolutionData = Object.values(dateMap);
+          evolutionData.forEach((v: any) => v.saldo = v.entradas - v.resolvidos);
+        } else {
+          for (let i = 0; i < bucketCount; i++) {
+            const bStart = new Date(currentRange.start).getTime() + i * bucketSize;
+            const bEnd = bStart + bucketSize;
+            const inCount = evolC.data.filter(t => new Date(t.created_at).getTime() >= bStart && new Date(t.created_at).getTime() < bEnd).length;
+            const outCount = evolS.data.filter(t => new Date(t.solved_at).getTime() >= bStart && new Date(t.solved_at).getTime() < bEnd).length;
+            evolutionData.push({
+              date: new Date(bStart).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
+              entradas: inCount,
+              resolvidos: outCount,
+              saldo: inCount - outCount
+            });
+          }
         }
       }
 

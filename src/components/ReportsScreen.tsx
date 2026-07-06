@@ -621,8 +621,9 @@ export const ReportsScreen: React.FC = () => {
                         <Tooltip />
                       </PieChart>
                     </ResponsiveContainer>
-                    <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
+                    <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none', lineHeight: 1.2 }}>
                        <span style={{ fontSize: '1.6rem', fontWeight: 700, color: 'var(--color-text-primary)' }}>{data.workload?.mpxResponsibility || 0}</span>
+                       <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--color-text-secondary)', marginTop: '-2px' }}>tickets</span>
                     </div>
                   </div>
                   <div style={{ textAlign: 'center', fontSize: '0.9rem', fontWeight: 600, color: 'var(--color-text-primary)' }}>Esforço da Fila</div>
