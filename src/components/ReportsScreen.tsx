@@ -486,6 +486,30 @@ export const ReportsScreen: React.FC = () => {
         ))}
       </div>
 
+      {/* Comparando Block Global */}
+      {data?.comparison && activeTab !== 'historico' && (
+        <div className="no-print" style={{ marginBottom: '24px', padding: '16px 20px', background: 'var(--color-bg-secondary)', borderRadius: '8px', borderLeft: '4px solid var(--color-primary)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <span style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 600 }}>Comparando</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
+              <strong style={{ color: 'var(--color-text-primary)', fontSize: '1.1rem' }}>{data.comparison.current.label}</strong>
+              <span style={{ fontSize: '0.9rem', color: 'var(--color-text-secondary)' }}>
+                {new Date(data.comparison.current.start).toLocaleDateString('pt-BR', {timeZone: 'UTC', day:'2-digit', month:'2-digit'})} a {new Date(data.comparison.current.end).toLocaleDateString('pt-BR', {timeZone: 'UTC', day:'2-digit', month:'2-digit'})}
+              </span>
+            </div>
+            
+            <span style={{ fontSize: '1.2rem', color: 'var(--color-text-secondary)', fontWeight: 300 }}>&times;</span>
+            
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
+              <strong style={{ color: 'var(--color-text-primary)', fontSize: '1.1rem' }}>{data.comparison.reference.label}</strong>
+              <span style={{ fontSize: '0.9rem', color: 'var(--color-text-secondary)' }}>
+                {new Date(data.comparison.reference.start).toLocaleDateString('pt-BR', {timeZone: 'UTC', day:'2-digit', month:'2-digit'})} a {new Date(data.comparison.reference.end).toLocaleDateString('pt-BR', {timeZone: 'UTC', day:'2-digit', month:'2-digit'})}
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+
       {activeTab === 'clientes' && (
         selectedClient ? (
           <ClientProfile clientName={selectedClient} filters={{ period, customStart, customEnd }} onBack={() => setSelectedClient(null)} />
@@ -496,31 +520,6 @@ export const ReportsScreen: React.FC = () => {
 
       {data?.summary && activeTab === 'overview' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '32px', marginBottom: '32px' }}>
-          
-          {/* Comparando Block */}
-          {data.comparison && (
-            <div className="no-print" style={{ marginBottom: '8px', padding: '16px 20px', background: 'var(--color-bg-secondary)', borderRadius: '8px', borderLeft: '4px solid var(--color-primary)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <span style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 600 }}>Comparando</span>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
-                  <strong style={{ color: 'var(--color-text-primary)', fontSize: '1.1rem' }}>{data.comparison.current.label}</strong>
-                  <span style={{ fontSize: '0.9rem', color: 'var(--color-text-secondary)' }}>
-                    {new Date(data.comparison.current.start).toLocaleDateString('pt-BR', {timeZone: 'UTC', day:'2-digit', month:'2-digit'})} a {new Date(data.comparison.current.end).toLocaleDateString('pt-BR', {timeZone: 'UTC', day:'2-digit', month:'2-digit'})}
-                  </span>
-                </div>
-                
-                <span style={{ fontSize: '1.2rem', color: 'var(--color-text-secondary)', fontWeight: 300 }}>&times;</span>
-                
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
-                  <strong style={{ color: 'var(--color-text-primary)', fontSize: '1.1rem' }}>{data.comparison.reference.label}</strong>
-                  <span style={{ fontSize: '0.9rem', color: 'var(--color-text-secondary)' }}>
-                    {new Date(data.comparison.reference.start).toLocaleDateString('pt-BR', {timeZone: 'UTC', day:'2-digit', month:'2-digit'})} a {new Date(data.comparison.reference.end).toLocaleDateString('pt-BR', {timeZone: 'UTC', day:'2-digit', month:'2-digit'})}
-                  </span>
-                </div>
-              </div>
-            </div>
-          )}
-
           {/* Insights + Demanda Block */}
           <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap' }}>
             <div className="card" style={{ flex: 2, padding: '20px', background: 'var(--color-bg-primary)', borderLeft: '4px solid #8b5cf6' }}>
