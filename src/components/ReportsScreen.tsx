@@ -3,7 +3,7 @@ import { api } from '../services/api';
 import { 
   TrendingUp, TrendingDown, Filter, Download, Printer, 
   Activity, Users, Target, Clock, AlertTriangle, Layers, Map,
-  CheckCircle, XCircle
+  CheckCircle, XCircle, Brain
 } from 'lucide-react';
 import { 
   ComposedChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, 
