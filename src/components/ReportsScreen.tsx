@@ -677,7 +677,7 @@ export const ReportsScreen: React.FC = () => {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
               <div className="card" style={{ padding: '20px', flex: 1, overflowX: 'auto' }}>
                 <h3 style={{ marginTop: 0, marginBottom: '16px', fontSize: '1.05rem', color: 'var(--color-text-primary)' }}>Tabela Gerencial de Clientes</h3>
-                <table className="data-table" style={{ width: '100%', minWidth: '400px' }}>
+                <table className="reports-table" style={{ width: '100%', minWidth: '400px' }}>
                   <thead>
                     <tr>
                       <th>Cliente</th>
@@ -813,7 +813,7 @@ export const ReportsScreen: React.FC = () => {
           
           <div className="card" style={{ padding: '20px' }}>
             <h3 style={{ marginTop: 0, marginBottom: '16px', fontSize: '1.05rem', color: 'var(--color-text-primary)' }}>Principais Motivos de Acionamento</h3>
-            <table className="data-table">
+            <table className="reports-table">
               <thead>
                 <tr>
                   <th>Motivo Estratégico</th>
@@ -852,7 +852,7 @@ export const ReportsScreen: React.FC = () => {
           <h2 className="section-title" style={{ marginTop: '16px' }}>Distribuição por Equipe</h2>
           <div className="card" style={{ padding: '24px', overflowX: 'auto' }}>
             <h3 style={{ marginTop: 0, marginBottom: '20px', fontSize: '1.05rem', color: 'var(--color-text-primary)' }}>Ranking de Responsáveis (Carga de Trabalho Projetada)</h3>
-            <table className="data-table">
+            <table className="reports-table">
               <thead>
                 <tr>
                   <th>Responsável</th>
@@ -893,7 +893,7 @@ export const ReportsScreen: React.FC = () => {
           
           <div className="card" style={{ padding: '24px' }}>
              <h3 style={{ marginTop: 0, marginBottom: '20px', fontSize: '1.05rem', color: 'var(--color-text-primary)' }}>Produtividade (Tickets Resolvidos)</h3>
-             <table className="data-table">
+             <table className="reports-table">
                 <thead>
                   <tr>
                     <th>Agente</th>
@@ -928,7 +928,7 @@ export const ReportsScreen: React.FC = () => {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '24px' }}>
             <div className="card" style={{ padding: '20px' }}>
               <h3 style={{ marginTop: 0, marginBottom: '16px', fontSize: '1.05rem', color: 'var(--color-text-primary)' }}>Top Clientes Demandantes</h3>
-              <table className="data-table">
+              <table className="reports-table">
                 <thead>
                   <tr>
                     <th>Cliente</th>
@@ -955,7 +955,7 @@ export const ReportsScreen: React.FC = () => {
 
             <div className="card" style={{ padding: '20px' }}>
               <h3 style={{ marginTop: 0, marginBottom: '16px', fontSize: '1.05rem', color: 'var(--color-text-primary)' }}>Produtos Mais Demandados</h3>
-              <table className="data-table">
+              <table className="reports-table">
                 <thead>
                   <tr>
                     <th>Produto</th>
@@ -1007,7 +1007,7 @@ export const ReportsScreen: React.FC = () => {
           
           <div className="card" style={{ padding: '20px' }}>
             <h3 style={{ marginTop: 0, marginBottom: '16px', fontSize: '1.05rem', color: 'var(--color-text-primary)' }}>Categorias com Maior Crescimento de Demanda</h3>
-            <table className="data-table">
+            <table className="reports-table">
               <thead>
                 <tr>
                   <th>Categoria</th>
