@@ -423,7 +423,6 @@ export const ReportsScreen: React.FC = () => {
         {[
           { id: 'overview', label: 'Dashboard Inicial', icon: <Target size={16} /> },
           { id: 'operacao', label: 'Operação & Carga', icon: <Activity size={16} /> },
-          { id: 'equipe', label: 'Equipe', icon: <Users size={16} /> },
           { id: 'produtos', label: 'Produtos', icon: <Layers size={16} /> },
           { id: 'tendencias', label: 'Tendências', icon: <TrendingUp size={16} /> },
           { id: 'historico', label: 'Histórico (M/M)', icon: <Clock size={16} /> }
@@ -602,7 +601,79 @@ export const ReportsScreen: React.FC = () => {
             </div>
           </div>
 
-          {/* LINHA 3: Tickets Aguardando x Aging */}
+          {/* LINHA 3: Top Produtos e Clientes */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '24px' }}>
+            <div className="card" style={{ padding: '20px' }}>
+              <h3 style={{ marginTop: 0, marginBottom: '20px', fontSize: '1.05rem', color: 'var(--color-text-primary)' }}>Volume por Produto (Top 10)</h3>
+              <div style={{ height: 350, width: '100%' }}>
+                <ResponsiveContainer>
+                  <BarChart data={distributions?.byProduct?.slice(0, 10) || []} layout="vertical" margin={{ top: 0, right: 30, left: 10, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="var(--color-border)" />
+                    <XAxis type="number" fontSize={11} stroke="var(--color-text-secondary)" />
+                    <YAxis dataKey="name" type="category" fontSize={12} stroke="var(--color-text-secondary)" width={120} tickFormatter={(val) => val.length > 15 ? val.substring(0,15) + '...' : val} />
+                    <Tooltip cursor={{ fill: 'rgba(0,0,0,0.05)' }} contentStyle={{ borderRadius: 8, borderColor: 'var(--color-border)' }} />
+                    <Bar dataKey="count" fill="#8b5cf6" radius={[0, 4, 4, 0]} maxBarSize={30} label={{ position: 'right', fill: 'var(--color-text-primary)' }}>
+                      {
+                        [...Array(10)].map((_, index) => (
+                          <Cell key={`cell-${index}`} fill="#8b5cf6" />
+                        ))
+                      }
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              <div className="card" style={{ padding: '20px', flex: 1, overflowX: 'auto' }}>
+                <h3 style={{ marginTop: 0, marginBottom: '16px', fontSize: '1.05rem', color: 'var(--color-text-primary)' }}>Tabela Gerencial de Clientes</h3>
+                <table className="data-table" style={{ width: '100%', minWidth: '400px' }}>
+                  <thead>
+                    <tr>
+                      <th>Cliente</th>
+                      <th style={{ textAlign: 'center' }}>Tickets</th>
+                      <th style={{ textAlign: 'center' }}>Tempo Médio</th>
+                      <th style={{ textAlign: 'center' }}>Reabertura</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {distributions?.byClient && distributions.byClient.slice(0, 5).map((cli: any, idx: number) => (
+                      <tr key={idx}>
+                        <td><div style={{ fontWeight: 500, color: 'var(--color-text-primary)' }}>{cli.name}</div></td>
+                        <td style={{ textAlign: 'center' }}>{cli.entradas}</td>
+                        <td style={{ textAlign: 'center' }}>{cli.avgTime}{cli.avgTime !== '-' ? 'h' : ''}</td>
+                        <td style={{ textAlign: 'center' }}>{cli.reopenRate}%</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              
+              {distributions?.internalDemand && (
+                <div className="card" style={{ padding: '20px', background: 'var(--color-bg-primary)', borderLeft: '4px solid #3b82f6' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+                     <Activity size={18} color="#3b82f6" />
+                     <span style={{ fontWeight: 600, color: 'var(--color-text-primary)' }}>Demandas internas da MPX</span>
+                  </div>
+                  <div style={{ display: 'flex', gap: '24px', fontSize: '1rem', color: 'var(--color-text-secondary)' }}>
+                     <span><strong style={{ color: 'var(--color-text-primary)' }}>Tickets:</strong> {distributions.internalDemand.entradas}</span>
+                     <span><strong style={{ color: 'var(--color-text-primary)' }}>Tempo Médio:</strong> {distributions.internalDemand.avgTime}{distributions.internalDemand.avgTime !== '-' ? 'h' : ''}</span>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+        </div>
+      )}
+      
+      
+      {/* TABS SECUNDÁRIAS */}
+      
+      {data?.workload && activeTab === 'operacao' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+          <h2 className="section-title">Detalhes da Carga Operacional</h2>
+          
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
             <div className="card" style={{ padding: '20px' }}>
               <h3 style={{ marginTop: 0, marginBottom: '24px', fontSize: '1.05rem', color: 'var(--color-text-primary)' }}>Tickets Aguardando (Carga)</h3>
@@ -655,15 +726,6 @@ export const ReportsScreen: React.FC = () => {
             </div>
           </div>
 
-        </div>
-      )}
-      
-      
-      {/* TABS SECUNDÁRIAS */}
-      
-      {data?.workload && activeTab === 'operacao' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-          <h2 className="section-title">Detalhes da Carga Operacional</h2>
           <div className="card" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '24px', marginBottom: '16px' }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '24px', alignItems: 'center' }}>
                <div style={{ background: 'var(--color-bg-secondary)', padding: '20px', borderRadius: '8px', textAlign: 'center' }}>
@@ -718,12 +780,26 @@ export const ReportsScreen: React.FC = () => {
               </tbody>
             </table>
           </div>
-        </div>
-      )}
 
-      {data?.workload && activeTab === 'equipe' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-          <h2 className="section-title">Distribuição por Equipe</h2>
+          <h2 className="section-title" style={{ marginTop: '16px' }}>Desempenho de SLA</h2>
+          <div style={{ display: 'flex', gap: '24px', flexWrap: 'wrap' }}>
+             <div className="card" style={{ flex: 1, minWidth: '200px', padding: '24px', textAlign: 'center', background: 'var(--color-bg-primary)', borderLeft: '4px solid #10b981' }}>
+                <div style={{ fontSize: '1rem', color: 'var(--color-text-secondary)', marginBottom: '8px' }}>SLA Cumprido</div>
+                <div style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--color-text-primary)' }}>{summary.slaCumprido || 0}</div>
+             </div>
+             <div className="card" style={{ flex: 1, minWidth: '200px', padding: '24px', textAlign: 'center', background: 'var(--color-bg-primary)', borderLeft: '4px solid #ef4444' }}>
+                <div style={{ fontSize: '1rem', color: 'var(--color-text-secondary)', marginBottom: '8px' }}>SLA Vencido</div>
+                <div style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--color-text-primary)' }}>{summary.slaVencido || 0}</div>
+             </div>
+             <div className="card" style={{ flex: 1, minWidth: '200px', padding: '24px', textAlign: 'center', background: 'var(--color-bg-primary)', borderLeft: '4px solid #3b82f6' }}>
+                <div style={{ fontSize: '1rem', color: 'var(--color-text-secondary)', marginBottom: '8px' }}>Taxa de Sucesso SLA</div>
+                <div style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--color-text-primary)' }}>
+                   {summary.slaCumprido + summary.slaVencido > 0 ? ((summary.slaCumprido / (summary.slaCumprido + summary.slaVencido)) * 100).toFixed(1) : 0}%
+                </div>
+             </div>
+          </div>
+
+          <h2 className="section-title" style={{ marginTop: '16px' }}>Distribuição por Equipe</h2>
           <div className="card" style={{ padding: '24px', overflowX: 'auto' }}>
             <h3 style={{ marginTop: 0, marginBottom: '20px', fontSize: '1.05rem', color: 'var(--color-text-primary)' }}>Ranking de Responsáveis (Carga de Trabalho Projetada)</h3>
             <table className="data-table">
@@ -756,6 +832,11 @@ export const ReportsScreen: React.FC = () => {
                     </tr>
                   );
                 })}
+                {data.workload.byAssignee.length === 0 && (
+                  <tr>
+                    <td colSpan={5} style={{ textAlign: 'center', padding: '20px', color: 'var(--color-text-secondary)' }}>Nenhum dado projetado para a equipe.</td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
@@ -772,7 +853,7 @@ export const ReportsScreen: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {distributions.byAgent.map((agent: any, idx: number) => (
+                  {distributions?.byAgent && distributions.byAgent.map((agent: any, idx: number) => (
                     <tr key={idx}>
                       <td><div style={{ fontWeight: 500, color: 'var(--color-text-primary)' }}>{agent.name}</div></td>
                       <td>{agent.resolvidos}</td>
@@ -780,9 +861,9 @@ export const ReportsScreen: React.FC = () => {
                       <td>{summary.resolvidos > 0 ? ((agent.resolvidos / summary.resolvidos) * 100).toFixed(1) : 0}%</td>
                     </tr>
                   ))}
-                  {distributions.byAgent.length === 0 && (
+                  {(!distributions?.byAgent || distributions.byAgent.length === 0) && (
                     <tr>
-                      <td colSpan={4} style={{ textAlign: 'center', padding: '20px', color: 'var(--color-text-secondary)' }}>Nenhum dado no período</td>
+                      <td colSpan={4} style={{ textAlign: 'center', padding: '20px', color: 'var(--color-text-secondary)' }}>Nenhum ticket resolvido no período selecionado.</td>
                     </tr>
                   )}
                 </tbody>
@@ -806,13 +887,18 @@ export const ReportsScreen: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {distributions.byClient.slice(0, 10).map((cli: any, idx: number) => (
+                  {distributions?.byClient && distributions.byClient.slice(0, 10).map((cli: any, idx: number) => (
                     <tr key={idx}>
                       <td><div style={{ fontWeight: 500, color: 'var(--color-text-primary)' }}>{cli.name}</div></td>
                       <td>{cli.entradas}</td>
                       <td>{cli.avgTime}h</td>
                     </tr>
                   ))}
+                  {(!distributions?.byClient || distributions.byClient.length === 0) && (
+                    <tr>
+                      <td colSpan={3} style={{ textAlign: 'center', padding: '20px', color: 'var(--color-text-secondary)' }}>Nenhum dado para exibir.</td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>
@@ -828,13 +914,18 @@ export const ReportsScreen: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {trends.product.slice(0, 10).map((prod: any, idx: number) => (
+                  {trends?.product && trends.product.slice(0, 10).map((prod: any, idx: number) => (
                     <tr key={idx}>
                       <td><div style={{ fontWeight: 500, color: 'var(--color-text-primary)' }}>{prod.name}</div></td>
                       <td>{prod.current}</td>
                       <td>{renderGrowthTrend(prod.growth)}</td>
                     </tr>
                   ))}
+                  {(!trends?.product || trends.product.length === 0) && (
+                    <tr>
+                      <td colSpan={3} style={{ textAlign: 'center', padding: '20px', color: 'var(--color-text-secondary)' }}>Nenhum dado para exibir.</td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>
