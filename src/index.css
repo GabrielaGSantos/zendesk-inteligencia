@@ -1648,3 +1648,49 @@ a:hover {
   font-weight: 500;
 }
 
+
+/* %%% Print Styles %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% */
+@media print {
+  .no-print, nav, header, button, .recharts-tooltip-wrapper {
+    display: none !important;
+  }
+
+  body {
+    background: #fff !important;
+    color: #000 !important;
+    font-size: 11pt !important;
+  }
+
+  /* Force cards to avoid breaking inside */
+  .card {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    box-shadow: none !important;
+    border: 1px solid #e5e7eb !important;
+    background: #fff !important;
+    margin-bottom: 24px !important;
+  }
+
+  /* Flatten grid columns to stack vertically */
+  div[style*="display: grid"],
+  .grid {
+    display: block !important;
+  }
+
+  /* Fix overlapping in flex items, specifically the pie chart and side lists */
+  div[style*="display: flex"] {
+    flex-wrap: wrap !important;
+  }
+
+  /* Pie Chart containers */
+  div[style*="flex: 1.5"] {
+    flex: 1 1 100% !important;
+    width: 100% !important;
+  }
+
+  /* Ensure charts fit */
+  .recharts-responsive-container {
+    width: 100% !important;
+    max-height: 350px !important;
+  }
+}

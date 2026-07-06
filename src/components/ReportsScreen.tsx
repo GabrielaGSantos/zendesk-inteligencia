@@ -460,7 +460,7 @@ export const ReportsScreen: React.FC = () => {
       )}
 
       {/* SUBMENUS */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 24, borderBottom: '1px solid var(--color-border)', paddingBottom: 16, overflowX: 'auto' }}>
+      <div className="no-print" style={{ display: 'flex', gap: 8, marginBottom: 24, borderBottom: '1px solid var(--color-border)', paddingBottom: 16, overflowX: 'auto' }}>
         {[
           { id: 'overview', label: 'Dashboard Inicial', icon: <Target size={16} /> },
           { id: 'clientes', label: 'Inteligência de Clientes', icon: <Users size={16} /> },
