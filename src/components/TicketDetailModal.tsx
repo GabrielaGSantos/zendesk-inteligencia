@@ -493,6 +493,22 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({ ticket: in
                       <span className="modal__info-value">{ticket.operational_effort || 'Não Classificado'}</span>
                     )}
                   </div>
+                  <div className="modal__info-item">
+                    <span className="modal__info-label">
+                      <Clock size={10} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 4 }} />
+                      Prazo Esperado
+                    </span>
+                    {isEditing ? (
+                      <ComboInput 
+                        value={editForm.expected_completion_effort} 
+                        options={['Mesmo dia', 'Até 2 dias úteis', 'Até 5 dias úteis', 'Mais de 5 dias úteis']} 
+                        onChange={(v: string) => setEditForm({...editForm, expected_completion_effort: v})} 
+                        placeholder="Selecione o prazo..." 
+                      />
+                    ) : (
+                      <span className="modal__info-value">{ticket.expected_completion_effort || 'Não Classificado'}</span>
+                    )}
+                  </div>
                 </div>
               </div>
 

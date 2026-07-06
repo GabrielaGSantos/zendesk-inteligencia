@@ -114,6 +114,35 @@ export const TicketCard: React.FC<TicketCardProps> = ({ ticket, onClick, onNotSp
             <option value="Alto">Alto</option>
             <option value="Crítico">Crítico</option>
           </select>
+          <select
+            onClick={(e) => e.stopPropagation()}
+            onChange={async (e) => {
+              const val = e.target.value;
+              if (onUpdate) {
+                try {
+                  await api.updateAnalysis(ticket.zendesk_id, { expected_completion_effort: val });
+                  onUpdate({ ...ticket, expected_completion_effort: val });
+                } catch(err) {
+                  console.error(err);
+                }
+              }
+            }}
+            value={ticket.expected_completion_effort || ''}
+            className="badge badge--neutral"
+            style={{ 
+              padding: '2px 8px', border: '1px solid var(--color-border)', 
+              borderRadius: 'var(--radius-full)', fontSize: 11, fontWeight: 600, 
+              background: 'var(--color-bg)', cursor: 'pointer', outline: 'none',
+              color: ticket.expected_completion_effort ? 'var(--color-text-primary)' : 'var(--color-text-muted)',
+              marginLeft: '4px'
+            }}
+          >
+            <option value="">Prazo (N/C)</option>
+            <option value="Mesmo dia">Mesmo dia</option>
+            <option value="Até 2 dias úteis">Até 2 dias úteis</option>
+            <option value="Até 5 dias úteis">Até 5 dias úteis</option>
+            <option value="Mais de 5 dias úteis">Mais de 5 dias úteis</option>
+          </select>
         </div>
       </div>
 
