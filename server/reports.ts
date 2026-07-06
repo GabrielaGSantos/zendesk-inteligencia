@@ -186,6 +186,7 @@ export function registerReportRoutes(supabase: SupabaseClient) {
 
       const joinType = (category || product) ? '!inner' : '!left';
       const applyFiltersSafe = (query) => {
+        query = query.neq('status', 'deleted');
         if (client) query = query.eq('organization_name', client);
         if (group) query = query.eq('group_name', group);
         if (assignee) query = query.eq('assignee_name', assignee);
@@ -685,7 +686,7 @@ FORMATO OBRIGATÓRIO (JSON):
 
       const results = [];
       for (const m of months) {
-        let qCreated = supabase.from('tickets').select('id, group_name').gte('created_at', m.start).lte('created_at', m.end);
+        let qCreated = supabase.from('tickets').select('id, group_name').neq('status', 'deleted').gte('created_at', m.start).lte('created_at', m.end);
         let qSolved = supabase.from('tickets').select('id, solved_at, created_at, group_name').in('status', ['solved', 'closed']).gte('solved_at', m.start).lte('solved_at', m.end);
         
         let qSla = supabase.from('ticket_analysis').select('category').gte('created_at', m.start).lte('created_at', m.end);
