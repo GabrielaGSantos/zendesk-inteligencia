@@ -182,7 +182,7 @@ export const ReportsScreen: React.FC = () => {
     } else if (activeTab === 'historical' && historicalData.length === 0) {
       fetchHistoricalData();
     }
-  }, [activeTab, period, client, product, category, group, priority]);
+  }, [activeTab, period, customStart, customEnd, client, product, category, group, priority]);
 
   useEffect(() => {
     if (showAIModal && reportsHistory.length === 0) {

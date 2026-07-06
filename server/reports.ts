@@ -52,7 +52,9 @@ export function registerReportRoutes(supabase: SupabaseClient) {
       }
       case 'personalizado':
         if (customStart && customEnd) {
-          return { start: new Date(customStart).toISOString(), end: new Date(customEnd).toISOString() };
+          const start = new Date(customStart + "T00:00:00");
+          const end = new Date(customEnd + "T00:00:00");
+          return { start: startOfDay(start).toISOString(), end: endOfDay(end).toISOString() };
         }
         return { start: subDays(now, 30).toISOString(), end: endOfDay(now).toISOString() };
       default:
@@ -105,8 +107,8 @@ export function registerReportRoutes(supabase: SupabaseClient) {
       }
       case 'personalizado':
         if (customStart && customEnd) {
-          const start = new Date(customStart);
-          const end = new Date(customEnd);
+          const start = new Date(customStart + "T00:00:00");
+          const end = new Date(customEnd + "T00:00:00");
           const diffInMs = end.getTime() - start.getTime();
           const prevEnd = subDays(start, 1);
           const prevStart = new Date(prevEnd.getTime() - diffInMs);
