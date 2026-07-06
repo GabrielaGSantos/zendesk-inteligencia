@@ -208,12 +208,12 @@ export const ReportsScreen: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    if (activeTab === 'overview' && !data && !isAutoSyncing) {
+    if (activeTab === 'overview' && !data) {
       fetchDashboard();
     } else if (activeTab === 'historico' && historicalData.length === 0) {
       fetchHistoricalData();
     }
-  }, [activeTab, isAutoSyncing]);
+  }, [activeTab]);
 
   useEffect(() => {
     if (showAIModal && reportsHistory.length === 0) {
@@ -289,12 +289,12 @@ export const ReportsScreen: React.FC = () => {
     return <div style={{ whiteSpace: 'pre-wrap', lineHeight: '1.6', color: 'var(--color-text-primary)', fontSize: '1.05rem' }}>{text}</div>;
   };
 
-  if (loading || isAutoSyncing) {
+  if (loading) {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%', flexDirection: 'column' }}>
         <div className="spinner" style={{ marginBottom: 16 }}></div>
         <p style={{ color: 'var(--color-text-secondary)', display: 'flex', alignItems: 'center', gap: 8 }}>
-          {isAutoSyncing ? <><RefreshCw size={18} className="spin" /> Buscando dados atualizados no Zendesk...</> : 'Compilando relatórios estratégicos...'}
+          Compilando relatórios estratégicos...
         </p>
       </div>
     );
@@ -389,7 +389,15 @@ export const ReportsScreen: React.FC = () => {
 
       <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
         <div>
-          <h1 className="page-header__title">Relatórios Gerenciais</h1>
+          <h1 className="page-header__title">
+            Relatórios Gerenciais
+            {isAutoSyncing && (
+              <span style={{ fontSize: '0.9rem', fontWeight: 'normal', color: 'var(--color-text-secondary)', marginLeft: '12px', display: 'inline-flex', alignItems: 'center' }}>
+                <RefreshCw size={14} className="spin" style={{ marginRight: '4px' }} />
+                Sincronizando Zendesk...
+              </span>
+            )}
+          </h1>
           <p className="page-header__description">
             Visão executiva e acompanhamento estratégico da operação.
           </p>
