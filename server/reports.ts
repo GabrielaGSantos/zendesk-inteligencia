@@ -720,5 +720,380 @@ FORMATO OBRIGATÓRIO (JSON):
     }
   });
 
+  // ─── Clients BI Endpoints ─────────────────────────────────────────
+
+  router.get('/api/reports/clients-bi', async (req, res) => {
+    try {
+      const period = (req.query.period as string) || 'este_mes';
+      const customStart = req.query.customStart as string | undefined;
+      const customEnd = req.query.customEnd as string | undefined;
+      const groupFilter = req.query.group as string | undefined;
+
+      const currentRange = getDateRange(period, customStart, customEnd);
+
+      let qAll = supabase.from('tickets').select(`
+        organization_name, 
+        created_at, 
+        solved_at, 
+        status, 
+        ticket_analysis(was_reopened, operational_effort, criticality, predicted_resolution_time_hours)
+      `).gte('created_at', currentRange.start).lte('created_at', currentRange.end);
+
+      if (groupFilter) qAll = qAll.eq('group_name', groupFilter);
+
+      const { data: currentTickets } = await qAll;
+      
+      const eightWeeksAgo = subWeeks(new Date(), 8);
+      let qTrend = supabase.from('tickets').select('organization_name, created_at').gte('created_at', eightWeeksAgo.toISOString());
+      if (groupFilter) qTrend = qTrend.eq('group_name', groupFilter);
+      const { data: trendTickets } = await qTrend;
+
+      const clientMap: Record<string, any> = {};
+
+      if (currentTickets) {
+         currentTickets.forEach(t => {
+           if (!t.organization_name) return;
+           const org = t.organization_name;
+           if (!clientMap[org]) {
+             clientMap[org] = {
+               name: org,
+               entradas: 0,
+               resolvidos: 0,
+               pendentes: 0,
+               reaberturas: 0,
+               slaVencido: 0,
+               slaCumprido: 0,
+               pesoOperacional: 0,
+               resolutionTimes: []
+             };
+           }
+           clientMap[org].entradas++;
+           if (['solved', 'closed'].includes(t.status)) {
+             clientMap[org].resolvidos++;
+             if (t.created_at && t.solved_at) {
+               const hours = getBusinessHours(t.created_at, t.solved_at);
+               clientMap[org].resolutionTimes.push(hours);
+               // SLA mockup if no Zendesk SLA is present: if resolved in <= 48h business hours, it's cumprido.
+               if (hours <= 48) clientMap[org].slaCumprido++; else clientMap[org].slaVencido++;
+             }
+           } else {
+             clientMap[org].pendentes++;
+           }
+
+           if (t.ticket_analysis) {
+             const analysisObj = Array.isArray(t.ticket_analysis) ? t.ticket_analysis[0] : t.ticket_analysis;
+             if (analysisObj) {
+               if (analysisObj.was_reopened) clientMap[org].reaberturas++;
+               
+               if (analysisObj.operational_effort === 'Crítico' || analysisObj.criticality === 'Crítico' || analysisObj.criticality === 'Alta') clientMap[org].pesoOperacional += 5;
+               else if (analysisObj.operational_effort === 'Alto' || analysisObj.criticality === 'Média') clientMap[org].pesoOperacional += 3;
+               else if (analysisObj.operational_effort === 'Médio') clientMap[org].pesoOperacional += 2;
+               else clientMap[org].pesoOperacional += 1;
+             }
+           }
+         });
+      }
+
+      const trendsMap: Record<string, number[]> = {};
+      if (trendTickets) {
+        trendTickets.forEach(t => {
+          if (!t.organization_name) return;
+          const org = t.organization_name;
+          if (!trendsMap[org]) trendsMap[org] = [0,0,0,0,0,0,0,0];
+          
+          const createdTime = new Date(t.created_at).getTime();
+          const weeksAgo = Math.floor((new Date().getTime() - createdTime) / (1000*60*60*24*7));
+          if (weeksAgo >= 0 && weeksAgo < 8) {
+             trendsMap[org][7 - weeksAgo]++; 
+          }
+        });
+      }
+
+      const clientsData = Object.values(clientMap).map(c => {
+         const slaTotal = c.slaCumprido + c.slaVencido;
+         const slaPct = slaTotal > 0 ? c.slaCumprido / slaTotal : 1;
+         const reopenPct = c.entradas > 0 ? c.reaberturas / c.entradas : 0;
+         const reopenScore = Math.max(0, 1 - (reopenPct * 2)); 
+         const backlogPct = c.entradas > 0 ? c.pendentes / c.entradas : 0;
+         const backlogScore = Math.max(0, 1 - backlogPct);
+         const avgWeight = c.entradas > 0 ? c.pesoOperacional / c.entradas : 1;
+         const weightScore = Math.max(0, 1 - ((avgWeight - 1) / 4)); 
+
+         let scoreSla = slaPct * 35;
+         let scoreReopen = reopenScore * 25;
+         let scoreFila = backlogScore * 20;
+         let scorePeso = weightScore * 20;
+         
+         const totalScore = Math.round(scoreSla + scoreReopen + scoreFila + scorePeso);
+
+         const trend = trendsMap[c.name] || [0,0,0,0,0,0,0,0];
+         let avgTrend = trend.reduce((a,b)=>a+b, 0) / 8;
+         let variance = trend.reduce((a,b)=>a + Math.pow(b-avgTrend, 2), 0) / 8;
+         let stdDev = Math.sqrt(variance);
+         let stability = 'Estável';
+         if (stdDev > avgTrend * 0.5) stability = 'Oscilando';
+         if (stdDev > avgTrend) stability = 'Instável';
+
+         return {
+           name: c.name,
+           score: totalScore,
+           scoreBreakdown: {
+             sla: Math.round(scoreSla),
+             reaberturas: Math.round(scoreReopen),
+             backlog: Math.round(scoreFila),
+             criticidade: Math.round(scorePeso)
+           },
+           estabilidade: stability,
+           entradas: c.entradas,
+           resolvidos: c.resolvidos,
+           pendentes: c.pendentes,
+           avgTime: c.resolutionTimes.length > 0 ? parseFloat(getMedian(c.resolutionTimes).toFixed(1)) : 0,
+           slaPct: (slaPct * 100).toFixed(0),
+           reaberturas: c.reaberturas,
+           reopenRate: (reopenPct * 100).toFixed(0),
+           trend
+         };
+      }).sort((a,b) => b.score - a.score);
+
+      const alerts: any[] = [];
+      const opportunities: any[] = [];
+      clientsData.forEach(c => {
+         if (c.scoreBreakdown.sla < 20) alerts.push({ client: c.name, type: 'sla', message: `SLA crítico (${c.slaPct}%)` });
+         else if (c.scoreBreakdown.sla === 35 && c.entradas > 5) opportunities.push({ client: c.name, type: 'sla', message: `SLA perfeito no período` });
+
+         if (c.estabilidade === 'Instável' && c.entradas > 5) alerts.push({ client: c.name, type: 'growth', message: `Alta variação no volume de tickets` });
+         
+         if (c.scoreBreakdown.reaberturas < 10 && c.entradas > 5) alerts.push({ client: c.name, type: 'reopen', message: `Taxa de reabertura altíssima (${c.reopenRate}%)` });
+         else if (c.reopenRate === '0' && c.entradas > 10) opportunities.push({ client: c.name, type: 'reopen', message: `Nenhuma reabertura de chamado` });
+
+         if (c.pendentes > c.resolvidos && c.entradas > 5) alerts.push({ client: c.name, type: 'backlog', message: `Fila acumulando (Pendentes > Resolvidos)` });
+      });
+
+      res.json({ success: true, clients: clientsData, alerts: alerts.slice(0, 15), opportunities: opportunities.slice(0, 15) });
+    } catch (err: any) {
+      console.error('[Clients BI Error]:', err);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  router.get('/api/reports/client/:id', async (req, res) => {
+    try {
+      const orgName = decodeURIComponent(req.params.id);
+      const period = (req.query.period as string) || 'este_mes';
+      const customStart = req.query.customStart as string | undefined;
+      const customEnd = req.query.customEnd as string | undefined;
+
+      const currentRange = getDateRange(period, customStart, customEnd);
+      
+      // Global stats for portfolio comparison
+      const { data: globalTickets } = await supabase.from('tickets').select('created_at, solved_at, status, ticket_analysis(was_reopened)')
+        .gte('created_at', currentRange.start).lte('created_at', currentRange.end);
+        
+      let globalEntradas = 0;
+      let globalReaberturas = 0;
+      let globalSlaCumprido = 0;
+      let globalSlaVencido = 0;
+      let globalResolutionTimes: number[] = [];
+      
+      if (globalTickets) {
+        globalTickets.forEach(t => {
+          globalEntradas++;
+          if (['solved', 'closed'].includes(t.status)) {
+            if (t.created_at && t.solved_at) {
+              const hours = getBusinessHours(t.created_at, t.solved_at);
+              globalResolutionTimes.push(hours);
+              if (hours <= 48) globalSlaCumprido++; else globalSlaVencido++;
+            }
+          }
+          if (t.ticket_analysis) {
+            const analysisObj = Array.isArray(t.ticket_analysis) ? t.ticket_analysis[0] : t.ticket_analysis;
+            if (analysisObj?.was_reopened) globalReaberturas++;
+          }
+        });
+      }
+      
+      const globalAvgTime = globalResolutionTimes.length > 0 ? parseFloat(getMedian(globalResolutionTimes).toFixed(1)) : 0;
+      const globalSlaPct = (globalSlaCumprido + globalSlaVencido) > 0 ? (globalSlaCumprido / (globalSlaCumprido + globalSlaVencido)) * 100 : 100;
+      const globalReopenRate = globalEntradas > 0 ? (globalReaberturas / globalEntradas) * 100 : 0;
+
+      // Client Specific Stats
+      const { data: clientTickets } = await supabase.from('tickets').select(`
+        created_at, solved_at, status, 
+        ticket_analysis(product, category, was_reopened, operational_effort, criticality, expected_completion_effort, effort_reason)
+      `).eq('organization_name', orgName).gte('created_at', currentRange.start).lte('created_at', currentRange.end);
+
+      let entradas = 0;
+      let resolvidos = 0;
+      let pendentes = 0;
+      let reaberturas = 0;
+      let slaCumprido = 0;
+      let slaVencido = 0;
+      let resolutionTimes: number[] = [];
+      
+      const byProduct: Record<string, number> = {};
+      const byCategory: Record<string, number> = {};
+      
+      let devTickets = 0;
+      let supportTickets = 0;
+      let contentTickets = 0;
+      let infraTickets = 0;
+
+      if (clientTickets) {
+        clientTickets.forEach(t => {
+          entradas++;
+          if (['solved', 'closed'].includes(t.status)) {
+            resolvidos++;
+            if (t.created_at && t.solved_at) {
+              const hours = getBusinessHours(t.created_at, t.solved_at);
+              resolutionTimes.push(hours);
+              if (hours <= 48) slaCumprido++; else slaVencido++;
+            }
+          } else {
+            pendentes++;
+          }
+
+          if (t.ticket_analysis) {
+            const analysisObj = Array.isArray(t.ticket_analysis) ? t.ticket_analysis[0] : t.ticket_analysis;
+            if (analysisObj) {
+              if (analysisObj.was_reopened) reaberturas++;
+              const prod = analysisObj.product;
+              const cat = analysisObj.category;
+              if (prod) byProduct[prod] = (byProduct[prod] || 0) + 1;
+              if (cat) {
+                 byCategory[cat] = (byCategory[cat] || 0) + 1;
+                 const lcat = cat.toLowerCase();
+                 if (lcat.includes('bug') || lcat.includes('nova funcionalidade') || lcat.includes('integração') || lcat.includes('melhoria')) devTickets++;
+                 else if (lcat.includes('conteúdo') || lcat.includes('documento')) contentTickets++;
+                 else if (lcat.includes('indisponibilidade') || lcat.includes('lentidão') || lcat.includes('ssl') || lcat.includes('hospedagem') || lcat.includes('dns')) infraTickets++;
+                 else supportTickets++;
+              }
+            }
+          }
+        });
+      }
+
+      const clientAvgTime = resolutionTimes.length > 0 ? parseFloat(getMedian(resolutionTimes).toFixed(1)) : 0;
+      const clientSlaPct = (slaCumprido + slaVencido) > 0 ? (slaCumprido / (slaCumprido + slaVencido)) * 100 : 100;
+      const clientReopenRate = entradas > 0 ? (reaberturas / entradas) * 100 : 0;
+
+      const topProducts = Object.entries(byProduct).map(([name, count]) => ({ name, count })).sort((a,b) => b.count - a.count);
+      const topCategories = Object.entries(byCategory).map(([name, count]) => ({ name, count })).sort((a,b) => b.count - a.count);
+      
+      const dependencyProduct = topProducts.length > 0 ? topProducts[0] : null;
+      const dependencyPct = (dependencyProduct && entradas > 0) ? (dependencyProduct.count / entradas) * 100 : 0;
+
+      // Deterministic Insights Engine
+      const insights = [];
+      insights.push(`Nas últimas semanas, o cliente ${orgName} gerou ${entradas} chamados.`);
+      
+      if (dependencyPct > 50) {
+        insights.push(`O crescimento operacional está altamente concentrado em "${dependencyProduct?.name}", responsável por ${dependencyPct.toFixed(0)}% das demandas.`);
+      } else {
+        insights.push(`A demanda está bem distribuída entre os produtos atendidos.`);
+      }
+
+      if (clientSlaPct >= globalSlaPct) {
+        insights.push(`Apesar do volume, o SLA de ${clientSlaPct.toFixed(0)}% permanece positivo e acima da média da carteira.`);
+      } else {
+        insights.push(`Atenção: O SLA de ${clientSlaPct.toFixed(0)}% está abaixo da média da carteira, exigindo ação rápida.`);
+      }
+      
+      if (devTickets > entradas * 0.4) {
+        insights.push(`Existe uma forte tendência de chamados complexos focados em Desenvolvimento e Melhorias, indicando que o produto está passando por evoluções sob a perspectiva deste cliente.`);
+      }
+
+      // Recomendações
+      const recommendations = [];
+      if (dependencyPct > 50) recommendations.push(`Reduzir dependência do produto "${dependencyProduct?.name}" com treinamentos ou melhorias de UX.`);
+      if (clientSlaPct < 90) recommendations.push(`Priorizar o atendimento da fila atual para recuperar o indicador de SLA.`);
+      if (clientReopenRate > 5) recommendations.push(`Revisar a qualidade das entregas, pois a taxa de reabertura (${clientReopenRate.toFixed(1)}%) indica retrabalho.`);
+      if (recommendations.length === 0) recommendations.push(`Cliente estável. Manter operação regular sem ações corretivas de urgência.`);
+
+      res.json({
+        success: true,
+        clientName: orgName,
+        metrics: {
+          entradas,
+          resolvidos,
+          pendentes,
+          avgTime: clientAvgTime,
+          slaPct: clientSlaPct.toFixed(0),
+          reopenRate: clientReopenRate.toFixed(1)
+        },
+        portfolio: {
+          avgTime: globalAvgTime,
+          slaPct: globalSlaPct.toFixed(0),
+          reopenRate: globalReopenRate.toFixed(1)
+        },
+        radar: [
+          { subject: 'Atendimento', A: supportTickets },
+          { subject: 'Desenvolvimento', A: devTickets },
+          { subject: 'Conteúdo', A: contentTickets },
+          { subject: 'Infraestrutura', A: infraTickets }
+        ],
+        dependency: {
+          product: dependencyProduct?.name,
+          pct: dependencyPct
+        },
+        topProducts: topProducts.slice(0, 5),
+        topCategories: topCategories.slice(0, 5),
+        executiveSummary: insights.join(' '),
+        recommendations
+      });
+
+    } catch (err: any) {
+      console.error('[Client Profile Error]:', err);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  router.get('/api/reports/client/:id/history', async (req, res) => {
+    try {
+      const orgName = decodeURIComponent(req.params.id);
+      
+      // We look back 8 weeks for history
+      const start = subWeeks(new Date(), 8).toISOString();
+      const { data: tickets } = await supabase.from('tickets').select('created_at, ticket_analysis(criticality, operational_effort)')
+        .eq('organization_name', orgName).gte('created_at', start).order('created_at', { ascending: true });
+
+      const events: any[] = [];
+      if (tickets && tickets.length > 0) {
+        let firstCritical = false;
+        
+        // Group by week
+        const weeklyCounts: Record<string, number> = {};
+        tickets.forEach(t => {
+          const weekStr = startOfWeek(new Date(t.created_at)).toISOString();
+          weeklyCounts[weekStr] = (weeklyCounts[weekStr] || 0) + 1;
+          
+          if (!firstCritical && t.ticket_analysis) {
+            const an = Array.isArray(t.ticket_analysis) ? t.ticket_analysis[0] : t.ticket_analysis;
+            if (an && (an.criticality === 'Crítico' || an.operational_effort === 'Crítico')) {
+              events.push({ date: t.created_at, label: 'Primeiro ticket crítico reportado' });
+              firstCritical = true;
+            }
+          }
+        });
+        
+        let maxWeek = '';
+        let maxCount = 0;
+        Object.keys(weeklyCounts).forEach(w => {
+           if (weeklyCounts[w] > maxCount) { maxCount = weeklyCounts[w]; maxWeek = w; }
+        });
+        if (maxCount > 5) {
+          events.push({ date: maxWeek, label: `Maior pico de chamados no período (${maxCount} tickets)` });
+        }
+      }
+      
+      // Sort descending
+      events.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      
+      res.json({ success: true, events });
+    } catch (err: any) {
+      console.error('[Client History Error]:', err);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   return router;
 }

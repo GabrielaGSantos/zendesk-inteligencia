@@ -10,6 +10,8 @@ import {
   Tooltip, Legend, ResponsiveContainer, Cell, ReferenceLine,
   PieChart, Pie
 } from 'recharts';
+import { ClientsBI } from './reports/ClientsBI';
+import { ClientProfile } from './reports/ClientProfile';
 
 const CustomEvolutionTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
@@ -75,7 +77,8 @@ export const ReportsScreen: React.FC = () => {
   const [reportsHistory, setReportsHistory] = useState<any[]>([]);
 
   // Navegação e Histórico de Longo Prazo
-  const [activeTab, setActiveTab] = useState<'overview' | 'operacao' | 'equipe' | 'produtos' | 'tendencias' | 'historico'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'operacao' | 'equipe' | 'produtos' | 'clientes' | 'tendencias' | 'historico'>('overview');
+  const [selectedClient, setSelectedClient] = useState<string | null>(null);
   const [historicalData, setHistoricalData] = useState<any[]>([]);
   const [loadingHistorical, setLoadingHistorical] = useState(false);
 
@@ -422,6 +425,7 @@ export const ReportsScreen: React.FC = () => {
       <div style={{ display: 'flex', gap: 8, marginBottom: 24, borderBottom: '1px solid var(--color-border)', paddingBottom: 16, overflowX: 'auto' }}>
         {[
           { id: 'overview', label: 'Dashboard Inicial', icon: <Target size={16} /> },
+          { id: 'clientes', label: 'Inteligência de Clientes', icon: <Users size={16} /> },
           { id: 'operacao', label: 'Operação & Carga', icon: <Activity size={16} /> },
           { id: 'produtos', label: 'Produtos', icon: <Layers size={16} /> },
           { id: 'tendencias', label: 'Tendências', icon: <TrendingUp size={16} /> },
@@ -429,7 +433,7 @@ export const ReportsScreen: React.FC = () => {
         ].map(tab => (
           <button
             key={tab.id}
-            onClick={() => setActiveTab(tab.id as any)}
+            onClick={() => { setActiveTab(tab.id as any); if (tab.id !== 'clientes') setSelectedClient(null); }}
             style={{ 
               display: 'flex', alignItems: 'center', gap: 6,
               padding: '8px 16px', background: activeTab === tab.id ? 'var(--color-bg-primary)' : 'transparent',
@@ -443,6 +447,14 @@ export const ReportsScreen: React.FC = () => {
           </button>
         ))}
       </div>
+
+      {activeTab === 'clientes' && (
+        selectedClient ? (
+          <ClientProfile clientName={selectedClient} filters={{ period, customStart, customEnd }} onBack={() => setSelectedClient(null)} />
+        ) : (
+          <ClientsBI filters={{ period, customStart, customEnd }} onSelectClient={setSelectedClient} />
+        )
+      )}
 
       {data?.summary && activeTab === 'overview' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '32px', marginBottom: '32px' }}>

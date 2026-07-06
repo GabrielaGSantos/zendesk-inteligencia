@@ -220,7 +220,23 @@ export const api = {  // Tickets
       body: JSON.stringify({ summaryData })
     }),
     getExecutiveReports: (): Promise<{success: boolean, reports: any[]}> => request('/api/reports/executive-reports'),
-    getHistorical: (): Promise<{success: boolean, history: any[]}> => request('/api/reports/historical', { method: 'POST' })
+    getHistorical: (): Promise<{success: boolean, history: any[]}> => request('/api/reports/historical', { method: 'POST' }),
+    getClientsBI: (filters: any): Promise<any> => {
+      const searchParams = new URLSearchParams();
+      if (filters.period) searchParams.set('period', filters.period);
+      if (filters.customStart) searchParams.set('customStart', filters.customStart);
+      if (filters.customEnd) searchParams.set('customEnd', filters.customEnd);
+      if (filters.group) searchParams.set('group', filters.group);
+      return request(`/api/reports/clients-bi?${searchParams.toString()}`);
+    },
+    getClientProfile: (id: string, filters: any): Promise<any> => {
+      const searchParams = new URLSearchParams();
+      if (filters.period) searchParams.set('period', filters.period);
+      if (filters.customStart) searchParams.set('customStart', filters.customStart);
+      if (filters.customEnd) searchParams.set('customEnd', filters.customEnd);
+      return request(`/api/reports/client/${encodeURIComponent(id)}?${searchParams.toString()}`);
+    },
+    getClientHistory: (id: string): Promise<any> => request(`/api/reports/client/${encodeURIComponent(id)}/history`)
   },
 
   // Settings
