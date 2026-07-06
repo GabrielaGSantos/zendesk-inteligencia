@@ -3,7 +3,7 @@ import { api } from '../services/api';
 import { 
   TrendingUp, TrendingDown, Filter, Download, Printer, 
   Activity, Users, Target, Clock, AlertTriangle, Layers, Map,
-  CheckCircle, XCircle, Brain
+  CheckCircle, XCircle, Brain, RefreshCw
 } from 'lucide-react';
 import { 
   ComposedChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, 
@@ -67,6 +67,7 @@ const CustomEvolutionDot = (props: any) => {
 
 export const ReportsScreen: React.FC = () => {
   const [loading, setLoading] = useState(true);
+  const [isAutoSyncing, setIsAutoSyncing] = useState(true);
   const [data, setData] = useState<any>(null);
 
   // Parecer Executivo (IA)
@@ -180,12 +181,39 @@ export const ReportsScreen: React.FC = () => {
   };
 
   useEffect(() => {
-    if (activeTab === 'overview' && !data) {
+    const doAutoSync = async () => {
+      setIsAutoSyncing(true);
+      try {
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        await api.startSync({ startDate: thirtyDaysAgo.toISOString() });
+        
+        let syncing = true;
+        let attempts = 0;
+        while(syncing && attempts < 15) { // max 30s
+          await new Promise(r => setTimeout(r, 2000));
+          const res = await api.getSyncStatus();
+          if (res.status === 'idle' || res.status === 'error' || res.status === 'completed') {
+            syncing = false;
+          }
+          attempts++;
+        }
+      } catch (err) {
+        console.error('Auto sync failed', err);
+      } finally {
+        setIsAutoSyncing(false);
+      }
+    };
+    doAutoSync();
+  }, []);
+
+  useEffect(() => {
+    if (activeTab === 'overview' && !data && !isAutoSyncing) {
       fetchDashboard();
     } else if (activeTab === 'historico' && historicalData.length === 0) {
       fetchHistoricalData();
     }
-  }, [activeTab]);
+  }, [activeTab, isAutoSyncing]);
 
   useEffect(() => {
     if (showAIModal && reportsHistory.length === 0) {
@@ -261,11 +289,13 @@ export const ReportsScreen: React.FC = () => {
     return <div style={{ whiteSpace: 'pre-wrap', lineHeight: '1.6', color: 'var(--color-text-primary)', fontSize: '1.05rem' }}>{text}</div>;
   };
 
-  if (loading) {
+  if (loading || isAutoSyncing) {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%', flexDirection: 'column' }}>
         <div className="spinner" style={{ marginBottom: 16 }}></div>
-        <p style={{ color: 'var(--color-text-secondary)' }}>Compilando relatórios estratégicos...</p>
+        <p style={{ color: 'var(--color-text-secondary)', display: 'flex', alignItems: 'center', gap: 8 }}>
+          {isAutoSyncing ? <><RefreshCw size={18} className="spin" /> Buscando dados atualizados no Zendesk...</> : 'Compilando relatórios estratégicos...'}
+        </p>
       </div>
     );
   }
