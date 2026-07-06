@@ -469,6 +469,7 @@ function App() {
                 ticket={ticket}
                 onClick={setSelectedTicket}
                 onNotSpam={currentTab === 'spam' ? handleNotSpam : undefined}
+                onUpdate={(updated) => setTickets(prev => prev.map(t => t.zendesk_id === updated.zendesk_id ? updated : t))}
               />
             ))}
           </div>

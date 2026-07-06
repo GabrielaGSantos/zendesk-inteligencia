@@ -6,11 +6,13 @@ import {
 import type { Ticket } from '../types';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { api } from '../services/api';
 
 interface TicketCardProps {
   ticket: Ticket;
   onClick: (ticket: Ticket) => void;
   onNotSpam?: (ticket: Ticket) => void;
+  onUpdate?: (ticket: Ticket) => void;
 }
 
 function getStatusBadgeClass(status: string): string {
@@ -48,7 +50,7 @@ function formatDate(dateStr: string): string {
   }
 }
 
-export const TicketCard: React.FC<TicketCardProps> = ({ ticket, onClick, onNotSpam }) => {
+export const TicketCard: React.FC<TicketCardProps> = ({ ticket, onClick, onNotSpam, onUpdate }) => {
   const hasAnalysis = !!ticket.analyzed_at;
   const confidence = getConfidenceBadge(ticket.confidence_level);
   const isSpam = ticket.subject?.startsWith('***SPAM') || 
@@ -84,6 +86,34 @@ export const TicketCard: React.FC<TicketCardProps> = ({ ticket, onClick, onNotSp
               {confidence.label}
             </span>
           )}
+          <select
+            onClick={(e) => e.stopPropagation()}
+            onChange={async (e) => {
+              const val = e.target.value;
+              if (onUpdate) {
+                try {
+                  await api.updateAnalysis(ticket.zendesk_id, { operational_effort: val });
+                  onUpdate({ ...ticket, operational_effort: val });
+                } catch(err) {
+                  console.error(err);
+                }
+              }
+            }}
+            value={ticket.operational_effort || ''}
+            className="badge badge--neutral"
+            style={{ 
+              padding: '2px 8px', border: '1px solid var(--color-border)', 
+              borderRadius: 'var(--radius-full)', fontSize: 11, fontWeight: 600, 
+              background: 'var(--color-bg)', cursor: 'pointer', outline: 'none',
+              color: ticket.operational_effort ? 'var(--color-text-primary)' : 'var(--color-text-muted)'
+            }}
+          >
+            <option value="">Esforço (N/C)</option>
+            <option value="Baixo">Baixo</option>
+            <option value="Médio">Médio</option>
+            <option value="Alto">Alto</option>
+            <option value="Crítico">Crítico</option>
+          </select>
         </div>
       </div>
 

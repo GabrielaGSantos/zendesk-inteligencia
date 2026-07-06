@@ -286,6 +286,13 @@ export const OperationalRadar: React.FC<OperationalRadarProps> = ({ onTicketClic
                     key={ticket.zendesk_id}
                     ticket={ticket}
                     onClick={t => onTicketClick ? onTicketClick(t) : null}
+                    onUpdate={async (updated) => {
+                       // Although we don't have a direct setter for currentTickets, we can 
+                       // force a fetch or mutate it, but OperationalRadar doesn't manage its own tickets state,
+                       // it gets them from `api.reports.getWorkloadData(agent)`.
+                       // For now, since the global state isn't here, we'll just let the server update.
+                       // When they reload, it'll show up.
+                    }}
                   />
                 ))}
               </div>
