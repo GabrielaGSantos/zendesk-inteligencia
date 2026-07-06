@@ -389,6 +389,41 @@ export async function startSync(
       syncProgress.commentsSynced += commentCount;
     }
 
+    syncProgress.phase = 'Auditoria de lixo (Garbage Collector)...';
+    
+    try {
+      const { data: openTickets } = await supabase.from('tickets')
+        .select('zendesk_id')
+        .not('status', 'in', '("solved","closed","deleted")');
+        
+      if (openTickets && openTickets.length > 0) {
+        const openIds = openTickets.map(t => t.zendesk_id);
+        const chunkSize = 100;
+        let deletedCount = 0;
+        
+        for (let i = 0; i < openIds.length; i += chunkSize) {
+          const chunk = openIds.slice(i, i + chunkSize);
+          const data = await zendeskGet(config, `/api/v2/tickets/show_many.json?ids=${chunk.join(',')}`);
+          const returnedTickets = data.tickets || [];
+          const returnedIds = returnedTickets.map((t: any) => t.id);
+          
+          const missingIds = chunk.filter(id => !returnedIds.includes(id));
+          
+          if (missingIds.length > 0) {
+            await supabase.from('tickets')
+              .update({ status: 'deleted', updated_at: new Date().toISOString() })
+              .in('zendesk_id', missingIds);
+            deletedCount += missingIds.length;
+          }
+        }
+        if (deletedCount > 0) {
+          console.log(`[Garbage Collector] Expurgo automático de ${deletedCount} tickets fantasmas.`);
+        }
+      }
+    } catch (gcErr) {
+      console.warn('[Garbage Collector] Erro ao auditar lixo:', gcErr);
+    }
+
     syncProgress.status = 'completed';
     syncProgress.phase = 'Sincronização concluída com sucesso!';
     
