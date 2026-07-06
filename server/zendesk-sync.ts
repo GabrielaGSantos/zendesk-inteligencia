@@ -226,6 +226,12 @@ export async function syncSingleTicket(
   const group = await resolveEntity(config, supabase, 'group', ticket.group_id);
   const organization = await resolveEntity(config, supabase, 'organization', ticket.organization_id);
 
+  const { data: existingTicket } = await supabase.from('tickets').select('solved_at').eq('zendesk_id', ticket.id).maybeSingle();
+  let newSolvedAt = null;
+  if (ticket.status === 'solved' || ticket.status === 'closed') {
+    newSolvedAt = existingTicket?.solved_at || ticket.updated_at;
+  }
+
   // Upsert ticket
   await supabase.from('tickets').upsert({
     zendesk_id: ticket.id,
@@ -249,7 +255,7 @@ export async function syncSingleTicket(
     form_id: ticket.ticket_form_id,
     created_at: ticket.created_at,
     updated_at: ticket.updated_at,
-    solved_at: ticket.status === 'solved' || ticket.status === 'closed' ? ticket.updated_at : null,
+    solved_at: newSolvedAt,
     due_date: ticket.due_at,
     zendesk_url: `https://${config.subdomain}.zendesk.com/agent/tickets/${ticket.id}`,
     raw_json: JSON.stringify(ticket),
@@ -341,6 +347,12 @@ export async function startSync(
       const group = await resolveEntity(config, supabase, 'group', ticket.group_id);
       const organization = await resolveEntity(config, supabase, 'organization', ticket.organization_id);
 
+      const { data: existingTicket } = await supabase.from('tickets').select('solved_at').eq('zendesk_id', ticket.id).maybeSingle();
+      let newSolvedAt = null;
+      if (ticket.status === 'solved' || ticket.status === 'closed') {
+        newSolvedAt = existingTicket?.solved_at || ticket.updated_at;
+      }
+
       await supabase.from('tickets').upsert({
         zendesk_id: ticket.id,
         ticket_number: ticket.id,
@@ -363,7 +375,7 @@ export async function startSync(
         form_id: ticket.ticket_form_id,
         created_at: ticket.created_at,
         updated_at: ticket.updated_at,
-        solved_at: ticket.status === 'solved' || ticket.status === 'closed' ? ticket.updated_at : null,
+        solved_at: newSolvedAt,
         due_date: ticket.due_at,
         zendesk_url: `https://${config.subdomain}.zendesk.com/agent/tickets/${ticket.id}`,
         raw_json: JSON.stringify(ticket),
