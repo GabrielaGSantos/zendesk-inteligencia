@@ -571,7 +571,7 @@ export const ReportsScreen: React.FC = () => {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '20px' }}>
             {data.comparison && renderComparativeCard("Entradas", <TrendingDown size={18} />, "#ef4444", "rgba(239, 68, 68, 0.1)", summary.entradas, summary.entradasPrev, summary.entradas - summary.entradasPrev, entradasTrend, "down")}
             {data.comparison && renderComparativeCard("Resolvidos", <CheckCircle size={18} />, "#22c55e", "rgba(34, 197, 94, 0.1)", summary.resolvidos, summary.resolvidosPrev, summary.resolvidos - summary.resolvidosPrev, resolvidosTrend, "up")}
-            {data.comparison && renderComparativeCard("Tickets em Aberto", <AlertTriangle size={18} />, "#f59e0b", "rgba(245, 158, 11, 0.1)", summary.backlog, summary.backlogPrev, summary.backlog - summary.backlogPrev, backlogTrend, "down")}
+            {data.comparison && renderComparativeCard("Tickets em Aberto/Pendente", <AlertTriangle size={18} />, "#f59e0b", "rgba(245, 158, 11, 0.1)", summary.backlog, summary.backlogPrev, summary.backlog - summary.backlogPrev, backlogTrend, "down")}
           </div>
 
           {/* LINHA 2: Dois gráficos grandes (Evolução Diária x Composição Fila) */}
