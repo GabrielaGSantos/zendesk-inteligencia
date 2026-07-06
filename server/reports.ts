@@ -401,25 +401,37 @@ export function registerReportRoutes(supabase: SupabaseClient) {
         if (diffDays <= 14) {
           const dateMap = {};
           const startDt = new Date(currentRange.start);
+          
+          const getTargetDate = (dateObj: Date) => {
+             const d = new Date(dateObj);
+             if (d.getDay() === 6) d.setDate(d.getDate() + 2);
+             else if (d.getDay() === 0) d.setDate(d.getDate() + 1);
+             return d;
+          };
+
           for (let i = 0; i <= Math.ceil(diffDays); i++) {
             const d = new Date(startDt);
             d.setDate(d.getDate() + i);
             if (d.getTime() > new Date(currentRange.end).getTime()) continue;
+            if (d.getDay() === 0 || d.getDay() === 6) continue; // Skip weekends in pre-fill
+            
             const dateStr = d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
-            if (!dateMap[dateStr]) dateMap[dateStr] = { date: dateStr, entradas: 0, resolvidos: 0, saldo: 0 };
+            if (!dateMap[dateStr]) dateMap[dateStr] = { date: dateStr, entradas: 0, resolvidos: 0, saldo: 0, sortKey: d.getTime() };
           }
 
-          evolC.data.forEach(t => {
-            const dateStr = new Date(t.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
-            if (dateMap[dateStr]) dateMap[dateStr].entradas++;
-          });
+          const addTicketToDate = (dateObj: Date, type: 'entradas' | 'resolvidos') => {
+             const targetD = getTargetDate(dateObj);
+             const dateStr = targetD.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+             if (!dateMap[dateStr]) {
+                 dateMap[dateStr] = { date: dateStr, entradas: 0, resolvidos: 0, saldo: 0, sortKey: targetD.getTime() };
+             }
+             dateMap[dateStr][type]++;
+          };
+
+          evolC.data.forEach(t => addTicketToDate(new Date(t.created_at), 'entradas'));
+          evolS.data.forEach(t => addTicketToDate(new Date(t.solved_at), 'resolvidos'));
           
-          evolS.data.forEach(t => {
-            const dateStr = new Date(t.solved_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
-            if (dateMap[dateStr]) dateMap[dateStr].resolvidos++;
-          });
-          
-          evolutionData = Object.values(dateMap);
+          evolutionData = Object.values(dateMap).sort((a: any, b: any) => a.sortKey - b.sortKey);
           evolutionData.forEach((v: any) => v.saldo = v.entradas - v.resolvidos);
         } else {
           for (let i = 0; i < bucketCount; i++) {
