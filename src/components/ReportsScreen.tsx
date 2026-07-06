@@ -80,7 +80,7 @@ export const ReportsScreen: React.FC = () => {
   const [loadingHistorical, setLoadingHistorical] = useState(false);
 
   // Filters state
-  const [period, setPeriod] = useState('ultimos_7_dias');
+  const [period, setPeriod] = useState('esta_semana');
   const [customStart, setCustomStart] = useState('');
   const [customEnd, setCustomEnd] = useState('');
   
@@ -381,13 +381,7 @@ export const ReportsScreen: React.FC = () => {
             <div className="form-group">
               <label className="form-label">Período</label>
               <select className="form-input" value={period} onChange={e => setPeriod(e.target.value)}>
-                <option value="hoje">Hoje</option>
-                <option value="ontem">Ontem</option>
-                <option value="ultimos_7_dias">Últimos 7 dias</option>
-                <option value="esta_semana">Esta semana</option>
-                <option value="semana_passada">Semana passada</option>
-                <option value="este_mes">Este mês</option>
-                <option value="mes_passado">Mês passado</option>
+                <option value="esta_semana">Semana atual</option>
                 <option value="personalizado">Personalizado</option>
               </select>
             </div>

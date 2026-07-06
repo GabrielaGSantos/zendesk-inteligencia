@@ -34,10 +34,9 @@ export function registerReportRoutes(supabase: SupabaseClient) {
         const ontem = getPreviousWorkday(adjNow);
         return { start: startOfDay(ontem).toISOString(), end: endOfDay(ontem).toISOString() };
       }
-      case 'ultimos_7_dias':
       case 'esta_semana': {
-        const start = startOfWeek(adjNow, { weekStartsOn: 1 });
-        return { start: startOfDay(start).toISOString(), end: endOfDay(adjNow).toISOString() };
+        const start = startOfWeek(now, { weekStartsOn: 6 }); // Starts on Saturday
+        return { start: startOfDay(start).toISOString(), end: endOfDay(now).toISOString() };
       }
       case 'semana_passada': {
         const lastWeek = subWeeks(now, 1);
@@ -76,13 +75,9 @@ export function registerReportRoutes(supabase: SupabaseClient) {
         const anteontem = getPreviousWorkday(ontem);
         return { start: startOfDay(anteontem).toISOString(), end: endOfDay(anteontem).toISOString() };
       }
-      case 'ultimos_7_dias':
       case 'esta_semana': {
-        const startLastWeek = startOfWeek(subWeeks(adjNow, 1), { weekStartsOn: 1 });
-        let dayOfWeek = getDay(adjNow);
-        if (dayOfWeek === 0) dayOfWeek = 7;
-        const offset = Math.min(dayOfWeek - 1, 4);
-        const endLastWeek = addDays(startLastWeek, offset);
+        const startLastWeek = subWeeks(startOfWeek(now, { weekStartsOn: 6 }), 1);
+        const endLastWeek = addDays(startLastWeek, 6); // Up to Friday
         return { start: startOfDay(startLastWeek).toISOString(), end: endOfDay(endLastWeek).toISOString() };
       }
       case 'semana_passada': {
