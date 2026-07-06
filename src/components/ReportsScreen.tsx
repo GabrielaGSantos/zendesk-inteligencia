@@ -631,12 +631,24 @@ export const ReportsScreen: React.FC = () => {
                 <div style={{ flex: 1.5, display: 'flex', flexDirection: 'column', gap: 20 }}>
                   <div>
                     <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--color-text-secondary)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Esforço</div>
-                    {Object.entries(data.workload?.byEffort || {}).map(([key, val]) => (
-                      <div key={key} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', marginBottom: 4, paddingBottom: 4, borderBottom: '1px dashed var(--color-border)' }}>
-                        <span style={{ color: 'var(--color-text-primary)' }}>{key}</span>
-                        <strong style={{ color: 'var(--color-text-primary)' }}>{val as React.ReactNode}</strong>
-                      </div>
-                    ))}
+                    {Object.entries(data.workload?.byEffort || {}).map(([key, val]) => {
+                      const effortColors: Record<string, string> = {
+                        'Não Classificado': '#9ca3af',
+                        'Baixo': '#3b82f6',
+                        'Médio': '#f59e0b',
+                        'Alto': '#ef4444',
+                        'Crítico': '#7f1d1d'
+                      };
+                      return (
+                        <div key={key} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.9rem', marginBottom: 4, paddingBottom: 4, borderBottom: '1px dashed var(--color-border)' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <div style={{ width: '12px', height: '12px', borderRadius: '3px', backgroundColor: effortColors[key] || '#9ca3af' }}></div>
+                            <span style={{ color: 'var(--color-text-primary)' }}>{key}</span>
+                          </div>
+                          <strong style={{ color: 'var(--color-text-primary)' }}>{val as React.ReactNode}</strong>
+                        </div>
+                      );
+                    })}
                   </div>
                   <div>
                     <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--color-text-secondary)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Prazo Esperado</div>
