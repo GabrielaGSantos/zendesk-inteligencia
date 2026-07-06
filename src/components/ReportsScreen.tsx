@@ -443,17 +443,80 @@ export const ReportsScreen: React.FC = () => {
       </div>
 
       {data?.summary && activeTab === 'overview' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
-          {/* LINHA 1: Saúde da Operação (4 Cards) */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '32px', marginBottom: '32px' }}>
+          
+          {/* Comparando Block */}
+          {data.comparison && (
+            <div className="no-print" style={{ marginBottom: '8px', padding: '16px 20px', background: 'var(--color-bg-secondary)', borderRadius: '8px', borderLeft: '4px solid var(--color-primary)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <span style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 600 }}>Comparando</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
+                  <strong style={{ color: 'var(--color-text-primary)', fontSize: '1.1rem' }}>{data.comparison.current.label}</strong>
+                  <span style={{ fontSize: '0.9rem', color: 'var(--color-text-secondary)' }}>
+                    {new Date(data.comparison.current.start).toLocaleDateString('pt-BR', {timeZone: 'UTC', day:'2-digit', month:'2-digit'})} a {new Date(data.comparison.current.end).toLocaleDateString('pt-BR', {timeZone: 'UTC', day:'2-digit', month:'2-digit'})}
+                  </span>
+                </div>
+                
+                <span style={{ fontSize: '1.2rem', color: 'var(--color-text-secondary)', fontWeight: 300 }}>&times;</span>
+                
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
+                  <strong style={{ color: 'var(--color-text-primary)', fontSize: '1.1rem' }}>{data.comparison.reference.label}</strong>
+                  <span style={{ fontSize: '0.9rem', color: 'var(--color-text-secondary)' }}>
+                    {new Date(data.comparison.reference.start).toLocaleDateString('pt-BR', {timeZone: 'UTC', day:'2-digit', month:'2-digit'})} a {new Date(data.comparison.reference.end).toLocaleDateString('pt-BR', {timeZone: 'UTC', day:'2-digit', month:'2-digit'})}
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Insights + Demanda Block */}
+          <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap' }}>
+            <div className="card" style={{ flex: 2, padding: '20px', background: 'var(--color-bg-primary)', borderLeft: '4px solid #8b5cf6' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
+                <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: 0, fontSize: '1.2rem', color: 'var(--color-text-primary)' }}>
+                  🧠 Insights Operacionais
+                </h3>
+                <button className="btn btn--primary no-print" onClick={generateExecutiveSummary} style={{ padding: '6px 12px', fontSize: '0.85rem' }}>
+                  Gerar Parecer (IA)
+                </button>
+              </div>
+              <ul className="insight-list">
+                {insights && insights.map((insight: string, idx: number) => (
+                  <li key={idx}><strong>{insight.split(':')[0]}</strong>{insight.includes(':') ? ':' + insight.split(':')[1] : ''}</li>
+                ))}
+              </ul>
+            </div>
+
+            <div className="card" style={{ flex: 1, padding: '20px', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', minWidth: '250px' }}>
+              <h3 style={{ marginTop: 0, marginBottom: '12px', fontSize: '1rem', color: 'var(--color-text-secondary)' }}>
+                Estamos acompanhando a demanda?
+              </h3>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                {summary?.saldo > 0 ? (
+                  <>
+                    <XCircle size={36} color="#ef4444" />
+                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                      <span style={{ fontSize: '1.2rem', fontWeight: 700, color: '#ef4444' }}>🔴 Operação em Déficit</span>
+                      <span style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)' }}>Entraram: {summary.entradas} | Resolvidos: {summary.resolvidos} | Saldo: +{summary.saldo}</span>
+                      <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#ef4444', marginTop: 4 }}>Resolução: {summary.entradas > 0 ? ((summary.resolvidos / summary.entradas) * 100).toFixed(1) : 0}%</span>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle size={36} color="#22c55e" />
+                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                      <span style={{ fontSize: '1.2rem', fontWeight: 700, color: '#22c55e' }}>🟢 Operação Equilibrada</span>
+                      <span style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)' }}>Entraram: {summary.entradas} | Resolvidos: {summary.resolvidos} | Saldo: {summary.saldo}</span>
+                      <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#22c55e', marginTop: 4 }}>Resolução: {summary.entradas > 0 ? ((summary.resolvidos / summary.entradas) * 100).toFixed(1) : 0}%</span>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* LINHA 1: Saúde da Operação (3 Cards) */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '20px' }}>
-            {data.comparison && (() => {
-              const totalSla = summary.slaCumprido + summary.slaVencido;
-              const slaPct = totalSla > 0 ? (summary.slaCumprido / totalSla) * 100 : 0;
-              const slaPctPrev = slaPct > 0 ? Math.max(0, slaPct - (Math.random() * 5 - 2)) : 0;
-              const diff = parseFloat((slaPct - slaPctPrev).toFixed(1));
-              const pctDiff = slaPctPrev === 0 ? 0 : (diff / slaPctPrev) * 100;
-              return renderComparativeCard("Saúde da Operação (SLA)", <Clock size={18} />, "#8b5cf6", "rgba(139, 92, 246, 0.1)", slaPct.toFixed(1), slaPctPrev.toFixed(1), diff, pctDiff, "up", true);
-            })()}
             {data.comparison && renderComparativeCard("Entradas", <TrendingDown size={18} />, "#ef4444", "rgba(239, 68, 68, 0.1)", summary.entradas, summary.entradasPrev, summary.entradas - summary.entradasPrev, entradasTrend, "down")}
             {data.comparison && renderComparativeCard("Resolvidos", <CheckCircle size={18} />, "#22c55e", "rgba(34, 197, 94, 0.1)", summary.resolvidos, summary.resolvidosPrev, summary.resolvidos - summary.resolvidosPrev, resolvidosTrend, "up")}
             {data.comparison && renderComparativeCard("Tickets em Aberto", <AlertTriangle size={18} />, "#f59e0b", "rgba(245, 158, 11, 0.1)", summary.backlog, summary.backlogPrev, summary.backlog - summary.backlogPrev, backlogTrend, "down")}
@@ -589,42 +652,10 @@ export const ReportsScreen: React.FC = () => {
             </div>
           </div>
 
-          {/* LINHA 4: Alertas da IA */}
-          <div className="card" style={{ padding: '24px', background: 'rgba(59, 130, 246, 0.03)', border: '1px solid rgba(59, 130, 246, 0.1)' }}>
-            <h3 style={{ marginTop: 0, marginBottom: '20px', fontSize: '1.1rem', color: 'var(--color-text-primary)', display: 'flex', alignItems: 'center', gap: 10 }}>
-              <Brain size={20} color="#3b82f6" /> Alertas Estratégicos da IA
-            </h3>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px' }}>
-              {insights.slice(0,4).map((insight: string, idx: number) => {
-                let color = '#3b82f6';
-                let bg = 'rgba(59, 130, 246, 0.1)';
-                if (insight.includes('🔴') || insight.includes('⚠') || insight.includes('aumentaram') || insight.includes('subiu') || insight.includes('caiu')) {
-                  if (insight.includes('🔴') || insight.includes('⚠')) { color = '#ef4444'; bg = 'rgba(239, 68, 68, 0.1)'; }
-                  else if (insight.includes('aumentaram') || insight.includes('subiu')) { color = '#f59e0b'; bg = 'rgba(245, 158, 11, 0.1)'; }
-                }
-                if (insight.includes('🟢')) { color = '#22c55e'; bg = 'rgba(34, 197, 94, 0.1)'; }
-
-                return (
-                  <div key={idx} style={{ padding: '16px', borderRadius: '8px', background: bg, border: `1px solid ${color}30`, display: 'flex', alignItems: 'flex-start', gap: 12 }}>
-                    <div style={{ color }}>
-                      {insight.includes('🔴') || insight.includes('⚠') ? <AlertTriangle size={20} /> : <TrendingUp size={20} />}
-                    </div>
-                    <div style={{ fontSize: '0.95rem', color: 'var(--color-text-primary)', fontWeight: 500, lineHeight: 1.4 }}>{insight.replace(/[🔴🟡🟢📉📈⚠🏛]/g, '').trim()}</div>
-                  </div>
-                );
-              })}
-              {insights.length === 0 && (
-                <div style={{ padding: '16px', borderRadius: '8px', background: 'rgba(34, 197, 94, 0.1)', border: '1px solid rgba(34, 197, 94, 0.3)', display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <CheckCircle size={20} color="#22c55e" />
-                  <div style={{ fontSize: '0.95rem', color: 'var(--color-text-primary)', fontWeight: 500, lineHeight: 1.4 }}>Operação estável. Nenhuma anomalia crítica detectada.</div>
-                </div>
-              )}
-            </div>
-          </div>
-          
         </div>
       )}
-
+      
+      
       {/* TABS SECUNDÁRIAS */}
       
       {data?.workload && activeTab === 'operacao' && (
