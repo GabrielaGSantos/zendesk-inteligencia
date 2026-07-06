@@ -406,6 +406,10 @@ export function createRoutes(supabase: SupabaseClient): Router {
           detailed_requirements: ta.detailed_requirements,
           rejected_similar_tickets: ta.rejected_similar_tickets,
           added_similar_tickets: ta.added_similar_tickets,
+          operational_effort: ta.operational_effort,
+          criticality: ta.criticality,
+          expected_completion_effort: ta.expected_completion_effort,
+          effort_reason: ta.effort_reason,
           analyzed_at: ta.analyzed_at
         };
       });
@@ -472,6 +476,25 @@ export function createRoutes(supabase: SupabaseClient): Router {
       if (error) throw error;
       
       await logAudit(req, 'edit_analysis', 'ticket', String(zendesk_id), { fields_changed: Object.keys(updates) });
+      res.json({ success: true });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  router.put('/api/tickets/:id/due-date', async (req, res) => {
+    try {
+      const zendesk_id = parseInt(req.params.id);
+      const { due_date } = req.body;
+      
+      const { error } = await supabase
+        .from('tickets')
+        .update({ due_date })
+        .eq('zendesk_id', zendesk_id);
+
+      if (error) throw error;
+      
+      await logAudit(req, 'edit_due_date', 'ticket', String(zendesk_id), { due_date });
       res.json({ success: true });
     } catch (err: any) {
       res.status(500).json({ error: err.message });

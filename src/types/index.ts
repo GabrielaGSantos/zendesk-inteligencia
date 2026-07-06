@@ -41,6 +41,10 @@ export interface Ticket {
   suggested_priority: string | null;
   confidence_level: number | null;
   needs_internal_routing: string | null;
+  operational_effort?: string | null;
+  criticality?: string | null;
+  expected_completion_effort?: string | null;
+  effort_reason?: string | null;
   solution_applied: string | null;
   applied_rules?: string[] | null;
   rule_particularities?: string | null;

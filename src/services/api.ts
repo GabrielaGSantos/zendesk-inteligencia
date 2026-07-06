@@ -53,10 +53,17 @@ export const api = {  // Tickets
     return request(`/api/tickets/${zendeskId}`);
   },
 
-  updateAnalysis: (zendeskId: number, data: Partial<any>): Promise<{ success: boolean }> => {
-    return request(`/api/tickets/${zendeskId}/analysis`, {
+  updateAnalysis: (id: number, analysis: Partial<any>) => {
+    return request(`/api/tickets/${id}/analysis`, {
       method: 'PUT',
-      body: JSON.stringify(data)
+      body: JSON.stringify(analysis)
+    });
+  },
+
+  updateTicketDueDate: (id: number, due_date: string | null) => {
+    return request(`/api/tickets/${id}/due-date`, {
+      method: 'PUT',
+      body: JSON.stringify({ due_date })
     });
   },
 

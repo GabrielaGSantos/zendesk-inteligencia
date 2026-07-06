@@ -315,6 +315,11 @@ export async function startSync(
       
       if (lastTicket && lastTicket.updated_at) {
          startTime = Math.floor(new Date(lastTicket.updated_at).getTime() / 1000);
+         // Zendesk API exige que o start_time seja no mínimo 60 segundos no passado
+         const maxStartTime = Math.floor(Date.now() / 1000) - 61;
+         if (startTime > maxStartTime) {
+           startTime = maxStartTime;
+         }
       }
       queryUrl = `/api/v2/incremental/tickets.json?start_time=${startTime}`;
     }

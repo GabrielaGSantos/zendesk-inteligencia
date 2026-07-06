@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
   X, ExternalLink, Copy, Check, User, Building2, UserCheck,
   Calendar, Tag, Target, MessageSquare, FileText, AlertCircle,
-  ArrowRight, Shield, Lightbulb, Clock, Sparkles, BookOpen
+  ArrowRight, Shield, Lightbulb, Clock, Sparkles, BookOpen, Activity
 } from 'lucide-react';
 import type { Ticket, TicketComment } from '../types';
 import { api } from '../services/api';
@@ -476,6 +476,22 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({ ticket: in
                       Prioridade Sugerida
                     </span>
                     <span className="modal__info-value">{ticket.suggested_priority || '—'}</span>
+                  </div>
+                  <div className="modal__info-item">
+                    <span className="modal__info-label">
+                      <Activity size={10} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 4 }} />
+                      Esforço Operacional
+                    </span>
+                    {isEditing ? (
+                      <ComboInput 
+                        value={editForm.operational_effort} 
+                        options={['Baixo', 'Médio', 'Alto', 'Crítico']} 
+                        onChange={(v: string) => setEditForm({...editForm, operational_effort: v})} 
+                        placeholder="Selecione o esforço..." 
+                      />
+                    ) : (
+                      <span className="modal__info-value">{ticket.operational_effort || 'Não Classificado'}</span>
+                    )}
                   </div>
                 </div>
               </div>

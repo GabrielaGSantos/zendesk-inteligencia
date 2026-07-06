@@ -34,6 +34,10 @@ export const CalendarScreen: React.FC = () => {
   const [endDate, setEndDate] = useState('');
   const [endTime, setEndTime] = useState('');
 
+  // Ticket time editing
+  const [editingTicket, setEditingTicket] = useState<Ticket | null>(null);
+  const [ticketNewTime, setTicketNewTime] = useState('17:00');
+
   useEffect(() => {
     fetchData();
   }, []);
@@ -156,6 +160,20 @@ export const CalendarScreen: React.FC = () => {
       fetchData();
     } catch (err) {
       console.error('Error deleting event:', err);
+    }
+  };
+
+  const handleSaveTicketTime = async () => {
+    if (!editingTicket) return;
+    try {
+      const datePart = editingTicket.due_date ? editingTicket.due_date.split('T')[0] : format(new Date(), 'yyyy-MM-dd');
+      const newDueDate = `${datePart}T${ticketNewTime}:00Z`;
+      await api.updateTicketDueDate(editingTicket.zendesk_id, newDueDate);
+      setEditingTicket(null);
+      fetchData();
+    } catch (err) {
+      console.error('Erro ao atualizar horário', err);
+      alert('Erro ao atualizar horário.');
     }
   };
 
@@ -363,6 +381,21 @@ export const CalendarScreen: React.FC = () => {
 
                 {dayTickets.map(t => {
                   const isOverdue = t.due_date ? new Date(t.due_date) < new Date() : false;
+                  
+                  let tStr = '';
+                  if (t.due_date) {
+                    if (t.due_date.includes('T')) {
+                      const timePart = t.due_date.split('T')[1];
+                      if (timePart.startsWith('00:00:00')) {
+                        tStr = '17:00';
+                      } else {
+                        tStr = timePart.substring(0,5);
+                      }
+                    } else {
+                      tStr = '17:00';
+                    }
+                  }
+
                   return (
                   <div 
                     key={t.zendesk_id} 
@@ -379,14 +412,24 @@ export const CalendarScreen: React.FC = () => {
                       textOverflow: 'ellipsis',
                       display: 'flex',
                       flexDirection: 'column',
-                      gap: 2
+                      gap: 2,
+                      position: 'relative'
                     }}
                     title={`Ticket #${t.zendesk_id} vence dia ${format(date, 'dd/MM')}: ${t.subject}`}
                     onClick={(e) => { e.stopPropagation(); window.open(t.zendesk_url, '_blank'); }}
                   >
-                    <div>
-                      <AlertCircle size={10} style={{ display: 'inline', marginRight: 4, verticalAlign: 'middle' }} />
-                      <strong>#{t.zendesk_id}</strong> Vence {t.due_date?.includes('T') ? t.due_date.split('T')[1].substring(0,5) : ''}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div>
+                        <AlertCircle size={10} style={{ display: 'inline', marginRight: 4, verticalAlign: 'middle' }} />
+                        <strong>#{t.zendesk_id}</strong> Vence {tStr}
+                      </div>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setTicketNewTime(tStr || '17:00'); setEditingTicket(t); }}
+                        style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'inherit', opacity: 0.6 }}
+                        title="Editar horário"
+                      >
+                        <Edit2 size={10} />
+                      </button>
                     </div>
                     <div style={{ fontSize: '0.7rem', opacity: 0.85, overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       {t.assignee_name || 'Sem atribuição'}
@@ -444,6 +487,33 @@ export const CalendarScreen: React.FC = () => {
                 <button onClick={() => setShowEventModal(false)} style={{ padding: '8px 16px', background: 'transparent', border: '1px solid var(--color-border)', borderRadius: 4, cursor: 'pointer' }}>Cancelar</button>
                 <button onClick={handleSaveEvent} style={{ padding: '8px 16px', background: 'var(--color-primary)', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer' }}>Salvar</button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Edição de Hora do Ticket */}
+      {editingTicket && (
+        <div className="modal-overlay" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
+          <div className="modal-content" style={{ background: '#fff', padding: 24, borderRadius: 8, width: 350, maxWidth: '90%' }}>
+            <h3 style={{ marginTop: 0, marginBottom: 15, fontSize: '1.1rem' }}>Horário do Ticket #{editingTicket.zendesk_id}</h3>
+            <p style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)', marginBottom: 20 }}>
+              Defina o horário de vencimento deste ticket (Dia {editingTicket.due_date ? format(parseISO(editingTicket.due_date), 'dd/MM/yyyy') : format(new Date(), 'dd/MM/yyyy')}).
+            </p>
+            
+            <div style={{ marginBottom: 20 }}>
+              <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: 4 }}>Horário</label>
+              <input 
+                type="time" 
+                value={ticketNewTime} 
+                onChange={e => setTicketNewTime(e.target.value)} 
+                style={{ width: '100%', padding: 8, borderRadius: 4, border: '1px solid var(--color-border)' }} 
+              />
+            </div>
+
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+              <button onClick={() => setEditingTicket(null)} style={{ padding: '8px 16px', background: 'transparent', border: '1px solid var(--color-border)', borderRadius: 4, cursor: 'pointer' }}>Cancelar</button>
+              <button onClick={handleSaveTicketTime} style={{ padding: '8px 16px', background: 'var(--color-primary)', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer' }}>Salvar</button>
             </div>
           </div>
         </div>

@@ -1009,7 +1009,7 @@ export const ReportsScreen: React.FC = () => {
                 </tr>
               </thead>
               <tbody>
-                {trends.client.slice(0, 10).map((cat: any, idx: number) => (
+                {trends?.client?.slice(0, 10).map((cat: any, idx: number) => (
                   <tr key={idx}>
                     <td><div style={{ fontWeight: 500, color: 'var(--color-text-primary)' }}>{cat.name}</div></td>
                     <td>{cat.current}</td>
@@ -1017,6 +1017,11 @@ export const ReportsScreen: React.FC = () => {
                     <td>{renderGrowthTrend(cat.growth)}</td>
                   </tr>
                 ))}
+                {(!trends?.client || trends.client.length === 0) && (
+                  <tr>
+                    <td colSpan={4} style={{ textAlign: 'center', padding: '20px', color: 'var(--color-text-secondary)' }}>Nenhum dado para exibir.</td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
