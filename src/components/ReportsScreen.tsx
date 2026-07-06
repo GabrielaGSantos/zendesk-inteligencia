@@ -177,12 +177,12 @@ export const ReportsScreen: React.FC = () => {
   };
 
   useEffect(() => {
-    if (activeTab === 'overview') {
+    if (activeTab === 'overview' && !data) {
       fetchDashboard();
-    } else if (activeTab === 'historical' && historicalData.length === 0) {
+    } else if (activeTab === 'historico' && historicalData.length === 0) {
       fetchHistoricalData();
     }
-  }, [activeTab, period, customStart, customEnd, client, product, category, group, priority]);
+  }, [activeTab]);
 
   useEffect(() => {
     if (showAIModal && reportsHistory.length === 0) {
@@ -411,6 +411,15 @@ export const ReportsScreen: React.FC = () => {
               <label className="form-label">Produto</label>
               <input type="text" className="form-input" value={product} onChange={e => setProduct(e.target.value)} placeholder="Ex: Zopim" />
             </div>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '16px' }}>
+            <button className="btn btn--primary" onClick={() => {
+              // Se tiver filtros, fechar o painel pra não ocupar tela
+              if (window.innerWidth < 768) setShowFilters(false);
+              fetchDashboard();
+            }}>
+              Buscar Dados
+            </button>
           </div>
         </div>
       )}
