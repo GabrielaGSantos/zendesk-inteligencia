@@ -99,8 +99,8 @@ export function ClientsBI({ filters, onSelectClient }: any) {
             <thead>
               <tr>
                 <th onClick={() => handleSort('name')} style={{ cursor: 'pointer' }}>Cliente</th>
-                <th onClick={() => handleSort('score')} style={{ cursor: 'pointer', textAlign: 'center' }}>Score Operacional</th>
-                <th style={{ textAlign: 'center' }}>Estabilidade</th>
+                <th onClick={() => handleSort('score')} style={{ cursor: 'pointer', textAlign: 'center' }}>Saúde da Conta (Score)</th>
+                <th style={{ textAlign: 'center' }}>Previsibilidade</th>
                 <th onClick={() => handleSort('entradas')} style={{ cursor: 'pointer', textAlign: 'center' }}>Volume</th>
                 <th onClick={() => handleSort('avgTime')} style={{ cursor: 'pointer', textAlign: 'center' }}>T. Médio</th>
                 <th onClick={() => handleSort('slaPct')} style={{ cursor: 'pointer', textAlign: 'center' }}>SLA</th>
@@ -114,13 +114,13 @@ export function ClientsBI({ filters, onSelectClient }: any) {
                   <td style={{ fontWeight: 600, color: 'var(--color-text-primary)', padding: '16px' }}>{client.name}</td>
                   <td style={{ textAlign: 'center' }}>
                     <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 12px', borderRadius: 20, background: client.score >= 80 ? 'rgba(16, 185, 129, 0.1)' : client.score >= 60 ? 'rgba(245, 158, 11, 0.1)' : 'rgba(239, 68, 68, 0.1)', color: client.score >= 80 ? '#10b981' : client.score >= 60 ? '#f59e0b' : '#ef4444', fontWeight: 700 }} title={`Composição: SLA (${client.scoreBreakdown.sla}), Reaberturas (${client.scoreBreakdown.reaberturas}), Fila (${client.scoreBreakdown.backlog}), Criticidade (${client.scoreBreakdown.criticidade})`}>
-                      {client.score} <Info size={14} style={{ opacity: 0.5 }} />
+                      {client.score >= 80 ? 'Saudável' : client.score >= 60 ? 'Atenção' : 'Crítico'} <span style={{ fontSize: '0.75rem', opacity: 0.7 }}>({client.score})</span> <Info size={14} style={{ opacity: 0.5 }} />
                     </div>
                   </td>
-                  <td style={{ textAlign: 'center', fontSize: '0.9rem' }}>
-                     {client.estabilidade === 'Estável' ? <span style={{ color: '#10b981', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}><Minus size={14}/> Estável</span> : 
-                      client.estabilidade === 'Oscilando' ? <span style={{ color: '#f59e0b', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}><TrendingUp size={14}/> Oscilando</span> : 
-                      <span style={{ color: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}><TrendingDown size={14}/> Instável</span>}
+                  <td style={{ textAlign: 'center', fontSize: '0.9rem', fontWeight: 500 }}>
+                     {client.estabilidade === 'Estável' ? <span style={{ color: '#10b981', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}><Minus size={14}/> Previsível</span> : 
+                      client.estabilidade === 'Oscilando' ? <span style={{ color: '#f59e0b', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}><TrendingUp size={14}/> Picos Isolados</span> : 
+                      <span style={{ color: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}><TrendingDown size={14}/> Caótico</span>}
                   </td>
                   <td style={{ textAlign: 'center', color: 'var(--color-text-primary)', fontWeight: 500 }}>{client.entradas}</td>
                   <td style={{ textAlign: 'center', color: 'var(--color-text-primary)' }}>{client.avgTime}h</td>
