@@ -573,20 +573,20 @@ Responda APENAS com um JSON válido contendo exatamente esses campos. Não inclu
   // ──────────────────────────────────────────────────────
   let totalTokens = estimateTokens(promptBody);
   
-  if (totalTokens > 10000) {
+  if (totalTokens > 80000) {
     const limitBody = (text: string, maxLen: number) => text.length > maxLen ? text.substring(0, maxLen) + '\n[...truncado por limite de tokens...]' : text;
     
     // 1º CORTA OS COMENTÁRIOS DA EQUIPE (Histórico secundário)
-    if (estimateTokens(promptBody) > 10000) promptBody = promptBody.replace(commentsText, limitBody(commentsText, 1500));
+    if (estimateTokens(promptBody) > 80000) promptBody = promptBody.replace(commentsText, limitBody(commentsText, 2000));
     
     // 2º CORTA CASOS SIMILARES
-    if (estimateTokens(promptBody) > 10000) promptBody = promptBody.replace(similarContextText, limitBody(similarContextText, 1000));
+    if (estimateTokens(promptBody) > 80000) promptBody = promptBody.replace(similarContextText, limitBody(similarContextText, 1000));
     
-    // 3º CORTA A BASE DE CONHECIMENTO (como penúltimo recurso)
-    if (estimateTokens(promptBody) > 10000) promptBody = promptBody.replace(knowledgeText, limitBody(knowledgeText, 3000));
+    // 3º CORTA O E-MAIL ORIGINAL DO CLIENTE
+    if (estimateTokens(promptBody) > 80000) promptBody = promptBody.replace(ticket.description || '', limitBody(ticket.description || '', 4000));
     
-    // 4º SÓ CORTA O E-MAIL ORIGINAL DO CLIENTE SE FOR LITERALMENTE IMPOSSÍVEL ENVIAR PARA A IA (Ex: cliente colou um log de erro infinito de 50 mil linhas)
-    if (estimateTokens(promptBody) > 10000) promptBody = promptBody.replace(ticket.description || '', limitBody(ticket.description || '', 4000));
+    // 4º CORTA A BASE DE CONHECIMENTO (só entra aqui se o mundo estiver acabando de tanto texto)
+    if (estimateTokens(promptBody) > 80000) promptBody = promptBody.replace(knowledgeText, limitBody(knowledgeText, 5000));
     
     totalTokens = estimateTokens(promptBody);
   }
