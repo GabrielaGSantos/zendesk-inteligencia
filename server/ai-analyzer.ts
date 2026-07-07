@@ -575,15 +575,18 @@ Responda APENAS com um JSON válido contendo exatamente esses campos. Não inclu
   
   if (totalTokens > 10000) {
     const limitBody = (text: string, maxLen: number) => text.length > maxLen ? text.substring(0, maxLen) + '\n[...truncado por limite de tokens...]' : text;
-    // ALWAYS truncate comments and description FIRST to preserve rules and context
-    if (estimateTokens(promptBody) > 10000) promptBody = promptBody.replace(commentsText, limitBody(commentsText, 2000));
-    if (estimateTokens(promptBody) > 10000) promptBody = promptBody.replace(ticket.description || '', limitBody(ticket.description || '', 2000));
     
-    // Then truncate similar cases if still too large
+    // 1º CORTA OS COMENTÁRIOS DA EQUIPE (Histórico secundário)
+    if (estimateTokens(promptBody) > 10000) promptBody = promptBody.replace(commentsText, limitBody(commentsText, 1500));
+    
+    // 2º CORTA CASOS SIMILARES
     if (estimateTokens(promptBody) > 10000) promptBody = promptBody.replace(similarContextText, limitBody(similarContextText, 1000));
     
-    // As a very last resort, truncate knowledge rules
+    // 3º CORTA A BASE DE CONHECIMENTO (como penúltimo recurso)
     if (estimateTokens(promptBody) > 10000) promptBody = promptBody.replace(knowledgeText, limitBody(knowledgeText, 3000));
+    
+    // 4º SÓ CORTA O E-MAIL ORIGINAL DO CLIENTE SE FOR LITERALMENTE IMPOSSÍVEL ENVIAR PARA A IA (Ex: cliente colou um log de erro infinito de 50 mil linhas)
+    if (estimateTokens(promptBody) > 10000) promptBody = promptBody.replace(ticket.description || '', limitBody(ticket.description || '', 4000));
     
     totalTokens = estimateTokens(promptBody);
   }
