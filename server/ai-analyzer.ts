@@ -422,9 +422,12 @@ ${filteredSimilar.map((st, i) => {
       
       if (isCritical) return true;
       
-      // Checagem básica de relevância semântica (match de palavras-chave da categoria/título)
+      // If we have fewer than 30 rules total, just include all of them so the AI has context.
+      if (knowledgeRules.length <= 30) return true;
+
+      // Otherwise do basic semantic match
       const ruleKeywords = catLower.split(' ').filter((w: string) => w.length > 4);
-      return ruleKeywords.some((w: string) => ticketKeywords.includes(w)) || filteredRules.length <= 15;
+      return ruleKeywords.some((w: string) => ticketKeywords.includes(w));
     });
 
     knowledgeText = `
@@ -572,10 +575,16 @@ Responda APENAS com um JSON válido contendo exatamente esses campos. Não inclu
   
   if (totalTokens > 10000) {
     const limitBody = (text: string, maxLen: number) => text.length > maxLen ? text.substring(0, maxLen) + '\n[...truncado por limite de tokens...]' : text;
-    if (estimateTokens(promptBody) > 10000) promptBody = promptBody.replace(similarContextText, limitBody(similarContextText, 500));
-    if (estimateTokens(promptBody) > 10000) promptBody = promptBody.replace(knowledgeText, limitBody(knowledgeText, 1500));
-    if (estimateTokens(promptBody) > 10000) promptBody = promptBody.replace(commentsText, limitBody(commentsText, 1000));
-    if (estimateTokens(promptBody) > 10000) promptBody = promptBody.replace(ticket.description || '', limitBody(ticket.description || '', 1000));
+    // ALWAYS truncate comments and description FIRST to preserve rules and context
+    if (estimateTokens(promptBody) > 10000) promptBody = promptBody.replace(commentsText, limitBody(commentsText, 2000));
+    if (estimateTokens(promptBody) > 10000) promptBody = promptBody.replace(ticket.description || '', limitBody(ticket.description || '', 2000));
+    
+    // Then truncate similar cases if still too large
+    if (estimateTokens(promptBody) > 10000) promptBody = promptBody.replace(similarContextText, limitBody(similarContextText, 1000));
+    
+    // As a very last resort, truncate knowledge rules
+    if (estimateTokens(promptBody) > 10000) promptBody = promptBody.replace(knowledgeText, limitBody(knowledgeText, 3000));
+    
     totalTokens = estimateTokens(promptBody);
   }
 
