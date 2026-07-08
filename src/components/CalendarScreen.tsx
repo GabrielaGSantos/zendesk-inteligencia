@@ -424,30 +424,31 @@ export const CalendarScreen: React.FC = () => {
                 {dayTickets.map(t => {
                   const isCompleted = t.status === 'solved' || t.status === 'closed';
                   
+                  let tStr = '17:00';
+                  let localDueDateStr = '';
+
+                  if (t.due_date) {
+                    localDueDateStr = t.due_date.endsWith('Z') ? t.due_date.slice(0, -1) : t.due_date;
+                    
+                    if (localDueDateStr.includes('T')) {
+                      const timePart = localDueDateStr.split('T')[1];
+                      if (!timePart.startsWith('00:00:00')) {
+                        tStr = timePart.substring(0,5);
+                      } else {
+                         // Se a data do banco for meia-noite, ajustamos a string para 17:00 para bater com a regra visual
+                         localDueDateStr = localDueDateStr.replace('00:00:00', '17:00:00');
+                      }
+                    }
+                  }
+                  
                   let isOverdue = false;
-                  if (!isCompleted && t.due_date) {
-                    // Remove o Z para o navegador interpretar a string como horário local e não UTC
-                    const localDueDateStr = t.due_date.endsWith('Z') ? t.due_date.slice(0, -1) : t.due_date;
+                  if (!isCompleted && localDueDateStr) {
                     isOverdue = new Date(localDueDateStr) < new Date();
                   }
                   
                   const bg = isCompleted ? '#F3F4F6' : (isOverdue ? '#FEE2E2' : '#EFF6FF');
                   const color = isCompleted ? '#6B7280' : (isOverdue ? '#991B1B' : '#1E40AF');
                   const border = isCompleted ? '#9CA3AF' : (isOverdue ? '#DC2626' : '#3B82F6');
-                  
-                  let tStr = '';
-                  if (t.due_date) {
-                    if (t.due_date.includes('T')) {
-                      const timePart = t.due_date.split('T')[1];
-                      if (timePart.startsWith('00:00:00')) {
-                        tStr = '17:00';
-                      } else {
-                        tStr = timePart.substring(0,5);
-                      }
-                    } else {
-                      tStr = '17:00';
-                    }
-                  }
 
                   return (
                   <div 
