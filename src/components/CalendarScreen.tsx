@@ -21,6 +21,9 @@ export const CalendarScreen: React.FC = () => {
 
   // Filter state
   const [selectedAgent, setSelectedAgent] = useState<string>('');
+  const [showPersonalEvents, setShowPersonalEvents] = useState(true);
+  const [showGlobalEvents, setShowGlobalEvents] = useState(true);
+  const [showTickets, setShowTickets] = useState(true);
 
   // Modal / Form state
   const [showEventModal, setShowEventModal] = useState(false);
@@ -93,6 +96,8 @@ export const CalendarScreen: React.FC = () => {
 
   // Filtering
   const getTicketsForDate = (date: Date) => {
+    if (!showTickets) return [];
+    
     const dateStr = format(date, 'yyyy-MM-dd');
     return tickets.filter(t => {
       if (!t.due_date) return false;
@@ -100,7 +105,7 @@ export const CalendarScreen: React.FC = () => {
       if (tDate !== dateStr) return false;
       
       // Apply agent filter for tickets
-      if (selectedAgent && selectedAgent !== 'global_events_only' && t.assignee_name !== selectedAgent) {
+      if (selectedAgent && t.assignee_name !== selectedAgent) {
         return false;
       }
       
@@ -111,9 +116,8 @@ export const CalendarScreen: React.FC = () => {
   const getEventsForDate = (date: Date) => {
     const dateStr = format(date, 'yyyy-MM-dd');
     return events.filter(e => {
-      if (selectedAgent === 'global_events_only') {
-        if (e.event_type !== 'global') return false;
-      }
+      if (e.event_type === 'personal' && !showPersonalEvents) return false;
+      if (e.event_type === 'global' && !showGlobalEvents) return false;
       
       const isStart = e.start_date === dateStr;
       const isEnd = e.end_date === dateStr;
@@ -245,23 +249,35 @@ export const CalendarScreen: React.FC = () => {
           </p>
         </div>
         
-        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-          <select 
-            className="filter-bar__select"
-            value={selectedAgent}
-            onChange={e => setSelectedAgent(e.target.value)}
-            style={{ padding: '8px 12px', borderRadius: 6, border: '1px solid var(--color-border)', height: 36 }}
-          >
-            <option value="">Todos os Tickets e Eventos</option>
-            <option value="global_events_only">Apenas Eventos Globais</option>
-            <optgroup label="Agentes">
+        <div style={{ display: 'flex', gap: 15, alignItems: 'center', flexWrap: 'wrap' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.85rem', cursor: 'pointer' }}>
+            <input type="checkbox" checked={showPersonalEvents} onChange={e => setShowPersonalEvents(e.target.checked)} />
+            Meus Eventos
+          </label>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.85rem', cursor: 'pointer' }}>
+            <input type="checkbox" checked={showGlobalEvents} onChange={e => setShowGlobalEvents(e.target.checked)} />
+            Eventos Globais
+          </label>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.85rem', cursor: 'pointer' }}>
+            <input type="checkbox" checked={showTickets} onChange={e => setShowTickets(e.target.checked)} />
+            Tickets
+          </label>
+          
+          {showTickets && (
+            <select 
+              className="filter-bar__select"
+              value={selectedAgent}
+              onChange={e => setSelectedAgent(e.target.value)}
+              style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid var(--color-border)', height: 32, fontSize: '0.85rem' }}
+            >
+              <option value="">Todos os Agentes</option>
               {agents.filter(a => a.is_active).map(a => (
-                <option key={a.id} value={a.name}>Tickets de: {a.name}</option>
+                <option key={a.id} value={a.name}>{a.name}</option>
               ))}
-            </optgroup>
-          </select>
+            </select>
+          )}
 
-          <button onClick={() => openNewEventModal()} className="btn btn--primary" style={{ height: 36 }}>
+          <button onClick={() => openNewEventModal()} className="btn btn--primary" style={{ height: 36, marginLeft: 'auto' }}>
             <Plus size={16} /> Novo Lembrete
           </button>
         </div>
@@ -328,7 +344,7 @@ export const CalendarScreen: React.FC = () => {
           const dateStr = format(date, 'yyyy-MM-dd');
           const dayEvents = getEventsForDate(date);
           
-          const dayTickets = selectedAgent === 'global_events_only' ? [] : getTicketsForDate(date);
+          const dayTickets = getTicketsForDate(date);
 
           return (
             <div 
