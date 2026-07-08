@@ -423,7 +423,13 @@ export const CalendarScreen: React.FC = () => {
 
                 {dayTickets.map(t => {
                   const isCompleted = t.status === 'solved' || t.status === 'closed';
-                  const isOverdue = !isCompleted && t.due_date ? new Date(t.due_date) < new Date() : false;
+                  
+                  let isOverdue = false;
+                  if (!isCompleted && t.due_date) {
+                    // Remove o Z para o navegador interpretar a string como horário local e não UTC
+                    const localDueDateStr = t.due_date.endsWith('Z') ? t.due_date.slice(0, -1) : t.due_date;
+                    isOverdue = new Date(localDueDateStr) < new Date();
+                  }
                   
                   const bg = isCompleted ? '#F3F4F6' : (isOverdue ? '#FEE2E2' : '#EFF6FF');
                   const color = isCompleted ? '#6B7280' : (isOverdue ? '#991B1B' : '#1E40AF');
