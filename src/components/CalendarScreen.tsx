@@ -33,6 +33,7 @@ export const CalendarScreen: React.FC = () => {
   const [startTime, setStartTime] = useState('09:00');
   const [endDate, setEndDate] = useState('');
   const [endTime, setEndTime] = useState('');
+  const [eventCompleted, setEventCompleted] = useState(false);
 
   // Ticket time editing
   const [editingTicket, setEditingTicket] = useState<Ticket | null>(null);
@@ -135,7 +136,8 @@ export const CalendarScreen: React.FC = () => {
         start_date: startDate,
         start_time: startTime,
         end_date: endDate || undefined,
-        end_time: endTime || undefined
+        end_time: endTime || undefined,
+        completed: eventCompleted
       };
 
       if (editingEventId) {
@@ -163,6 +165,21 @@ export const CalendarScreen: React.FC = () => {
     }
   };
 
+  const handleToggleEventCompleted = async (ev: CalendarEvent, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!ev.id) return;
+    try {
+      const payload = { ...ev, completed: !ev.completed };
+      // Optimistic update
+      setEvents(events.map(event => event.id === ev.id ? { ...event, completed: !event.completed } : event));
+      await api.calendar.update(ev.id, payload);
+    } catch (err) {
+      console.error('Erro ao atualizar lembrete', err);
+      alert('Erro ao atualizar status do lembrete.');
+      fetchData(); // revert on failure
+    }
+  };
+
   const handleSaveTicketTime = async () => {
     if (!editingTicket) return;
     try {
@@ -186,6 +203,7 @@ export const CalendarScreen: React.FC = () => {
     setStartTime('09:00');
     setEndDate('');
     setEndTime('');
+    setEventCompleted(false);
     setShowEventModal(true);
   };
 
@@ -198,6 +216,7 @@ export const CalendarScreen: React.FC = () => {
     setStartTime(ev.start_time);
     setEndDate(ev.end_date || '');
     setEndTime(ev.end_time || '');
+    setEventCompleted(ev.completed || false);
     setShowEventModal(true);
   };
 
@@ -357,7 +376,13 @@ export const CalendarScreen: React.FC = () => {
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                {dayEvents.map(ev => (
+                {dayEvents.map(ev => {
+                  const evCompleted = ev.completed;
+                  const evBg = evCompleted ? '#F3F4F6' : (ev.event_type === 'global' ? '#E0E7FF' : '#DCFCE7');
+                  const evColor = evCompleted ? '#6B7280' : (ev.event_type === 'global' ? '#3730A3' : '#166534');
+                  const evBorder = evCompleted ? '#9CA3AF' : (ev.event_type === 'global' ? '#4F46E5' : '#16A34A');
+                  
+                  return (
                   <div 
                     key={ev.id} 
                     onClick={(e) => { e.stopPropagation(); openEditEventModal(ev); }}
@@ -365,22 +390,44 @@ export const CalendarScreen: React.FC = () => {
                       fontSize: '0.75rem', 
                       padding: '4px 6px', 
                       borderRadius: 4, 
-                      background: ev.event_type === 'global' ? '#E0E7FF' : '#DCFCE7',
-                      color: ev.event_type === 'global' ? '#3730A3' : '#166534',
-                      borderLeft: `3px solid ${ev.event_type === 'global' ? '#4F46E5' : '#16A34A'}`,
+                      background: evBg,
+                      color: evColor,
+                      borderLeft: `3px solid ${evBorder}`,
                       cursor: 'pointer',
-                      whiteSpace: 'nowrap',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis'
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center'
                     }}
                     title={`${ev.start_time} - ${ev.title}`}
                   >
-                    <strong>{ev.start_time}</strong> {ev.title}
+                    <div style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', textDecoration: evCompleted ? 'line-through' : 'none' }}>
+                      <strong>{ev.start_time}</strong> {ev.title}
+                    </div>
+                    <button 
+                      onClick={(e) => handleToggleEventCompleted(ev, e)}
+                      style={{ 
+                        background: 'transparent', 
+                        border: 'none', 
+                        cursor: 'pointer', 
+                        color: 'inherit',
+                        padding: 0,
+                        marginLeft: 4,
+                        opacity: evCompleted ? 1 : 0.5
+                      }}
+                      title={evCompleted ? 'Marcar como pendente' : 'Marcar como concluído'}
+                    >
+                      <CheckCircle2 size={12} fill={evCompleted ? "currentColor" : "none"} />
+                    </button>
                   </div>
-                ))}
+                )})}
 
                 {dayTickets.map(t => {
-                  const isOverdue = t.due_date ? new Date(t.due_date) < new Date() : false;
+                  const isCompleted = t.status === 'solved' || t.status === 'closed';
+                  const isOverdue = !isCompleted && t.due_date ? new Date(t.due_date) < new Date() : false;
+                  
+                  const bg = isCompleted ? '#F3F4F6' : (isOverdue ? '#FEE2E2' : '#EFF6FF');
+                  const color = isCompleted ? '#6B7280' : (isOverdue ? '#991B1B' : '#1E40AF');
+                  const border = isCompleted ? '#9CA3AF' : (isOverdue ? '#DC2626' : '#3B82F6');
                   
                   let tStr = '';
                   if (t.due_date) {
@@ -403,9 +450,9 @@ export const CalendarScreen: React.FC = () => {
                       fontSize: '0.75rem', 
                       padding: '4px 6px', 
                       borderRadius: 4, 
-                      background: isOverdue ? '#FEE2E2' : '#EFF6FF',
-                      color: isOverdue ? '#991B1B' : '#1E40AF',
-                      borderLeft: `3px solid ${isOverdue ? '#DC2626' : '#3B82F6'}`,
+                      background: bg,
+                      color: color,
+                      borderLeft: `3px solid ${border}`,
                       cursor: 'pointer',
                       whiteSpace: 'nowrap',
                       overflow: 'hidden',
@@ -470,12 +517,21 @@ export const CalendarScreen: React.FC = () => {
                 </div>
               </div>
 
-              <div>
-                <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: 4 }}>Tipo de Lembrete</label>
-                <select value={eventType} onChange={e => setEventType(e.target.value as any)} style={{ width: '100%', padding: 8, borderRadius: 4, border: '1px solid var(--color-border)' }}>
-                  <option value="personal">Pessoal (Só eu vejo e sou notificado)</option>
-                  <option value="global">Global (Todos veem no calendário)</option>
-                </select>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: 4 }}>Tipo de Lembrete</label>
+                  <select value={eventType} onChange={e => setEventType(e.target.value as any)} style={{ width: '100%', padding: 8, borderRadius: 4, border: '1px solid var(--color-border)' }}>
+                    <option value="personal">Pessoal (Só eu vejo)</option>
+                    <option value="global">Global (Todos veem)</option>
+                  </select>
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: 4 }}>Status</label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, padding: 8, borderRadius: 4, border: '1px solid var(--color-border)', cursor: 'pointer', background: eventCompleted ? '#F3F4F6' : '#fff' }}>
+                    <input type="checkbox" checked={eventCompleted} onChange={e => setEventCompleted(e.target.checked)} style={{ cursor: 'pointer' }} />
+                    <span style={{ fontSize: '0.85rem' }}>Concluído</span>
+                  </label>
+                </div>
               </div>
             </div>
 

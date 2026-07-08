@@ -224,5 +224,6 @@ export interface CalendarEvent {
   start_time: string;
   end_date?: string;
   end_time?: string;
+  completed?: boolean;
   created_at?: string;
 }
