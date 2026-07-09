@@ -548,7 +548,8 @@ export const CalendarScreen: React.FC = () => {
                   let localDueDateStr = '';
 
                   if (t.due_date) {
-                    localDueDateStr = t.due_date.endsWith('Z') ? t.due_date.slice(0, -1) : t.due_date;
+                    // Remove Z or +00:00 to force local time evaluation
+                    localDueDateStr = t.due_date.split('+')[0].replace('Z', '');
                     
                     if (localDueDateStr.includes('T')) {
                       const timePart = localDueDateStr.split('T')[1];
@@ -557,6 +558,7 @@ export const CalendarScreen: React.FC = () => {
                       } else {
                          // Se a data do banco for meia-noite, ajustamos a string para 17:00 para bater com a regra visual
                          localDueDateStr = localDueDateStr.replace('00:00:00', '17:00:00');
+                         tStr = '17:00';
                       }
                     }
                   }
