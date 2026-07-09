@@ -95,7 +95,21 @@ export const NotesScreen: React.FC = () => {
             Crie lembretes, anotações de laboratório, tarefas importantes e compartilhe entre administradores e secretárias.
           </p>
         </div>
-        <button className="btn-primary" onClick={handleNewNote} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <button 
+          onClick={handleNewNote} 
+          style={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            gap: 6,
+            padding: '10px 20px',
+            background: 'var(--color-primary)',
+            color: '#fff',
+            border: 'none',
+            borderRadius: 8,
+            fontWeight: 600,
+            cursor: 'pointer'
+          }}
+        >
           <Plus size={18} />
           Nova Nota
         </button>
