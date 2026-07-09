@@ -213,7 +213,7 @@ export async function syncSingleTicket(
   console.log(`[Webhook Sync] Sincronizando ticket #${ticketId}...`);
 
   // Fetch ticket data from Zendesk
-  const ticketData = await zendeskGet(config, `/api/v2/tickets/${ticketId}.json`);
+  const ticketData = await zendeskGet(config, `/api/v2/tickets/${ticketId}.json?include=metric_sets`);
   const ticket = ticketData.ticket;
 
   if (!ticket) {
@@ -226,10 +226,9 @@ export async function syncSingleTicket(
   const group = await resolveEntity(config, supabase, 'group', ticket.group_id);
   const organization = await resolveEntity(config, supabase, 'organization', ticket.organization_id);
 
-  const { data: existingTicket } = await supabase.from('tickets').select('solved_at').eq('zendesk_id', ticket.id).maybeSingle();
   let newSolvedAt = null;
   if (ticket.status === 'solved' || ticket.status === 'closed') {
-    newSolvedAt = existingTicket?.solved_at || ticket.updated_at;
+    newSolvedAt = ticket.metric_set?.solved_at || ticket.updated_at;
   }
 
   // Upsert ticket
@@ -303,7 +302,7 @@ export async function startSync(
     let queryUrl = '';
 
     if (customStartDate && customEndDate) {
-      queryUrl = `/api/v2/search.json?query=type:ticket created>=${customStartDate} created<=${customEndDate} order_by:created_at sort:asc`;
+      queryUrl = `/api/v2/search.json?query=type:ticket created>=${customStartDate} created<=${customEndDate} order_by:created_at sort:asc&include=metric_sets`;
     } else {
       let startTime = 0; // Unix timestamp 0 fetches all, but we will get last updated
       const { data: lastTicket } = await supabase
@@ -321,7 +320,7 @@ export async function startSync(
            startTime = maxStartTime;
          }
       }
-      queryUrl = `/api/v2/incremental/tickets.json?start_time=${startTime}`;
+      queryUrl = `/api/v2/incremental/tickets.json?start_time=${startTime}&include=metric_sets`;
     }
 
     let url: string | null = queryUrl;
@@ -352,10 +351,9 @@ export async function startSync(
       const group = await resolveEntity(config, supabase, 'group', ticket.group_id);
       const organization = await resolveEntity(config, supabase, 'organization', ticket.organization_id);
 
-      const { data: existingTicket } = await supabase.from('tickets').select('solved_at').eq('zendesk_id', ticket.id).maybeSingle();
       let newSolvedAt = null;
       if (ticket.status === 'solved' || ticket.status === 'closed') {
-        newSolvedAt = existingTicket?.solved_at || ticket.updated_at;
+        newSolvedAt = ticket.metric_set?.solved_at || ticket.updated_at;
       }
 
       await supabase.from('tickets').upsert({
