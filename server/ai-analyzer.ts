@@ -1370,23 +1370,23 @@ ${(comments || []).map(c => `[${c.is_public ? 'Público' : 'Interno'} - ${c.auth
 
 Escreva a resposta de fechamento final em português do Brasil:`;
 
-  let finalResponse = '';
+  let aiResponseObj: AIResponse;
   if (provider === 'openai') {
     const openaiKey = process.env.OPENAI_API_KEY;
     if (!openaiKey) throw new Error('Chave da API da OpenAI não configurada nas variáveis de ambiente');
-    finalResponse = await callOpenAI(openaiKey, prompt, model);
+    aiResponseObj = await callOpenAI(openaiKey, prompt, model);
   } else {
     const geminiKey = process.env.GEMINI_API_KEY || apiKey;
-    finalResponse = await callGemini(geminiKey, prompt, model);
+    aiResponseObj = await callGemini(geminiKey, prompt, model);
   }
 
-  finalResponse = finalResponse.trim();
+  const finalResponseText = aiResponseObj.text.trim();
 
   // Salvar no banco
   await supabase
     .from('ticket_analysis')
-    .update({ suggested_final_response: finalResponse })
+    .update({ suggested_final_response: finalResponseText })
     .eq('ticket_zendesk_id', zendeskId);
 
-  return finalResponse;
+  return finalResponseText;
 }
