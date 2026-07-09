@@ -206,16 +206,10 @@ export function registerReportRoutes(supabase: SupabaseClient) {
       let qEntradasPrev = applyFiltersSafe(supabase.from('tickets').select(`id, ticket_analysis${joinType}(category, product)`, { count: 'exact', head: true }).gte('created_at', prevRange.start).lte('created_at', prevRange.end));
       let qResolvidos = applyFiltersSafe(supabase.from('tickets').select(`id, ticket_analysis${joinType}(category, product)`, { count: 'exact', head: true }).in('status', ['solved', 'closed']).gte('solved_at', currentRange.start).lte('solved_at', currentRange.end));
       let qResolvidosPrev = applyFiltersSafe(supabase.from('tickets').select(`id, ticket_analysis${joinType}(category, product)`, { count: 'exact', head: true }).in('status', ['solved', 'closed']).gte('solved_at', prevRange.start).lte('solved_at', prevRange.end));
-      let qAbertos = applyFiltersSafe(supabase.from('tickets').select(`id, ticket_analysis${joinType}(category, product)`, { count: 'exact', head: true }).in('status', ['new', 'open']));
-      let qAbertosPrev = applyFiltersSafe(supabase.from('tickets').select(`id, ticket_analysis${joinType}(category, product)`, { count: 'exact', head: true }).in('status', ['new', 'open']));
-      
-      let qPendentes = applyFiltersSafe(supabase.from('tickets').select(`id, ticket_analysis${joinType}(category, product)`, { count: 'exact', head: true }).in('status', ['pending', 'hold']));
-      let qPendentesPrev = applyFiltersSafe(supabase.from('tickets').select(`id, ticket_analysis${joinType}(category, product)`, { count: 'exact', head: true }).in('status', ['pending', 'hold']));
+      let qBacklog = applyFiltersSafe(supabase.from('tickets').select(`id, ticket_analysis${joinType}(category, product)`, { count: 'exact', head: true }).not('status', 'in', '("solved","closed","deleted")'));
 
-      let qBacklog = applyFiltersSafe(supabase.from('tickets').select(`id, ticket_analysis${joinType}(category, product)`, { count: 'exact', head: true }).in('status', ['new', 'open', 'pending', 'hold']));
-
-      const [entradasRes, entradasPrevRes, resolvidosRes, resolvidosPrevRes, backlogRes, abertosRes, abertosPrevRes, pendentesRes, pendentesPrevRes] = await Promise.all([
-        qEntradas, qEntradasPrev, qResolvidos, qResolvidosPrev, qBacklog, qAbertos, qAbertosPrev, qPendentes, qPendentesPrev
+      const [entradasRes, entradasPrevRes, resolvidosRes, resolvidosPrevRes, backlogRes] = await Promise.all([
+        qEntradas, qEntradasPrev, qResolvidos, qResolvidosPrev, qBacklog
       ]);
 
       const entradas = entradasRes.count || 0;
@@ -223,21 +217,9 @@ export function registerReportRoutes(supabase: SupabaseClient) {
       const resolvidos = resolvidosRes.count || 0;
       const resolvidosPrev = resolvidosPrevRes.count || 0;
       const backlog = backlogRes.count || 0;
-      
-      const abertos = abertosRes.count || 0;
-      const pendentes = pendentesRes.count || 0;
-      
       const saldo = entradas - resolvidos;
       const saldoPrev = entradasPrev - resolvidosPrev;
       const backlogPrev = backlog - saldo;
-
-      let abertosPrev = 0;
-      let pendentesPrev = 0;
-      if (backlog > 0) {
-        const abertosRatio = abertos / backlog;
-        abertosPrev = Math.round(backlogPrev * abertosRatio);
-        pendentesPrev = backlogPrev - abertosPrev;
-      }
 
       // SLA
       let qSla = applyFiltersSafe(supabase.from('tickets').select(`id, created_at, solved_at, priority, ticket_analysis${joinType}(category, product)`).in('status', ['solved', 'closed']).gte('solved_at', currentRange.start).lte('solved_at', currentRange.end));
@@ -645,7 +627,6 @@ export function registerReportRoutes(supabase: SupabaseClient) {
         },
         summary: {
           entradas, entradasPrev, resolvidos, resolvidosPrev, backlog, backlogPrev,
-          abertos, abertosPrev, pendentes, pendentesPrev,
           saldo, saldoPrev, avgResolutionTime, avgResolutionTimePrev, slaCumprido, slaVencido
         },
         distributions: {
@@ -852,7 +833,6 @@ FORMATO OBRIGATÓRIO (JSON):
                entradas: 0,
                resolvidos: 0,
                pendentes: 0,
-               abertos: 0,
                reaberturas: 0,
                slaVencido: 0,
                slaCumprido: 0,
