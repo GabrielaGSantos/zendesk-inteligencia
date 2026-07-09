@@ -1236,7 +1236,7 @@ export function createRoutes(supabase: SupabaseClient): Router {
   });
 
   // ─── Notes ───────────────────────────────────────────────────
-  router.get('/api/notes', async (req, res) => {
+  router.get('/api/notes', requireAuth, async (req, res) => {
     try {
       const user = (req as any).user;
       const userId = user?.id;
@@ -1256,7 +1256,7 @@ export function createRoutes(supabase: SupabaseClient): Router {
     }
   });
 
-  router.post('/api/notes', async (req, res) => {
+  router.post('/api/notes', requireAuth, async (req, res) => {
     try {
       const user = (req as any).user;
       const payload = {
@@ -1274,7 +1274,7 @@ export function createRoutes(supabase: SupabaseClient): Router {
     }
   });
 
-  router.put('/api/notes/:id', async (req, res) => {
+  router.put('/api/notes/:id', requireAuth, async (req, res) => {
     try {
       const { id } = req.params;
       const payload = {
@@ -1291,7 +1291,7 @@ export function createRoutes(supabase: SupabaseClient): Router {
     }
   });
 
-  router.delete('/api/notes/:id', async (req, res) => {
+  router.delete('/api/notes/:id', requireAuth, async (req, res) => {
     try {
       const { id } = req.params;
       const { error } = await supabase.from('user_notes').delete().eq('id', id);

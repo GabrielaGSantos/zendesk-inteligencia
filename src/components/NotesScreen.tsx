@@ -195,17 +195,17 @@ export const NotesScreen: React.FC = () => {
                 />
               </div>
 
-              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', marginBottom: 20 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', marginBottom: 20 }}>
                 <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--color-text-secondary)', marginBottom: 6, textTransform: 'uppercase' }}>Conteúdo da Anotação</label>
                 <textarea 
                   value={editingNote.content || ''} 
                   onChange={e => setEditingNote({...editingNote, content: e.target.value})}
-                  style={{ width: '100%', flex: 1, padding: 16, borderRadius: 8, border: '1px solid var(--color-border)', fontSize: 15, resize: 'none', fontFamily: 'inherit' }}
+                  style={{ width: '100%', minHeight: 250, padding: 16, borderRadius: 8, border: '1px solid var(--color-border)', fontSize: 15, resize: 'vertical', fontFamily: 'inherit' }}
                   placeholder="Escreva sua anotação aqui..."
                 />
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 'auto' }}>
                 <div style={{ display: 'flex', gap: 24 }}>
                   <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 14, fontWeight: 500, color: 'var(--color-text)' }}>
                     <input 
@@ -246,14 +246,20 @@ export const NotesScreen: React.FC = () => {
                   <button 
                     onClick={handleSaveNote}
                     disabled={isSaving}
-                    style={{ padding: '10px 24px', borderRadius: 8, border: '1px solid #767676', background: '#F1F3F4', cursor: 'pointer', fontWeight: 500, color: '#000', display: 'flex', alignItems: 'center', gap: 8 }}
+                    style={{ 
+                      padding: '10px 24px', 
+                      borderRadius: 8, 
+                      border: 'none', 
+                      background: isSaving ? '#E5E7EB' : 'var(--color-primary)', 
+                      cursor: isSaving ? 'not-allowed' : 'pointer', 
+                      fontWeight: 500, 
+                      color: isSaving ? '#6B7280' : '#fff', 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      gap: 8 
+                    }}
                   >
-                    {isSaving ? 'Salvando...' : (
-                      <>
-                        <Check size={18} />
-                        {editingNote.id ? 'Atualizar Nota' : 'Criar Nova'}
-                      </>
-                    )}
+                    {isSaving ? 'Salvando...' : editingNote.id ? 'Salvar Edição' : 'Salvar Anotação'}
                   </button>
                 </div>
               </div>
