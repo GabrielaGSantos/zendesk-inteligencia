@@ -219,7 +219,8 @@ export interface CalendarEvent {
   id?: string;
   title: string;
   description: string;
-  event_type: 'personal' | 'global' | 'birthday' | 'vacation' | 'medical';
+  event_type: 'personal' | 'global' | 'birthday' | 'vacation' | 'medical' | 'absence';
+  agent_name?: string;
   created_by?: string;
   start_date: string;
   start_time: string;
@@ -228,6 +229,7 @@ export interface CalendarEvent {
   completed?: boolean;
   created_at?: string;
 }
+
 
 export interface Note {
   id: number;

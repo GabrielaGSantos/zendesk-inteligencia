@@ -22,7 +22,7 @@ export const CalendarScreen: React.FC = () => {
 
   // Filter state
   const [selectedAgents, setSelectedAgents] = useState<string[]>([]);
-  const [selectedEventTypes, setSelectedEventTypes] = useState<string[]>(['personal', 'global', 'ticket', 'birthday', 'vacation', 'medical']);
+  const [selectedEventTypes, setSelectedEventTypes] = useState<string[]>(['personal', 'global', 'ticket', 'birthday', 'vacation', 'medical', 'absence']);
   const [showAgentFilter, setShowAgentFilter] = useState(false);
   const [showTypeFilter, setShowTypeFilter] = useState(false);
 
@@ -32,12 +32,13 @@ export const CalendarScreen: React.FC = () => {
   
   const [eventTitle, setEventTitle] = useState('');
   const [eventDescription, setEventDescription] = useState('');
-  const [eventType, setEventType] = useState<'personal' | 'global' | 'birthday' | 'vacation' | 'medical'>('personal');
+  const [eventType, setEventType] = useState<'personal' | 'global' | 'birthday' | 'vacation' | 'medical' | 'absence'>('personal');
   const [startDate, setStartDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [startTime, setStartTime] = useState('09:00');
   const [endDate, setEndDate] = useState('');
   const [endTime, setEndTime] = useState('');
   const [eventCompleted, setEventCompleted] = useState(false);
+  const [eventAgent, setEventAgent] = useState('');
 
   // Ticket time editing
   const [editingTicket, setEditingTicket] = useState<Ticket | null>(null);
@@ -141,6 +142,7 @@ export const CalendarScreen: React.FC = () => {
     setEndDate('');
     setEndTime('');
     setEventCompleted(false);
+    setEventAgent('');
   };
 
   const handleSaveEvent = async () => {
@@ -149,6 +151,7 @@ export const CalendarScreen: React.FC = () => {
         title: eventTitle,
         description: eventDescription,
         event_type: eventType,
+        agent_name: eventAgent || undefined,
         start_date: startDate,
         start_time: startTime,
         end_date: endDate || undefined,
@@ -222,6 +225,7 @@ export const CalendarScreen: React.FC = () => {
     setEventTitle(ev.title);
     setEventDescription(ev.description || '');
     setEventType(ev.event_type);
+    setEventAgent(ev.agent_name || '');
     setStartDate(ev.start_date);
     setStartTime(ev.start_time);
     setEndDate(ev.end_date || '');
@@ -274,6 +278,7 @@ export const CalendarScreen: React.FC = () => {
                   { id: 'birthday', label: 'Aniversários' },
                   { id: 'vacation', label: 'Férias' },
                   { id: 'medical', label: 'Consultas Médicas' },
+                  { id: 'absence', label: 'Ausência Justificada' },
                 ].map(type => (
                   <label key={type.id} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.85rem', cursor: 'pointer' }}>
                     <input 
@@ -475,6 +480,10 @@ export const CalendarScreen: React.FC = () => {
                       evBg = '#FEE2E2'; evColor = '#991B1B'; evBorder = '#EF4444';
                       icon = '🏥';
                       break;
+                    case 'absence':
+                      evBg = '#F3E8FF'; evColor = '#7E22CE'; evBorder = '#A855F7';
+                      icon = '🚫';
+                      break;
                   }
 
                   if (evCompleted) {
@@ -499,8 +508,15 @@ export const CalendarScreen: React.FC = () => {
                     }}
                     title={`${ev.start_time} - ${ev.title}`}
                   >
-                    <div style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', textDecoration: evCompleted ? 'line-through' : 'none' }}>
-                      <strong>{ev.start_time}</strong> {icon && <span style={{ marginRight: 4 }}>{icon}</span>}{ev.title}
+                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                      <div style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', textDecoration: evCompleted ? 'line-through' : 'none' }}>
+                        <strong>{ev.start_time}</strong> {icon && <span style={{ marginRight: 4 }}>{icon}</span>}{ev.title}
+                      </div>
+                      {ev.agent_name && (
+                        <div style={{ fontSize: '0.65rem', opacity: 0.85, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {ev.agent_name}
+                        </div>
+                      )}
                     </div>
                     <button 
                       onClick={(e) => handleToggleEventCompleted(ev, e)}
@@ -610,12 +626,13 @@ export const CalendarScreen: React.FC = () => {
                 <div style={{ textAlign: 'center', padding: 20, color: 'var(--color-text-tertiary)' }}>Nenhum lembrete encontrado.</div>
               ) : (
                 events.map(ev => {
-                  let evBg = '#DCFCE7'; let evColor = '#166534';
+                  let evBg = '#DCFCE7'; let evColor = '#166534'; let evLabel = 'Pessoal';
                   switch (ev.event_type) {
-                    case 'global': evBg = '#E0E7FF'; evColor = '#3730A3'; break;
-                    case 'birthday': evBg = '#FEF08A'; evColor = '#854D0E'; break;
-                    case 'vacation': evBg = '#FFEDD5'; evColor = '#9A3412'; break;
-                    case 'medical': evBg = '#FEE2E2'; evColor = '#991B1B'; break;
+                    case 'global': evBg = '#E0E7FF'; evColor = '#3730A3'; evLabel = 'Global'; break;
+                    case 'birthday': evBg = '#FEF08A'; evColor = '#854D0E'; evLabel = 'Aniversário'; break;
+                    case 'vacation': evBg = '#FFEDD5'; evColor = '#9A3412'; evLabel = 'Férias'; break;
+                    case 'medical': evBg = '#FEE2E2'; evColor = '#991B1B'; evLabel = 'Consulta Médica'; break;
+                    case 'absence': evBg = '#F3E8FF'; evColor = '#7E22CE'; evLabel = 'Ausência Justificada'; break;
                   }
 
                   return (
@@ -625,11 +642,12 @@ export const CalendarScreen: React.FC = () => {
                           <div style={{ width: 12, height: 12, borderRadius: '50%', background: evColor }}></div>
                           <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 500, color: 'var(--color-text)' }}>{ev.title}</h3>
                           <span style={{ fontSize: '0.7rem', padding: '2px 8px', borderRadius: 12, background: evBg, color: evColor, fontWeight: 600, textTransform: 'uppercase' }}>
-                            {ev.event_type}
+                            {evLabel}
                           </span>
                         </div>
                         <div style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)' }}>
                           Período: {format(parseISO(ev.start_date), 'dd/MM/yyyy')} {ev.end_date ? `até ${format(parseISO(ev.end_date), 'dd/MM/yyyy')}` : ''}
+                          {ev.agent_name && <span style={{ marginLeft: 8, fontWeight: 500, color: 'var(--color-primary)' }}>• {ev.agent_name}</span>}
                         </div>
                       </div>
                       <div style={{ display: 'flex', gap: 8 }}>
@@ -663,6 +681,17 @@ export const CalendarScreen: React.FC = () => {
                   <option value="birthday">Aniversário</option>
                   <option value="vacation">Férias</option>
                   <option value="medical">Consulta Médica</option>
+                  <option value="absence">Ausência Justificada</option>
+                </select>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: 'var(--color-text-secondary)', marginBottom: 6, textTransform: 'uppercase' }}>Agente Relacionado (Opcional)</label>
+                <select value={eventAgent} onChange={e => setEventAgent(e.target.value)} style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid var(--color-border)', background: '#fff' }}>
+                  <option value="">Nenhum (Geral)</option>
+                  {agents.map(ag => (
+                    <option key={ag.id} value={ag.name}>{ag.name}</option>
+                  ))}
                 </select>
               </div>
 
@@ -749,6 +778,7 @@ export const CalendarScreen: React.FC = () => {
                     <option value="birthday">Aniversário</option>
                     <option value="vacation">Férias</option>
                     <option value="medical">Consulta Médica</option>
+                    <option value="absence">Ausência Justificada</option>
                   </select>
                 </div>
                 <div>
@@ -758,6 +788,16 @@ export const CalendarScreen: React.FC = () => {
                     <span style={{ fontSize: '0.85rem' }}>Concluído</span>
                   </label>
                 </div>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: 4 }}>Agente Relacionado (Opcional)</label>
+                <select value={eventAgent} onChange={e => setEventAgent(e.target.value)} style={{ width: '100%', padding: 8, borderRadius: 4, border: '1px solid var(--color-border)' }}>
+                  <option value="">Nenhum (Geral)</option>
+                  {agents.map(ag => (
+                    <option key={ag.id} value={ag.name}>{ag.name}</option>
+                  ))}
+                </select>
               </div>
             </div>
 
