@@ -36,6 +36,7 @@ export interface Ticket {
   problem_summary: string | null;
   identified_pattern: string | null;
   suggested_response: string | null;
+  suggested_final_response?: string | null;
   missing_info: string | null;
   recommended_procedure: string | null;
   suggested_priority: string | null;

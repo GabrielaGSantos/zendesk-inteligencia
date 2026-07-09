@@ -109,6 +109,7 @@ interface AnalysisResult {
   problem_summary: string;
   identified_pattern: string;
   suggested_response: string;
+  suggested_final_response?: string;
   missing_info: string;
   recommended_procedure: string;
   suggested_priority: string;
@@ -544,8 +545,9 @@ Com base em TODAS as informações acima (assunto, descrição, comentários pú
 5. **problem_summary**: Resumo claro do problema em 1-2 frases
 6. **detailed_requirements**: Liste detalhadamente e minuciosamente TODOS os requisitos, solicitações e detalhes técnicos que o cliente mencionou nas mensagens dele. Use bullet points se necessário. Este campo serve para que o programador/especialista saiba EXATAMENTE tudo o que precisa ser feito sem precisar ler o ticket original inteiro.
 7. **identified_pattern**: Nome do padrão operacional que este ticket representa (ex: "Erro Portal Transparência - Licitações", "Reset de Senha - Portal", etc.)
-8. **suggested_response**: O rascunho do e-mail FINAL de resolução/fechamento que seria enviado ao cliente APÓS o problema já ter sido solucionado. NÃO faça um e-mail de "recebemos sua solicitação e vamos analisar". Escreva a resposta assumindo que o caso já foi resolvido pela nossa equipe, explicando a solução ou o procedimento adotado. IMPORTANTE: Se houver "Histórico de Casos Similares" ou "Regras de Base de Conhecimento", siga as diretrizes delas. NUNCA adicione assinatura.
-9. **missing_info**: Informações que ainda precisam ser solicitadas ao cliente para resolver o problema (ex: "URL do erro, navegador utilizado, print da tela")
+8. **suggested_response**: O rascunho do e-mail INICIAL de resposta ao cliente. Nele, você deve informar o recebimento do pedido, dizer a complexidade percebida, estimar um tempo e informar quem vai resolver (baseado nas suas escolhas nos demais campos). NÃO DÊ a solução aqui, pois este é apenas o aviso de que vamos trabalhar no caso. Lendo apenas a descrição inicial.
+9. **suggested_final_response**: O rascunho do e-mail FINAL de resolução/fechamento que seria enviado ao cliente APÓS o problema já ter sido solucionado, baseando-se ESTRITAMENTE na resolução encontrada nos comentários internos da equipe. Se não houver solução ainda, retorne "Pendente de resolução". NUNCA adicione assinatura.
+10. **missing_info**: Informações que ainda precisam ser solicitadas ao cliente para resolver o problema (ex: "URL do erro, navegador utilizado, print da tela")
 10. **recommended_procedure**: Procedimento interno recomendado para a equipe resolver o ticket. Se houver casos similares, baseie-se neles.
 11. **suggested_priority**: Prioridade sugerida (urgente, alta, normal, baixa)
 12. **confidence_level**: Seu nível de confiança nesta análise de 0.0 a 1.0
@@ -935,6 +937,7 @@ export async function startAnalysis(apiKey: string, supabase: SupabaseClient): P
               problem_summary: parsed.problem_summary || '',
               identified_pattern: parsed.identified_pattern || '',
               suggested_response: parsed.suggested_response || '',
+              suggested_final_response: parsed.suggested_final_response || '',
               recommended_expert: parsed.recommended_expert || null,
               expert_reasoning: parsed.expert_reasoning || null,
               rule_particularities: parsed.rule_particularities || null,
@@ -1230,6 +1233,7 @@ export async function analyzeSingleTicket(apiKey: string, supabase: SupabaseClie
     detailed_requirements: parsed.detailed_requirements || '',
     identified_pattern: parsed.identified_pattern || '',
     suggested_response: parsed.suggested_response || '',
+    suggested_final_response: parsed.suggested_final_response || '',
     recommended_expert: parsed.recommended_expert || null,
     expert_reasoning: parsed.expert_reasoning || null,
     rule_particularities: parsed.rule_particularities || null,

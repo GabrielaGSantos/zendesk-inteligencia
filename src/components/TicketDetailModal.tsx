@@ -579,28 +579,66 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({ ticket: in
                 </div>
               )}
 
-              {(ticket.suggested_response || isEditing) && (
+              {(ticket.suggested_response || ticket.suggested_final_response || isEditing) && (
                 <div className="modal__section">
-                  <div className="modal__section-title">
-                    <Lightbulb size={14} />
-                    Resposta Padrão Sugerida
+                  <div className="modal__section-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <Lightbulb size={14} />
+                      Respostas Sugeridas
+                    </div>
                   </div>
+                  
                   {isEditing ? (
-                    <textarea 
-                      style={{ width: '100%', minHeight: '120px', padding: '12px', resize: 'vertical', border: '1px solid var(--color-border)', borderRadius: 6, fontSize: 13, background: 'var(--color-surface)', fontFamily: 'inherit' }}
-                      value={editForm.suggested_response || ''} 
-                      onChange={e => setEditForm({...editForm, suggested_response: e.target.value})}
-                    />
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                      <div>
+                        <label style={{ display: 'block', fontSize: 12, marginBottom: 4, fontWeight: 500, color: 'var(--color-text-secondary)' }}>E-mail Inicial (Aviso de Recebimento)</label>
+                        <textarea 
+                          style={{ width: '100%', minHeight: '80px', padding: '12px', resize: 'vertical', border: '1px solid var(--color-border)', borderRadius: 6, fontSize: 13, background: 'var(--color-surface)', fontFamily: 'inherit' }}
+                          value={editForm.suggested_response || ''} 
+                          onChange={e => setEditForm({...editForm, suggested_response: e.target.value})}
+                        />
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', fontSize: 12, marginBottom: 4, fontWeight: 500, color: 'var(--color-text-secondary)' }}>E-mail Final (Resolução)</label>
+                        <textarea 
+                          style={{ width: '100%', minHeight: '80px', padding: '12px', resize: 'vertical', border: '1px solid var(--color-border)', borderRadius: 6, fontSize: 13, background: 'var(--color-surface)', fontFamily: 'inherit' }}
+                          value={editForm.suggested_final_response || ''} 
+                          onChange={e => setEditForm({...editForm, suggested_final_response: e.target.value})}
+                        />
+                      </div>
+                    </div>
                   ) : (
-                    <div className="modal__response-box">
-                      {ticket.suggested_response}
-                      <button
-                        className="btn btn--ghost btn--sm modal__response-copy"
-                        onClick={copyResponse}
-                        title="Copiar resposta"
-                      >
-                        {copied ? <Check size={14} /> : <Copy size={14} />}
-                      </button>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                      {ticket.suggested_response && (
+                        <div>
+                          <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--color-text-secondary)', marginBottom: 6 }}>E-mail Inicial (Aviso de Recebimento)</div>
+                          <div className="modal__response-box">
+                            {ticket.suggested_response}
+                            <button
+                              className="btn btn--ghost btn--sm modal__response-copy"
+                              onClick={() => { navigator.clipboard.writeText(ticket.suggested_response || ''); setCopied(true); setTimeout(() => setCopied(false), 2000); }}
+                              title="Copiar resposta inicial"
+                            >
+                              <Copy size={14} />
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                      {ticket.suggested_final_response && (
+                        <div>
+                          <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--color-text-secondary)', marginBottom: 6 }}>E-mail Final (Resolução)</div>
+                          <div className="modal__response-box">
+                            {ticket.suggested_final_response}
+                            <button
+                              className="btn btn--ghost btn--sm modal__response-copy"
+                              onClick={() => { navigator.clipboard.writeText(ticket.suggested_final_response || ''); setCopied(true); setTimeout(() => setCopied(false), 2000); }}
+                              title="Copiar resposta final"
+                            >
+                              <Copy size={14} />
+                            </button>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
