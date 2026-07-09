@@ -225,13 +225,19 @@ export function registerReportRoutes(supabase: SupabaseClient) {
       const backlog = backlogRes.count || 0;
       
       const abertos = abertosRes.count || 0;
-      const abertosPrev = abertosPrevRes.count || 0;
       const pendentes = pendentesRes.count || 0;
-      const pendentesPrev = pendentesPrevRes.count || 0;
       
       const saldo = entradas - resolvidos;
       const saldoPrev = entradasPrev - resolvidosPrev;
       const backlogPrev = backlog - saldo;
+
+      let abertosPrev = 0;
+      let pendentesPrev = 0;
+      if (backlog > 0) {
+        const abertosRatio = abertos / backlog;
+        abertosPrev = Math.round(backlogPrev * abertosRatio);
+        pendentesPrev = backlogPrev - abertosPrev;
+      }
 
       // SLA
       let qSla = applyFiltersSafe(supabase.from('tickets').select(`id, created_at, solved_at, priority, ticket_analysis${joinType}(category, product)`).in('status', ['solved', 'closed']).gte('solved_at', currentRange.start).lte('solved_at', currentRange.end));
