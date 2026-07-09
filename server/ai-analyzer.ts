@@ -1353,6 +1353,23 @@ export async function generateFinalResponse(apiKey: string, supabase: SupabaseCl
   const provider = settings?.ai_provider || 'gemini';
   const model = settings?.ai_model || 'gemini-2.5-flash';
 
+  const { data: rules } = await supabase
+    .from('knowledge_base')
+    .select('title, description')
+    .eq('is_active', true)
+    .order('created_at', { ascending: false });
+
+  let rulesContext = '';
+  if (rules && rules.length > 0) {
+    rulesContext = `
+Abaixo está a Base de Conhecimento (Padrões de Resposta e Exceções) da empresa. 
+Considere estas regras ao detalhar a resolução no e-mail, aplicando exceções ou jargões da empresa se a situação do ticket bater com a regra:
+=== BASE DE CONHECIMENTO / EXCEÇÕES ===
+${rules.map(r => `Regra/Exceção: ${r.title}\nDescrição: ${r.description}`).join('\n\n')}
+=======================================
+`;
+  }
+
   const prompt = `Você é um agente de suporte ao cliente experiente.
 O ticket abaixo já foi trabalhado pela sua equipe. Seu objetivo é escrever APENAS o texto de um e-mail FINAL de resolução/fechamento que será enviado ao cliente.
 Baseie-se ESTRITAMENTE no assunto, na descrição original e, principalmente, nos comentários internos da equipe para explicar a solução adotada.
@@ -1364,10 +1381,10 @@ Siga EXATAMENTE esta estrutura de resposta:
 Olá,
 
 Sua solicitação foi concluída!
-[Detalhes do que foi feito baseados nos comentários da equipe. Pode incluir links se fornecidos, e explicações da resolução]
+[Detalhes do que foi feito baseados nos comentários da equipe. Pode incluir links se fornecidos, e explicações da resolução. Respeite a Base de Conhecimento abaixo se for o caso.]
 
 Qualquer dúvida, estamos à disposição!
-
+${rulesContext}
 Dados do Ticket:
 Cliente: ${ticket.requester_name}
 Assunto: ${ticket.subject}
