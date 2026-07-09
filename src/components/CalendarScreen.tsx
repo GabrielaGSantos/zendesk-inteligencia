@@ -20,10 +20,10 @@ export const CalendarScreen: React.FC = () => {
   const [currentDate, setCurrentDate] = useState<Date>(new Date());
 
   // Filter state
-  const [selectedAgent, setSelectedAgent] = useState<string>('');
-  const [showPersonalEvents, setShowPersonalEvents] = useState(true);
-  const [showGlobalEvents, setShowGlobalEvents] = useState(true);
-  const [showTickets, setShowTickets] = useState(true);
+  const [selectedAgents, setSelectedAgents] = useState<string[]>([]);
+  const [selectedEventTypes, setSelectedEventTypes] = useState<string[]>(['personal', 'global', 'ticket', 'birthday', 'vacation', 'medical']);
+  const [showAgentFilter, setShowAgentFilter] = useState(false);
+  const [showTypeFilter, setShowTypeFilter] = useState(false);
 
   // Modal / Form state
   const [showEventModal, setShowEventModal] = useState(false);
@@ -31,7 +31,7 @@ export const CalendarScreen: React.FC = () => {
   
   const [eventTitle, setEventTitle] = useState('');
   const [eventDescription, setEventDescription] = useState('');
-  const [eventType, setEventType] = useState<'personal' | 'global'>('personal');
+  const [eventType, setEventType] = useState<'personal' | 'global' | 'birthday' | 'vacation' | 'medical'>('personal');
   const [startDate, setStartDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [startTime, setStartTime] = useState('09:00');
   const [endDate, setEndDate] = useState('');
@@ -96,7 +96,7 @@ export const CalendarScreen: React.FC = () => {
 
   // Filtering
   const getTicketsForDate = (date: Date) => {
-    if (!showTickets) return [];
+    if (!selectedEventTypes.includes('ticket')) return [];
     
     const dateStr = format(date, 'yyyy-MM-dd');
     return tickets.filter(t => {
@@ -105,7 +105,7 @@ export const CalendarScreen: React.FC = () => {
       if (tDate !== dateStr) return false;
       
       // Apply agent filter for tickets
-      if (selectedAgent && t.assignee_name !== selectedAgent) {
+      if (selectedAgents.length > 0 && !selectedAgents.includes(t.assignee_name)) {
         return false;
       }
       
@@ -116,8 +116,7 @@ export const CalendarScreen: React.FC = () => {
   const getEventsForDate = (date: Date) => {
     const dateStr = format(date, 'yyyy-MM-dd');
     return events.filter(e => {
-      if (e.event_type === 'personal' && !showPersonalEvents) return false;
-      if (e.event_type === 'global' && !showGlobalEvents) return false;
+      if (!selectedEventTypes.includes(e.event_type)) return false;
       
       const isStart = e.start_date === dateStr;
       const isEnd = e.end_date === dateStr;
@@ -250,32 +249,67 @@ export const CalendarScreen: React.FC = () => {
         </div>
         
         <div style={{ display: 'flex', gap: 15, alignItems: 'center', flexWrap: 'wrap' }}>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.85rem', cursor: 'pointer' }}>
-            <input type="checkbox" checked={showPersonalEvents} onChange={e => setShowPersonalEvents(e.target.checked)} />
-            Meus Eventos
-          </label>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.85rem', cursor: 'pointer' }}>
-            <input type="checkbox" checked={showGlobalEvents} onChange={e => setShowGlobalEvents(e.target.checked)} />
-            Eventos Globais
-          </label>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.85rem', cursor: 'pointer' }}>
-            <input type="checkbox" checked={showTickets} onChange={e => setShowTickets(e.target.checked)} />
-            Tickets
-          </label>
           
-          {showTickets && (
-            <select 
-              className="filter-bar__select"
-              value={selectedAgent}
-              onChange={e => setSelectedAgent(e.target.value)}
-              style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid var(--color-border)', height: 32, fontSize: '0.85rem' }}
+          {/* Tipos de Eventos Multi-select */}
+          <div style={{ position: 'relative' }}>
+            <div 
+              onClick={() => setShowTypeFilter(!showTypeFilter)}
+              style={{ padding: '6px 12px', borderRadius: 6, border: '1px solid var(--color-border)', fontSize: '0.85rem', cursor: 'pointer', background: 'var(--color-surface)', display: 'flex', alignItems: 'center', gap: 6 }}
             >
-              <option value="">Todos os Agentes</option>
-              {agents.filter(a => a.is_active).map(a => (
-                <option key={a.id} value={a.name}>{a.name}</option>
-              ))}
-            </select>
-          )}
+              Tipos ({selectedEventTypes.length}) <ChevronRight size={14} style={{ transform: showTypeFilter ? 'rotate(90deg)' : 'none', transition: '0.2s' }} />
+            </div>
+            {showTypeFilter && (
+              <div style={{ position: 'absolute', top: '100%', left: 0, marginTop: 4, background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 8, padding: 8, zIndex: 10, minWidth: 200, boxShadow: '0 4px 12px rgba(0,0,0,0.1)', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {[
+                  { id: 'personal', label: 'Meus Lembretes' },
+                  { id: 'global', label: 'Eventos Globais' },
+                  { id: 'ticket', label: 'Vencimento de Tickets' },
+                  { id: 'birthday', label: 'Aniversários' },
+                  { id: 'vacation', label: 'Férias' },
+                  { id: 'medical', label: 'Consultas Médicas' },
+                ].map(type => (
+                  <label key={type.id} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.85rem', cursor: 'pointer' }}>
+                    <input 
+                      type="checkbox" 
+                      checked={selectedEventTypes.includes(type.id)}
+                      onChange={(e) => {
+                        if (e.target.checked) setSelectedEventTypes([...selectedEventTypes, type.id]);
+                        else setSelectedEventTypes(selectedEventTypes.filter(t => t !== type.id));
+                      }}
+                    />
+                    {type.label}
+                  </label>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Agentes Multi-select */}
+          <div style={{ position: 'relative' }}>
+            <div 
+              onClick={() => setShowAgentFilter(!showAgentFilter)}
+              style={{ padding: '6px 12px', borderRadius: 6, border: '1px solid var(--color-border)', fontSize: '0.85rem', cursor: 'pointer', background: 'var(--color-surface)', display: 'flex', alignItems: 'center', gap: 6 }}
+            >
+              Agentes ({selectedAgents.length === 0 ? 'Todos' : selectedAgents.length}) <ChevronRight size={14} style={{ transform: showAgentFilter ? 'rotate(90deg)' : 'none', transition: '0.2s' }} />
+            </div>
+            {showAgentFilter && (
+              <div style={{ position: 'absolute', top: '100%', left: 0, marginTop: 4, background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 8, padding: 8, zIndex: 10, minWidth: 200, maxHeight: 300, overflowY: 'auto', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {agents.filter(a => a.is_active).map(a => (
+                  <label key={a.id} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.85rem', cursor: 'pointer' }}>
+                    <input 
+                      type="checkbox" 
+                      checked={selectedAgents.includes(a.name)}
+                      onChange={(e) => {
+                        if (e.target.checked) setSelectedAgents([...selectedAgents, a.name]);
+                        else setSelectedAgents(selectedAgents.filter(n => n !== a.name));
+                      }}
+                    />
+                    {a.name}
+                  </label>
+                ))}
+              </div>
+            )}
+          </div>
 
           <button onClick={() => openNewEventModal()} className="btn btn--primary" style={{ height: 36, marginLeft: 'auto' }}>
             <Plus size={16} /> Novo Lembrete
@@ -394,9 +428,33 @@ export const CalendarScreen: React.FC = () => {
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                 {dayEvents.map(ev => {
                   const evCompleted = ev.completed;
-                  const evBg = evCompleted ? '#F3F4F6' : (ev.event_type === 'global' ? '#E0E7FF' : '#DCFCE7');
-                  const evColor = evCompleted ? '#6B7280' : (ev.event_type === 'global' ? '#3730A3' : '#166534');
-                  const evBorder = evCompleted ? '#9CA3AF' : (ev.event_type === 'global' ? '#4F46E5' : '#16A34A');
+                  
+                  let evBg = '#DCFCE7';
+                  let evColor = '#166534';
+                  let evBorder = '#16A34A';
+                  let icon = null;
+
+                  switch (ev.event_type) {
+                    case 'global':
+                      evBg = '#E0E7FF'; evColor = '#3730A3'; evBorder = '#4F46E5';
+                      break;
+                    case 'birthday':
+                      evBg = '#FEF08A'; evColor = '#854D0E'; evBorder = '#EAB308';
+                      icon = '🎂';
+                      break;
+                    case 'vacation':
+                      evBg = '#FFEDD5'; evColor = '#9A3412'; evBorder = '#F97316';
+                      icon = '🌴';
+                      break;
+                    case 'medical':
+                      evBg = '#FEE2E2'; evColor = '#991B1B'; evBorder = '#EF4444';
+                      icon = '🏥';
+                      break;
+                  }
+
+                  if (evCompleted) {
+                    evBg = '#F3F4F6'; evColor = '#6B7280'; evBorder = '#9CA3AF';
+                  }
                   
                   return (
                   <div 
@@ -417,7 +475,7 @@ export const CalendarScreen: React.FC = () => {
                     title={`${ev.start_time} - ${ev.title}`}
                   >
                     <div style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', textDecoration: evCompleted ? 'line-through' : 'none' }}>
-                      <strong>{ev.start_time}</strong> {ev.title}
+                      <strong>{ev.start_time}</strong> {icon && <span style={{ marginRight: 4 }}>{icon}</span>}{ev.title}
                     </div>
                     <button 
                       onClick={(e) => handleToggleEventCompleted(ev, e)}
@@ -546,6 +604,9 @@ export const CalendarScreen: React.FC = () => {
                   <select value={eventType} onChange={e => setEventType(e.target.value as any)} style={{ width: '100%', padding: 8, borderRadius: 4, border: '1px solid var(--color-border)' }}>
                     <option value="personal">Pessoal (Só eu vejo)</option>
                     <option value="global">Global (Todos veem)</option>
+                    <option value="birthday">Aniversário</option>
+                    <option value="vacation">Férias</option>
+                    <option value="medical">Consulta Médica</option>
                   </select>
                 </div>
                 <div>

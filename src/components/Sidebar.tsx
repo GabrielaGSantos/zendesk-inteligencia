@@ -38,6 +38,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, setCurrentTab }) =
         { id: 'radar', label: 'Radar Operacional', icon: Radar },
         { id: 'reports', label: 'Relatórios Gerenciais', icon: TrendingUp },
         { id: 'calendar', label: 'Calendário e Lembretes', icon: Calendar },
+        { id: 'notes', label: 'Bloco de Notas', icon: BookOpen },
       ]
     },
     {

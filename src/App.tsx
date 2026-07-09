@@ -14,6 +14,7 @@ import { OperationalRadar } from './components/OperationalRadar';
 import { UsersManager } from './components/UsersManager';
 import { AuditLogs } from './components/AuditLogs';
 import { CalendarScreen } from './components/CalendarScreen';
+import { NotesScreen } from './components/NotesScreen';
 import { SettingsScreen } from './components/SettingsScreen';
 import { ReportsScreen } from './components/ReportsScreen';
 import { NotificationManager } from './components/NotificationManager';
@@ -40,7 +41,7 @@ function App() {
   const [showSyncModal, setShowSyncModal] = useState(false);
   const [currentTab, setCurrentTab] = useState(() => {
     const hash = window.location.hash.replace('#', '');
-    return ['principal', 'fechados', 'knowledge', 'agents', 'radar', 'reports', 'users', 'spam'].includes(hash) ? hash : 'principal';
+    return ['principal', 'fechados', 'knowledge', 'agents', 'radar', 'reports', 'users', 'spam', 'calendar', 'notes'].includes(hash) ? hash : 'principal';
   });
 
   useEffect(() => {
@@ -62,7 +63,7 @@ function App() {
   useEffect(() => {
     const handleHashChange = () => {
       const hash = window.location.hash.replace('#', '');
-      if (hash && ['principal', 'fechados', 'knowledge', 'agents', 'radar', 'reports', 'users', 'spam'].includes(hash)) {
+      if (hash && ['principal', 'fechados', 'knowledge', 'agents', 'radar', 'reports', 'users', 'spam', 'calendar', 'notes'].includes(hash)) {
         setCurrentTab(hash);
       }
     };
@@ -376,6 +377,8 @@ function App() {
         <AuditLogs />
       ) : currentTab === 'calendar' ? (
         <CalendarScreen />
+      ) : currentTab === 'notes' ? (
+        <NotesScreen />
       ) : currentTab === 'settings' ? (
         <SettingsScreen />
       ) : currentTab === 'reports' ? (

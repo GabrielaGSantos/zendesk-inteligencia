@@ -1235,6 +1235,74 @@ export function createRoutes(supabase: SupabaseClient): Router {
     }
   });
 
+  // ─── Notes ───────────────────────────────────────────────────
+  router.get('/api/notes', async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const userId = user?.id;
+
+      let query = supabase.from('user_notes').select('*');
+      
+      const { data, error } = await query.order('is_pinned', { ascending: false }).order('created_at', { ascending: false });
+      if (error) throw error;
+      
+      // Filter out notes that are not public and not created by the current user
+      const filtered = (data || []).filter(n => n.is_public || n.user_id === userId);
+      
+      res.json(filtered);
+    } catch (err: any) {
+      console.error('[Notes API] GET error:', err);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  router.post('/api/notes', async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const payload = {
+        ...req.body,
+        user_id: user?.id,
+        author_name: user?.user_metadata?.name || user?.email || 'Usuário Desconhecido'
+      };
+      
+      const { data, error } = await supabase.from('user_notes').insert([payload]).select().single();
+      if (error) throw error;
+      res.json(data);
+    } catch (err: any) {
+      console.error('[Notes API] POST error:', err);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  router.put('/api/notes/:id', async (req, res) => {
+    try {
+      const { id } = req.params;
+      const payload = {
+        ...req.body,
+        updated_at: new Date().toISOString()
+      };
+
+      const { data, error } = await supabase.from('user_notes').update(payload).eq('id', id).select().single();
+      if (error) throw error;
+      res.json(data);
+    } catch (err: any) {
+      console.error('[Notes API] PUT error:', err);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  router.delete('/api/notes/:id', async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { error } = await supabase.from('user_notes').delete().eq('id', id);
+      if (error) throw error;
+      res.json({ success: true });
+    } catch (err: any) {
+      console.error('[Notes API] DELETE error:', err);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   // ─── AI Generation ───────────────────────────────────────────
   router.post('/api/ai/generate-final-response/:id', async (req, res) => {
     try {

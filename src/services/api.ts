@@ -220,6 +220,22 @@ export const api = {  // Tickets
     })
   },
 
+  // Notes
+  notes: {
+    list: (): Promise<any[]> => request('/api/notes'),
+    create: (data: any): Promise<any> => request('/api/notes', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    }),
+    update: (id: number | string, data: any): Promise<any> => request(`/api/notes/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data)
+    }),
+    delete: (id: number | string): Promise<any> => request(`/api/notes/${id}`, {
+      method: 'DELETE'
+    })
+  },
+
   // Reports
   reports: {
     getDashboard: (filters: any): Promise<any> => request('/api/reports/dashboard', {

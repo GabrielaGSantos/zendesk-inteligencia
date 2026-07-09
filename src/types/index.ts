@@ -219,7 +219,7 @@ export interface CalendarEvent {
   id?: string;
   title: string;
   description: string;
-  event_type: 'personal' | 'global';
+  event_type: 'personal' | 'global' | 'birthday' | 'vacation' | 'medical';
   created_by?: string;
   start_date: string;
   start_time: string;
@@ -227,4 +227,17 @@ export interface CalendarEvent {
   end_time?: string;
   completed?: boolean;
   created_at?: string;
+}
+
+export interface Note {
+  id: number;
+  user_id: string;
+  author_name: string;
+  title: string;
+  content: string;
+  is_pinned: boolean;
+  is_important: boolean;
+  is_public: boolean;
+  created_at: string;
+  updated_at: string;
 }
