@@ -1356,7 +1356,17 @@ export async function generateFinalResponse(apiKey: string, supabase: SupabaseCl
   const prompt = `Você é um agente de suporte ao cliente experiente.
 O ticket abaixo já foi trabalhado pela sua equipe. Seu objetivo é escrever APENAS o texto de um e-mail FINAL de resolução/fechamento que será enviado ao cliente.
 Baseie-se ESTRITAMENTE no assunto, na descrição original e, principalmente, nos comentários internos da equipe para explicar a solução adotada.
-NÃO faça saudações exageradas, seja profissional. NUNCA adicione sua própria assinatura ao final do e-mail, pois o Zendesk já insere a assinatura automaticamente.
+NÃO use o nome do cliente. Inicie SEMPRE apenas com "Olá,".
+NÃO coloque sua resposta entre aspas. Não use formatação JSON. Retorne apenas o texto puro com quebras de linha reais.
+NUNCA adicione sua própria assinatura ao final do e-mail, pois o Zendesk já insere a assinatura automaticamente.
+
+Siga EXATAMENTE esta estrutura de resposta:
+Olá,
+
+Sua solicitação foi concluída!
+[Detalhes do que foi feito baseados nos comentários da equipe. Pode incluir links se fornecidos, e explicações da resolução]
+
+Qualquer dúvida, estamos à disposição!
 
 Dados do Ticket:
 Cliente: ${ticket.requester_name}
@@ -1368,7 +1378,7 @@ ${ticket.description || 'Não informada.'}
 Comentários e Interações (Resolução da equipe):
 ${(comments || []).map(c => `[${c.is_public ? 'Público' : 'Interno'} - ${c.author_name}]: ${c.body}`).join('\n\n')}
 
-Escreva a resposta de fechamento final em português do Brasil:`;
+Escreva a resposta de fechamento final em português do Brasil, mantendo as quebras de linha reais e sem aspas em volta:`;
 
   let aiResponseObj: AIResponse;
   if (provider === 'openai') {
@@ -1380,7 +1390,15 @@ Escreva a resposta de fechamento final em português do Brasil:`;
     aiResponseObj = await callGemini(geminiKey, prompt, model);
   }
 
-  const finalResponseText = aiResponseObj.text.trim();
+  let finalResponseText = aiResponseObj.text.trim();
+  
+  // Clean up potential literal '\n' outputted as string by the LLM
+  finalResponseText = finalResponseText.replace(/\\n/g, '\n');
+  
+  // Clean up potential surrounding quotes
+  if (finalResponseText.startsWith('"') && finalResponseText.endsWith('"')) {
+    finalResponseText = finalResponseText.substring(1, finalResponseText.length - 1);
+  }
 
   // Salvar no banco
   await supabase
