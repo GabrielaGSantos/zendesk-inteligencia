@@ -39,6 +39,7 @@ export const CalendarScreen: React.FC = () => {
   const [endTime, setEndTime] = useState('');
   const [eventCompleted, setEventCompleted] = useState(false);
   const [eventAgent, setEventAgent] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
 
   // Ticket time editing
   const [editingTicket, setEditingTicket] = useState<Ticket | null>(null);
@@ -147,6 +148,7 @@ export const CalendarScreen: React.FC = () => {
 
   const handleSaveEvent = async () => {
     try {
+      setIsSaving(true);
       const payload: CalendarEvent = {
         title: eventTitle,
         description: eventDescription,
@@ -167,10 +169,13 @@ export const CalendarScreen: React.FC = () => {
       
       setShowEventModal(false);
       resetForm();
-      fetchData();
+      await fetchData();
+      alert('Lembrete salvo com sucesso!');
     } catch (err) {
       console.error('Error saving event:', err);
       alert('Erro ao salvar lembrete.');
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -506,11 +511,11 @@ export const CalendarScreen: React.FC = () => {
                       justifyContent: 'space-between',
                       alignItems: 'center'
                     }}
-                    title={`${ev.start_time} - ${ev.title}`}
+                    title={`${ev.start_time.substring(0,5)} - ${ev.title}`}
                   >
-                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', width: 'calc(100% - 16px)' }}>
                       <div style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', textDecoration: evCompleted ? 'line-through' : 'none' }}>
-                        <strong>{ev.start_time}</strong> {icon && <span style={{ marginRight: 4 }}>{icon}</span>}{ev.title}
+                        <strong>{ev.start_time.substring(0,5)}</strong> {icon && <span style={{ marginRight: 4 }}>{icon}</span>}{ev.title}
                       </div>
                       {ev.agent_name && (
                         <div style={{ fontSize: '0.65rem', opacity: 0.85, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -646,7 +651,7 @@ export const CalendarScreen: React.FC = () => {
                           </span>
                         </div>
                         <div style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)' }}>
-                          Período: {format(parseISO(ev.start_date), 'dd/MM/yyyy')} {ev.end_date ? `até ${format(parseISO(ev.end_date), 'dd/MM/yyyy')}` : ''}
+                          Período: {format(parseISO(ev.start_date), 'dd/MM/yyyy')} {(ev.end_date && ev.end_date !== ev.start_date) ? `até ${format(parseISO(ev.end_date), 'dd/MM/yyyy')}` : ''}
                           {ev.agent_name && <span style={{ marginLeft: 8, fontWeight: 500, color: 'var(--color-primary)' }}>• {ev.agent_name}</span>}
                         </div>
                       </div>
@@ -725,15 +730,17 @@ export const CalendarScreen: React.FC = () => {
               <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
                 <button 
                   onClick={() => resetForm()} 
-                  style={{ flex: 1, padding: '12px', background: 'transparent', border: '1px solid var(--color-border)', color: 'var(--color-text-secondary)', borderRadius: 8, fontWeight: 600, cursor: 'pointer' }}
+                  disabled={isSaving}
+                  style={{ flex: 1, padding: '12px', background: 'transparent', border: '1px solid var(--color-border)', color: 'var(--color-text-secondary)', borderRadius: 8, fontWeight: 600, cursor: isSaving ? 'not-allowed' : 'pointer' }}
                 >
                   Limpar
                 </button>
                 <button 
                   onClick={handleSaveEvent} 
-                  style={{ flex: 2, padding: '12px', background: 'var(--color-primary)', border: 'none', color: '#fff', borderRadius: 8, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
+                  disabled={isSaving}
+                  style={{ flex: 2, padding: '12px', background: 'var(--color-primary)', border: 'none', color: '#fff', borderRadius: 8, fontWeight: 600, cursor: isSaving ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
                 >
-                  <Plus size={18} /> {editingEventId ? 'Salvar Edição' : 'Adicionar'}
+                  <Plus size={18} /> {isSaving ? 'Salvando...' : (editingEventId ? 'Salvar Edição' : 'Adicionar')}
                 </button>
               </div>
             </div>
@@ -806,8 +813,8 @@ export const CalendarScreen: React.FC = () => {
                 <button onClick={() => handleDeleteEvent(editingEventId)} style={{ padding: '8px 16px', background: '#FEE2E2', color: '#991B1B', border: 'none', borderRadius: 4, cursor: 'pointer' }}>Excluir</button>
               ) : <div></div>}
               <div style={{ display: 'flex', gap: 10 }}>
-                <button onClick={() => setShowEventModal(false)} style={{ padding: '8px 16px', background: 'transparent', border: '1px solid var(--color-border)', borderRadius: 4, cursor: 'pointer' }}>Cancelar</button>
-                <button onClick={handleSaveEvent} style={{ padding: '8px 16px', background: 'var(--color-primary)', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer' }}>Salvar</button>
+                <button onClick={() => setShowEventModal(false)} disabled={isSaving} style={{ padding: '8px 16px', background: 'transparent', border: '1px solid var(--color-border)', borderRadius: 4, cursor: isSaving ? 'not-allowed' : 'pointer' }}>Cancelar</button>
+                <button onClick={handleSaveEvent} disabled={isSaving} style={{ padding: '8px 16px', background: 'var(--color-primary)', color: '#fff', border: 'none', borderRadius: 4, cursor: isSaving ? 'not-allowed' : 'pointer' }}>{isSaving ? 'Salvando...' : 'Salvar'}</button>
               </div>
             </div>
           </div>
