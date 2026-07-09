@@ -109,7 +109,6 @@ interface AnalysisResult {
   problem_summary: string;
   identified_pattern: string;
   suggested_response: string;
-  suggested_final_response?: string;
   missing_info: string;
   recommended_procedure: string;
   suggested_priority: string;
@@ -546,8 +545,7 @@ Com base em TODAS as informações acima (assunto, descrição, comentários pú
 6. **detailed_requirements**: Liste detalhadamente e minuciosamente TODOS os requisitos, solicitações e detalhes técnicos que o cliente mencionou nas mensagens dele. Use bullet points se necessário. Este campo serve para que o programador/especialista saiba EXATAMENTE tudo o que precisa ser feito sem precisar ler o ticket original inteiro.
 7. **identified_pattern**: Nome do padrão operacional que este ticket representa (ex: "Erro Portal Transparência - Licitações", "Reset de Senha - Portal", etc.)
 8. **suggested_response**: O rascunho do e-mail INICIAL de resposta ao cliente. Nele, você deve informar o recebimento do pedido, dizer a complexidade percebida, estimar um tempo e informar quem vai resolver (baseado nas suas escolhas nos demais campos). NÃO DÊ a solução aqui, pois este é apenas o aviso de que vamos trabalhar no caso. Lendo apenas a descrição inicial.
-9. **suggested_final_response**: O rascunho do e-mail FINAL de resolução/fechamento que seria enviado ao cliente APÓS o problema já ter sido solucionado, baseando-se ESTRITAMENTE na resolução encontrada nos comentários internos da equipe. Se não houver solução ainda, retorne "Pendente de resolução". NUNCA adicione assinatura.
-10. **missing_info**: Informações que ainda precisam ser solicitadas ao cliente para resolver o problema (ex: "URL do erro, navegador utilizado, print da tela")
+9. **missing_info**: Informações que ainda precisam ser solicitadas ao cliente para resolver o problema (ex: "URL do erro, navegador utilizado, print da tela")
 10. **recommended_procedure**: Procedimento interno recomendado para a equipe resolver o ticket. Se houver casos similares, baseie-se neles.
 11. **suggested_priority**: Prioridade sugerida (urgente, alta, normal, baixa)
 12. **confidence_level**: Seu nível de confiança nesta análise de 0.0 a 1.0
@@ -937,7 +935,6 @@ export async function startAnalysis(apiKey: string, supabase: SupabaseClient): P
               problem_summary: parsed.problem_summary || '',
               identified_pattern: parsed.identified_pattern || '',
               suggested_response: parsed.suggested_response || '',
-              suggested_final_response: parsed.suggested_final_response || '',
               recommended_expert: parsed.recommended_expert || null,
               expert_reasoning: parsed.expert_reasoning || null,
               rule_particularities: parsed.rule_particularities || null,
@@ -1233,7 +1230,6 @@ export async function analyzeSingleTicket(apiKey: string, supabase: SupabaseClie
     detailed_requirements: parsed.detailed_requirements || '',
     identified_pattern: parsed.identified_pattern || '',
     suggested_response: parsed.suggested_response || '',
-    suggested_final_response: parsed.suggested_final_response || '',
     recommended_expert: parsed.recommended_expert || null,
     expert_reasoning: parsed.expert_reasoning || null,
     rule_particularities: parsed.rule_particularities || null,
@@ -1334,4 +1330,63 @@ Não use formatação markdown, apenas o JSON array puro.`;
   }
   
   return parsedInsights;
+}
+
+export async function generateFinalResponse(apiKey: string, supabase: SupabaseClient, zendeskId: number): Promise<string> {
+  const { data: ticket, error: ticketError } = await supabase
+    .from('tickets')
+    .select('subject, requester_name, description')
+    .eq('zendesk_id', zendeskId)
+    .single();
+
+  if (ticketError || !ticket) {
+    throw new Error(`Ticket ${zendeskId} não encontrado no banco de dados.`);
+  }
+
+  const { data: comments } = await supabase
+    .from('ticket_comments')
+    .select('author_name, body, is_public')
+    .eq('ticket_zendesk_id', zendeskId)
+    .order('created_at', { ascending: true });
+
+  const { data: settings } = await supabase.from('system_settings').select('ai_provider, ai_model').eq('id', 1).single();
+  const provider = settings?.ai_provider || 'gemini';
+  const model = settings?.ai_model || 'gemini-2.5-flash';
+
+  const prompt = `Você é um agente de suporte ao cliente experiente.
+O ticket abaixo já foi trabalhado pela sua equipe. Seu objetivo é escrever APENAS o texto de um e-mail FINAL de resolução/fechamento que será enviado ao cliente.
+Baseie-se ESTRITAMENTE no assunto, na descrição original e, principalmente, nos comentários internos da equipe para explicar a solução adotada.
+NÃO faça saudações exageradas, seja profissional. NUNCA adicione sua própria assinatura ao final do e-mail, pois o Zendesk já insere a assinatura automaticamente.
+
+Dados do Ticket:
+Cliente: ${ticket.requester_name}
+Assunto: ${ticket.subject}
+
+Descrição Inicial (O que o cliente pediu):
+${ticket.description || 'Não informada.'}
+
+Comentários e Interações (Resolução da equipe):
+${(comments || []).map(c => `[${c.is_public ? 'Público' : 'Interno'} - ${c.author_name}]: ${c.body}`).join('\n\n')}
+
+Escreva a resposta de fechamento final em português do Brasil:`;
+
+  let finalResponse = '';
+  if (provider === 'openai') {
+    const openaiKey = process.env.OPENAI_API_KEY;
+    if (!openaiKey) throw new Error('Chave da API da OpenAI não configurada nas variáveis de ambiente');
+    finalResponse = await callOpenAI(openaiKey, prompt, model);
+  } else {
+    const geminiKey = process.env.GEMINI_API_KEY || apiKey;
+    finalResponse = await callGemini(geminiKey, prompt, model);
+  }
+
+  finalResponse = finalResponse.trim();
+
+  // Salvar no banco
+  await supabase
+    .from('ticket_analysis')
+    .update({ suggested_final_response: finalResponse })
+    .eq('ticket_zendesk_id', zendeskId);
+
+  return finalResponse;
 }

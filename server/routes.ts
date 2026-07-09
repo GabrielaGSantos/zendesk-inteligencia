@@ -2,7 +2,7 @@ import { Router, Request, Response, NextFunction } from 'express';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { getAdminDatabase } from './database.js';
 import { startSync, getSyncProgress, syncSingleTicket } from './zendesk-sync.js';
-import { startAnalysis, getAnalysisStatus, pauseAnalysis, analyzeSingleTicket, generateRadarInsights } from './ai-analyzer.js';
+import { startAnalysis, getAnalysisStatus, pauseAnalysis, analyzeSingleTicket, generateRadarInsights, generateFinalResponse } from './ai-analyzer.js';
 
 export function createRoutes(supabase: SupabaseClient): Router {
   const router = Router();
@@ -1231,6 +1231,22 @@ export function createRoutes(supabase: SupabaseClient): Router {
       res.json({ success: true });
     } catch (err: any) {
       console.error('[Calendar API] DELETE error:', err);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ─── AI Generation ───────────────────────────────────────────
+  router.post('/api/ai/generate-final-response/:id', async (req, res) => {
+    try {
+      const zendeskId = parseInt(req.params.id);
+      if (isNaN(zendeskId)) return res.status(400).json({ error: 'ID inválido' });
+      
+      const apiKey = process.env.GEMINI_API_KEY || '';
+      const finalResponse = await generateFinalResponse(apiKey, supabase, zendeskId);
+      
+      res.json({ suggested_final_response: finalResponse });
+    } catch (err: any) {
+      console.error('[AI Final Response API] Error:', err);
       res.status(500).json({ error: err.message });
     }
   });

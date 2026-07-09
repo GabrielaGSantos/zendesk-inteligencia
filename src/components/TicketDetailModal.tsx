@@ -159,6 +159,31 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({ ticket: in
     }
   };
 
+  const [isGeneratingFinalEmail, setIsGeneratingFinalEmail] = useState(false);
+
+  const generateFinalEmail = async () => {
+    try {
+      setIsGeneratingFinalEmail(true);
+      const res = await fetch(`http://localhost:3002/api/ai/generate-final-response/${ticket.zendesk_id}`, {
+        method: 'POST'
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || 'Erro ao gerar e-mail final');
+      }
+      const data = await res.json();
+      
+      const updatedTicket = { ...ticket, suggested_final_response: data.suggested_final_response };
+      setTicket(updatedTicket);
+      if (onUpdate) onUpdate(updatedTicket);
+    } catch (err: any) {
+      console.error('Error generating final email:', err);
+      alert(err.message || 'Erro ao gerar e-mail final com a IA.');
+    } finally {
+      setIsGeneratingFinalEmail(false);
+    }
+  };
+
   const copyResponse = async () => {
     if (ticket.suggested_response) {
       await navigator.clipboard.writeText(ticket.suggested_response);
@@ -624,7 +649,7 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({ ticket: in
                           </div>
                         </div>
                       )}
-                      {ticket.suggested_final_response && (
+                      {ticket.suggested_final_response ? (
                         <div>
                           <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--color-text-secondary)', marginBottom: 6 }}>E-mail Final (Resolução)</div>
                           <div className="modal__response-box">
@@ -637,6 +662,26 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({ ticket: in
                               <Copy size={14} />
                             </button>
                           </div>
+                        </div>
+                      ) : (
+                        <div>
+                          <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--color-text-secondary)', marginBottom: 6 }}>E-mail Final (Resolução)</div>
+                          <button
+                            className="btn btn--outline"
+                            onClick={generateFinalEmail}
+                            disabled={isGeneratingFinalEmail}
+                            style={{ width: '100%', justifyContent: 'center' }}
+                          >
+                            {isGeneratingFinalEmail ? (
+                              <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <div className="spinner" style={{ width: 14, height: 14, borderWidth: 2 }}></div> Gerando...
+                              </span>
+                            ) : (
+                              <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <Lightbulb size={14} /> Gerar E-mail Final com IA
+                              </span>
+                            )}
+                          </button>
                         </div>
                       )}
                     </div>
