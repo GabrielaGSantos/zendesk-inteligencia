@@ -353,7 +353,21 @@ export async function startSync(
 
       let newSolvedAt = null;
       if (ticket.status === 'solved' || ticket.status === 'closed') {
-        newSolvedAt = ticket.metric_set?.solved_at || ticket.updated_at;
+        if (ticket.metric_set && ticket.metric_set.solved_at) {
+          newSolvedAt = ticket.metric_set.solved_at;
+        } else {
+          try {
+            const metrics = await zendeskGet(config, `/api/v2/tickets/${ticket.id}/metrics.json`);
+            if (metrics && metrics.ticket_metric && metrics.ticket_metric.solved_at) {
+              newSolvedAt = metrics.ticket_metric.solved_at;
+            } else {
+              newSolvedAt = ticket.updated_at;
+            }
+          } catch (e) {
+            console.warn(`[Sync] Failed to fetch metrics for ticket ${ticket.id}`);
+            newSolvedAt = ticket.updated_at;
+          }
+        }
       }
 
       await supabase.from('tickets').upsert({
