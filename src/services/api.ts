@@ -131,6 +131,10 @@ export const api = {  // Tickets
     return request<AnalysisProgress>('/api/analyze/status');
   },
 
+  generateFinalEmail: (id: number) => {
+    return request<{ suggested_final_response: string }>(`/api/ai/generate-final-response/${id}`, { method: 'POST' });
+  },
+
   // Knowledge Base
   getKnowledgeRules: (): Promise<any[]> => {
     return request('/api/knowledge');
@@ -227,7 +231,6 @@ export const api = {  // Tickets
       body: JSON.stringify({ summaryData })
     }),
     getExecutiveReports: (): Promise<{success: boolean, reports: any[]}> => request('/api/reports/executive-reports'),
-    generateFinalEmail: (id: number) => request<{ suggested_final_response: string }>(`/api/ai/generate-final-response/${id}`, { method: 'POST' }),
     getHistorical: (): Promise<{success: boolean, history: any[]}> => request('/api/reports/historical', { method: 'POST' }),
     getClientsBI: (filters: any): Promise<any> => {
       const searchParams = new URLSearchParams();
