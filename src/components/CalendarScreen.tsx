@@ -511,11 +511,11 @@ export const CalendarScreen: React.FC = () => {
                       justifyContent: 'space-between',
                       alignItems: 'center'
                     }}
-                    title={`${ev.start_time.substring(0,5)} - ${ev.title}`}
+                    title={`${ev.start_time.substring(0,5)}${ev.end_time && ev.end_time !== ev.start_time ? ` - ${ev.end_time.substring(0,5)}` : ''} - ${ev.title}`}
                   >
                     <div style={{ display: 'flex', flexDirection: 'column', width: 'calc(100% - 16px)' }}>
                       <div style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', textDecoration: evCompleted ? 'line-through' : 'none' }}>
-                        <strong>{ev.start_time.substring(0,5)}</strong> {icon && <span style={{ marginRight: 4 }}>{icon}</span>}{ev.title}
+                        <strong>{ev.start_time.substring(0,5)}{ev.end_time && ev.end_time !== ev.start_time ? ` - ${ev.end_time.substring(0,5)}` : ''}</strong> {icon && <span style={{ marginRight: 4 }}>{icon}</span>}{ev.title}
                       </div>
                       {ev.agent_name && (
                         <div style={{ fontSize: '0.65rem', opacity: 0.85, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -651,7 +651,8 @@ export const CalendarScreen: React.FC = () => {
                           </span>
                         </div>
                         <div style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)' }}>
-                          Período: {format(parseISO(ev.start_date), 'dd/MM/yyyy')} {(ev.end_date && ev.end_date !== ev.start_date) ? `até ${format(parseISO(ev.end_date), 'dd/MM/yyyy')}` : ''}
+                          Período: {format(parseISO(ev.start_date), 'dd/MM/yyyy')} {(ev.end_date && ev.end_date !== ev.start_date) ? ` até ${format(parseISO(ev.end_date), 'dd/MM/yyyy')}` : ''} 
+                          {ev.start_time && ` (${ev.start_time.substring(0,5)}${ev.end_time && ev.end_time !== ev.start_time ? ` às ${ev.end_time.substring(0,5)}` : ''})`}
                           {ev.agent_name && <span style={{ marginLeft: 8, fontWeight: 500, color: 'var(--color-primary)' }}>• {ev.agent_name}</span>}
                         </div>
                       </div>
