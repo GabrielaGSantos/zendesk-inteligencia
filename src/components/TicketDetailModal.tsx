@@ -164,14 +164,7 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({ ticket: in
   const generateFinalEmail = async () => {
     try {
       setIsGeneratingFinalEmail(true);
-      const res = await fetch(`http://localhost:3002/api/ai/generate-final-response/${ticket.zendesk_id}`, {
-        method: 'POST'
-      });
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error || 'Erro ao gerar e-mail final');
-      }
-      const data = await res.json();
+      const data = await api.generateFinalEmail(ticket.zendesk_id);
       
       const updatedTicket = { ...ticket, suggested_final_response: data.suggested_final_response };
       setTicket(updatedTicket);
