@@ -191,7 +191,7 @@ export const NotesScreen: React.FC = () => {
                   value={editingNote.title || ''} 
                   onChange={e => setEditingNote({...editingNote, title: e.target.value})}
                   style={{ width: '100%', padding: '12px 16px', borderRadius: 8, border: '1px solid var(--color-border)', fontSize: 15 }}
-                  placeholder="Ex: Whisky, Relatório Semanal..."
+                  placeholder="Ex: Reunião, Relatório Semanal..."
                 />
               </div>
 
@@ -239,15 +239,14 @@ export const NotesScreen: React.FC = () => {
                 <div style={{ display: 'flex', gap: 12 }}>
                   <button 
                     onClick={() => setEditingNote(null)} 
-                    style={{ padding: '10px 16px', borderRadius: 8, border: '1px solid var(--color-border)', background: 'transparent', cursor: 'pointer', fontWeight: 500, color: 'var(--color-text-secondary)' }}
+                    style={{ padding: '10px 24px', borderRadius: 8, border: '1px solid var(--color-border)', background: '#fff', cursor: 'pointer', fontWeight: 500, color: 'var(--color-primary)' }}
                   >
                     Cancelar
                   </button>
                   <button 
-                    className="btn-primary" 
                     onClick={handleSaveNote}
                     disabled={isSaving}
-                    style={{ padding: '10px 24px', display: 'flex', alignItems: 'center', gap: 8 }}
+                    style={{ padding: '10px 24px', borderRadius: 8, border: '1px solid #767676', background: '#F1F3F4', cursor: 'pointer', fontWeight: 500, color: '#000', display: 'flex', alignItems: 'center', gap: 8 }}
                   >
                     {isSaving ? 'Salvando...' : (
                       <>

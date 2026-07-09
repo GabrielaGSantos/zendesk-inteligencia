@@ -16,6 +16,7 @@ export const CalendarScreen: React.FC = () => {
   const [loading, setLoading] = useState(true);
 
   // Calendar states
+  const [activeTab, setActiveTab] = useState<'calendar' | 'manage'>('calendar');
   const [calendarView, setCalendarView] = useState<'monthly' | 'weekly'>('monthly');
   const [currentDate, setCurrentDate] = useState<Date>(new Date());
 
@@ -130,6 +131,18 @@ export const CalendarScreen: React.FC = () => {
     });
   };
 
+  const resetForm = (dateStr?: string) => {
+    setEditingEventId(null);
+    setEventTitle('');
+    setEventDescription('');
+    setEventType('personal');
+    setStartDate(dateStr || format(new Date(), 'yyyy-MM-dd'));
+    setStartTime('09:00');
+    setEndDate('');
+    setEndTime('');
+    setEventCompleted(false);
+  };
+
   const handleSaveEvent = async () => {
     try {
       const payload: CalendarEvent = {
@@ -150,6 +163,7 @@ export const CalendarScreen: React.FC = () => {
       }
       
       setShowEventModal(false);
+      resetForm();
       fetchData();
     } catch (err) {
       console.error('Error saving event:', err);
@@ -162,6 +176,7 @@ export const CalendarScreen: React.FC = () => {
     try {
       await api.calendar.delete(id);
       setShowEventModal(false);
+      resetForm();
       fetchData();
     } catch (err) {
       console.error('Error deleting event:', err);
@@ -198,15 +213,7 @@ export const CalendarScreen: React.FC = () => {
   };
 
   const openNewEventModal = (dateStr?: string) => {
-    setEditingEventId(null);
-    setEventTitle('');
-    setEventDescription('');
-    setEventType('personal');
-    setStartDate(dateStr || format(new Date(), 'yyyy-MM-dd'));
-    setStartTime('09:00');
-    setEndDate('');
-    setEndTime('');
-    setEventCompleted(false);
+    resetForm(dateStr);
     setShowEventModal(true);
   };
 
@@ -311,13 +318,31 @@ export const CalendarScreen: React.FC = () => {
             )}
           </div>
 
-          <button onClick={() => openNewEventModal()} className="btn btn--primary" style={{ height: 36, marginLeft: 'auto' }}>
+          <button onClick={() => { setActiveTab('manage'); resetForm(); }} className="btn btn--primary" style={{ height: 36, marginLeft: 'auto' }}>
             <Plus size={16} /> Novo Lembrete
           </button>
         </div>
       </div>
 
-      {/* Calendar Navigation */}
+      {/* Tabs */}
+      <div style={{ display: 'flex', gap: 20, borderBottom: '1px solid var(--color-border)', marginBottom: 20 }}>
+        <button 
+          onClick={() => setActiveTab('calendar')} 
+          style={{ background: 'none', border: 'none', borderBottom: activeTab === 'calendar' ? '2px solid var(--color-primary)' : '2px solid transparent', padding: '10px 0', cursor: 'pointer', fontWeight: activeTab === 'calendar' ? 600 : 400, color: activeTab === 'calendar' ? 'var(--color-primary)' : 'var(--color-text-secondary)', transition: '0.2s' }}
+        >
+          Visão Geral
+        </button>
+        <button 
+          onClick={() => setActiveTab('manage')} 
+          style={{ background: 'none', border: 'none', borderBottom: activeTab === 'manage' ? '2px solid var(--color-primary)' : '2px solid transparent', padding: '10px 0', cursor: 'pointer', fontWeight: activeTab === 'manage' ? 600 : 400, color: activeTab === 'manage' ? 'var(--color-primary)' : 'var(--color-text-secondary)', transition: '0.2s' }}
+        >
+          Gerenciar Lembretes
+        </button>
+      </div>
+
+      {activeTab === 'calendar' && (
+        <>
+          {/* Calendar Navigation */}
       <div style={{ 
         display: 'flex', 
         alignItems: 'center', 
@@ -569,6 +594,123 @@ export const CalendarScreen: React.FC = () => {
           );
         })}
       </div>
+      </>
+      )}
+
+      {activeTab === 'manage' && (
+        <div style={{ display: 'flex', gap: 24, marginTop: 10 }}>
+          {/* Lado Esquerdo: Lista de Lembretes */}
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <h2 style={{ fontSize: '1.2rem', fontWeight: 600, color: 'var(--color-text)', display: 'flex', justifyContent: 'space-between' }}>
+              Lembretes & Feriados Ativos
+              <span style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)', fontWeight: 400 }}>({events.length} registrados)</span>
+            </h2>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12, background: 'var(--color-surface)', padding: 16, borderRadius: 8, border: '1px solid var(--color-border)', minHeight: 400, maxHeight: 600, overflowY: 'auto' }}>
+              {events.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: 20, color: 'var(--color-text-tertiary)' }}>Nenhum lembrete encontrado.</div>
+              ) : (
+                events.map(ev => {
+                  let evBg = '#DCFCE7'; let evColor = '#166534';
+                  switch (ev.event_type) {
+                    case 'global': evBg = '#E0E7FF'; evColor = '#3730A3'; break;
+                    case 'birthday': evBg = '#FEF08A'; evColor = '#854D0E'; break;
+                    case 'vacation': evBg = '#FFEDD5'; evColor = '#9A3412'; break;
+                    case 'medical': evBg = '#FEE2E2'; evColor = '#991B1B'; break;
+                  }
+
+                  return (
+                    <div key={ev.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 16, border: '1px solid var(--color-border)', borderRadius: 8 }}>
+                      <div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                          <div style={{ width: 12, height: 12, borderRadius: '50%', background: evColor }}></div>
+                          <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 500, color: 'var(--color-text)' }}>{ev.title}</h3>
+                          <span style={{ fontSize: '0.7rem', padding: '2px 8px', borderRadius: 12, background: evBg, color: evColor, fontWeight: 600, textTransform: 'uppercase' }}>
+                            {ev.event_type}
+                          </span>
+                        </div>
+                        <div style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)' }}>
+                          Período: {format(parseISO(ev.start_date), 'dd/MM/yyyy')} {ev.end_date ? `até ${format(parseISO(ev.end_date), 'dd/MM/yyyy')}` : ''}
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <button onClick={() => { setEditingEventId(ev.id || null); setEventTitle(ev.title); setEventDescription(ev.description || ''); setEventType(ev.event_type); setStartDate(ev.start_date); setStartTime(ev.start_time); setEndDate(ev.end_date || ''); setEndTime(ev.end_time || ''); setEventCompleted(ev.completed || false); }} style={{ padding: 8, background: '#F3F4F6', color: 'var(--color-text)', border: '1px solid var(--color-border)', borderRadius: 4, cursor: 'pointer' }}><Edit2 size={16} /></button>
+                        <button onClick={() => handleDeleteEvent(ev.id!)} style={{ padding: 8, background: '#FEE2E2', color: '#991B1B', border: '1px solid #FECACA', borderRadius: 4, cursor: 'pointer' }}><Trash2 size={16} /></button>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+
+          {/* Lado Direito: Formulário */}
+          <div style={{ width: 400, background: 'var(--color-surface)', padding: 24, borderRadius: 12, border: '1px solid var(--color-border)' }}>
+            <h2 style={{ fontSize: '1.2rem', fontWeight: 600, color: 'var(--color-text)', marginBottom: 20 }}>
+              {editingEventId ? 'Editar Lembrete' : 'Adicionar Novo'}
+            </h2>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: 'var(--color-text-secondary)', marginBottom: 6, textTransform: 'uppercase' }}>Título / Motivo</label>
+                <input type="text" placeholder="Ex: Feriado Tiradentes" value={eventTitle} onChange={e => setEventTitle(e.target.value)} style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid var(--color-border)' }} />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: 'var(--color-text-secondary)', marginBottom: 6, textTransform: 'uppercase' }}>Tipo do Lembrete</label>
+                <select value={eventType} onChange={e => setEventType(e.target.value as any)} style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid var(--color-border)', background: '#fff' }}>
+                  <option value="personal">Pessoal (Só eu vejo)</option>
+                  <option value="global">Global (Todos veem)</option>
+                  <option value="birthday">Aniversário</option>
+                  <option value="vacation">Férias</option>
+                  <option value="medical">Consulta Médica</option>
+                </select>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: 'var(--color-text-secondary)', marginBottom: 6, textTransform: 'uppercase' }}>Data Início</label>
+                  <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid var(--color-border)' }} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: 'var(--color-text-secondary)', marginBottom: 6, textTransform: 'uppercase' }}>Data Fim</label>
+                  <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid var(--color-border)' }} />
+                </div>
+              </div>
+              
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: 'var(--color-text-secondary)', marginBottom: 6, textTransform: 'uppercase' }}>Hora Inicial</label>
+                  <input type="time" value={startTime} onChange={e => setStartTime(e.target.value)} style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid var(--color-border)' }} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: 'var(--color-text-secondary)', marginBottom: 6, textTransform: 'uppercase' }}>Hora Final</label>
+                  <input type="time" value={endTime} onChange={e => setEndTime(e.target.value)} style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid var(--color-border)' }} />
+                </div>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: 'var(--color-text-secondary)', marginBottom: 6, textTransform: 'uppercase' }}>Observações</label>
+                <textarea value={eventDescription} onChange={e => setEventDescription(e.target.value)} style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid var(--color-border)', minHeight: 80, resize: 'none' }} />
+              </div>
+
+              <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
+                <button 
+                  onClick={() => resetForm()} 
+                  style={{ flex: 1, padding: '12px', background: 'transparent', border: '1px solid var(--color-border)', color: 'var(--color-text-secondary)', borderRadius: 8, fontWeight: 600, cursor: 'pointer' }}
+                >
+                  Limpar
+                </button>
+                <button 
+                  onClick={handleSaveEvent} 
+                  style={{ flex: 2, padding: '12px', background: 'var(--color-primary)', border: 'none', color: '#fff', borderRadius: 8, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
+                >
+                  <Plus size={18} /> {editingEventId ? 'Salvar Edição' : 'Adicionar'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modal Lembrete */}
       {showEventModal && (
