@@ -8,6 +8,12 @@ import * as crypto from 'crypto';
 export function registerReportRoutes(supabase: SupabaseClient) {
   const router = Router();
 
+  const applyBaseFilters = (query: any) => {
+    return query.neq('status', 'deleted')
+                .neq('status', 'suspended')
+                .not('subject', 'ilike', '\\*\\*\\*SPAM%');
+  };
+
   function getAdjustedToday(date: Date): Date {
     let adj = date;
     if (isSaturday(adj)) adj = subDays(adj, 1);
@@ -185,10 +191,8 @@ export function registerReportRoutes(supabase: SupabaseClient) {
       const prevRange = getPreviousDateRange(period, customStart, customEnd);
 
       const joinType = (category || product) ? '!inner' : '!left';
-      const applyFiltersSafe = (query) => {
-        query = query.neq('status', 'deleted')
-                     .neq('status', 'suspended')
-                     .not('subject', 'ilike', '\\*\\*\\*SPAM%');
+      const applyFiltersSafe = (query: any) => {
+        query = applyBaseFilters(query);
         if (client) query = query.eq('organization_name', client);
         if (group) query = query.eq('group_name', group);
         if (assignee) query = query.eq('assignee_name', assignee);
@@ -755,8 +759,8 @@ FORMATO OBRIGATÓRIO (JSON):
 
       const results = [];
       for (const m of months) {
-        let qCreated = supabase.from('tickets').select('id, group_name').neq('status', 'deleted').gte('created_at', m.start).lte('created_at', m.end);
-        let qSolved = supabase.from('tickets').select('id, solved_at, created_at, group_name').in('status', ['solved', 'closed']).gte('solved_at', m.start).lte('solved_at', m.end);
+        let qCreated = applyBaseFilters(supabase.from('tickets').select('id, group_name')).gte('created_at', m.start).lte('created_at', m.end);
+        let qSolved = applyBaseFilters(supabase.from('tickets').select('id, solved_at, created_at, group_name')).in('status', ['solved', 'closed']).gte('solved_at', m.start).lte('solved_at', m.end);
         
         let qSla = supabase.from('ticket_analysis').select('category').gte('created_at', m.start).lte('created_at', m.end);
 
@@ -800,20 +804,20 @@ FORMATO OBRIGATÓRIO (JSON):
 
       const currentRange = getDateRange(period, customStart, customEnd);
 
-      let qAll = supabase.from('tickets').select(`
+      let qAll = applyBaseFilters(supabase.from('tickets').select(`
         organization_name, 
         created_at, 
         solved_at, 
         status, 
         ticket_analysis(was_reopened, operational_effort, criticality, predicted_resolution_time_hours)
-      `).gte('created_at', currentRange.start).lte('created_at', currentRange.end);
+      `)).gte('created_at', currentRange.start).lte('created_at', currentRange.end);
 
       if (groupFilter) qAll = qAll.eq('group_name', groupFilter);
 
       const { data: currentTickets } = await qAll;
       
       const eightWeeksAgo = subWeeks(new Date(), 8);
-      let qTrend = supabase.from('tickets').select('organization_name, created_at').gte('created_at', eightWeeksAgo.toISOString());
+      let qTrend = applyBaseFilters(supabase.from('tickets').select('organization_name, created_at')).gte('created_at', eightWeeksAgo.toISOString());
       if (groupFilter) qTrend = qTrend.eq('group_name', groupFilter);
       const { data: trendTickets } = await qTrend;
 
@@ -960,7 +964,7 @@ FORMATO OBRIGATÓRIO (JSON):
       const currentRange = getDateRange(period, customStart, customEnd);
       
       // Global stats for portfolio comparison
-      const { data: globalTickets } = await supabase.from('tickets').select('created_at, solved_at, status, ticket_analysis(was_reopened)')
+      const { data: globalTickets } = await applyBaseFilters(supabase.from('tickets').select('created_at, solved_at, status, ticket_analysis(was_reopened)'))
         .gte('created_at', currentRange.start).lte('created_at', currentRange.end);
         
       let globalEntradas = 0;
@@ -991,10 +995,10 @@ FORMATO OBRIGATÓRIO (JSON):
       const globalReopenRate = globalEntradas > 0 ? (globalReaberturas / globalEntradas) * 100 : 0;
 
       // Client Specific Stats
-      const { data: clientTickets } = await supabase.from('tickets').select(`
+      const { data: clientTickets } = await applyBaseFilters(supabase.from('tickets').select(`
         created_at, solved_at, status, 
         ticket_analysis(product, category, was_reopened, operational_effort, criticality, expected_completion_effort, effort_reason)
-      `).eq('organization_name', orgName).gte('created_at', currentRange.start).lte('created_at', currentRange.end);
+      `)).eq('organization_name', orgName).gte('created_at', currentRange.start).lte('created_at', currentRange.end);
 
       let entradas = 0;
       let resolvidos = 0;
@@ -1127,7 +1131,7 @@ FORMATO OBRIGATÓRIO (JSON):
       
       // We look back 8 weeks for history
       const start = subWeeks(new Date(), 8).toISOString();
-      const { data: tickets } = await supabase.from('tickets').select('created_at, ticket_analysis(criticality, operational_effort)')
+      const { data: tickets } = await applyBaseFilters(supabase.from('tickets').select('created_at, ticket_analysis(criticality, operational_effort)'))
         .eq('organization_name', orgName).gte('created_at', start).order('created_at', { ascending: true });
 
       const events: any[] = [];
