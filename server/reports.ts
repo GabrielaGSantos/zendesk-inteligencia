@@ -717,8 +717,9 @@ ATENÇÃO (CRÍTICO):
 1. O objeto "demandasInternas" representa chamados internos da própria organização (ajustes de infraestrutura, rotinas, desenvolvimento). Trate-os como "Demanda Interna / Backoffice" e não como um cliente que está reclamando.
 2. Apenas os clientes na lista "clientesTop" são clientes externos.
 3. NÃO descreva ou repita os números que já estão visíveis na tela. Em vez disso, responda tacitamente: O que preocupa? O que mudou? Qual a tendência? O que merece atenção amanhã?
-4. Seja analítico e aponte correlações (ex: aumento de entradas com queda de SLA, ou impacto de categorias específicas nos tickets em aberto).
-5. OBRIGATÓRIO: Sua resposta final deve ser um objeto JSON válido. NENHUM texto fora do JSON. Não use bloco de código (marcador \`\`\`).
+4. IGNORE completamente os dados de SLA (SLA cumprido/vencido). A operação ainda não utiliza SLA ativamente, portanto não mencione prazos de SLA na sua análise.
+5. Seja analítico e aponte correlações (ex: impacto de categorias específicas nos tickets em aberto).
+6. OBRIGATÓRIO: Sua resposta final deve ser um objeto JSON válido. NENHUM texto fora do JSON. Não use bloco de código (marcador \`\`\`).
 
 FORMATO OBRIGATÓRIO (JSON):
 {

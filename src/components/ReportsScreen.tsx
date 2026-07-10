@@ -399,7 +399,8 @@ export const ReportsScreen: React.FC = () => {
           .app-sidebar { display: none !important; }
           .app-main { margin-left: 0 !important; padding: 0 !important; }
           .print-container { background: white; color: black; }
-          .card { border: 1px solid #ddd; box-shadow: none; break-inside: avoid; }
+          .card { border: 1px solid #ddd; box-shadow: none; break-inside: avoid; margin-bottom: 16px; page-break-inside: avoid; }
+          .print-stack { display: flex !important; flex-direction: column !important; gap: 24px !important; }
         }
         .insight-list {
           margin: 0; padding-left: 20px; color: var(--color-text-secondary); font-size: 0.95rem; line-height: 1.6;
@@ -602,7 +603,7 @@ export const ReportsScreen: React.FC = () => {
           </div>
 
           {/* LINHA 2: Dois gráficos grandes (Evolução Diária x Composição Fila) */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '24px' }}>
+          <div className="print-stack" style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '24px' }}>
             <div className="card" style={{ padding: '20px', display: 'flex', flexDirection: 'column' }}>
               <h3 style={{ marginTop: 0, marginBottom: '20px', fontSize: '1.05rem', color: 'var(--color-text-primary)' }}>Evolução Diária (Entradas x Resolvidos x Fila)</h3>
               <div style={{ height: 260, width: '100%' }}>
@@ -693,7 +694,7 @@ export const ReportsScreen: React.FC = () => {
           </div>
 
           {/* LINHA 3: Top Produtos e Clientes */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '24px' }}>
+          <div className="print-stack" style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '24px' }}>
             <div className="card" style={{ padding: '20px' }}>
               <h3 style={{ marginTop: 0, marginBottom: '20px', fontSize: '1.05rem', color: 'var(--color-text-primary)' }}>Volume por Produto (Top 10)</h3>
               <div style={{ height: 350, width: '100%' }}>
