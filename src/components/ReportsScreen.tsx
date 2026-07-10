@@ -366,16 +366,9 @@ export const ReportsScreen: React.FC = () => {
   const backlogTrend = summary?.backlogPrev === 0 ? (summary?.backlog > 0 ? 100 : 0) : ((summary?.backlog - summary?.backlogPrev) / summary?.backlogPrev) * 100;
 
   const renderComparativeCard = (
-    title: string,
-    icon: any,
-    iconColor: string,
-    iconBg: string,
-    currentValue: string | number,
-    prevValue: string | number,
-    absDiff: string | number,
-    pctDiff: number,
-    goodDirection: 'up' | 'down',
-    isPercentage: boolean = false
+    title: string, icon: React.ReactNode, iconColor: string, iconBg: string,
+    currentValue: number, prevValue: number, absDiff: number, pctDiff: number, goodDirection: 'up' | 'down' | 'none',
+    isPercentage: boolean = false, extraCurrentLabel?: string
   ) => {
     const isUp = pctDiff > 0;
     const isGood = pctDiff === 0 ? true : (goodDirection === 'up' ? isUp : !isUp);
@@ -393,7 +386,10 @@ export const ReportsScreen: React.FC = () => {
         <div style={{ display: 'flex', gap: '24px', alignItems: 'flex-end', marginTop: 4 }}>
           <div style={{ display: 'flex', flexDirection: 'column' }}>
             <span style={{ fontSize: '2.2rem', fontWeight: 700, color: 'var(--color-text-primary)', lineHeight: 1 }}>{currentValue}{isPercentage ? '%' : ''}</span>
-            <span style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)', marginTop: '8px' }}>{comp.current.label}</span>
+            <span style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)', marginTop: '8px' }}>
+              {comp.current.label}
+              {extraCurrentLabel && <span style={{ marginLeft: 6, fontWeight: 500 }}>{extraCurrentLabel}</span>}
+            </span>
           </div>
           
           <div style={{ display: 'flex', flexDirection: 'column', paddingBottom: '3px' }}>
@@ -628,7 +624,7 @@ export const ReportsScreen: React.FC = () => {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '20px' }}>
             {data.comparison && renderComparativeCard("Entradas", <TrendingDown size={18} />, "#ef4444", "rgba(239, 68, 68, 0.1)", summary.entradas, summary.entradasPrev, summary.entradas - summary.entradasPrev, entradasTrend, "down")}
             {data.comparison && renderComparativeCard("Resolvidos", <CheckCircle size={18} />, "#22c55e", "rgba(34, 197, 94, 0.1)", summary.resolvidos, summary.resolvidosPrev, summary.resolvidos - summary.resolvidosPrev, resolvidosTrend, "up")}
-            {data.comparison && renderComparativeCard("Tickets em Aberto/Pendente", <AlertTriangle size={18} />, "#f59e0b", "rgba(245, 158, 11, 0.1)", summary.backlog, summary.backlogPrev, summary.backlog - summary.backlogPrev, backlogTrend, "down")}
+            {data.comparison && renderComparativeCard("Tickets em Aberto/Pendente", <AlertTriangle size={18} />, "#f59e0b", "rgba(245, 158, 11, 0.1)", summary.backlog, summary.backlogPrev, summary.backlog - summary.backlogPrev, backlogTrend, "down", false, summary.pendingCount > 0 ? `(sendo ${summary.pendingCount} pendentes)` : undefined)}
           </div>
 
           {/* LINHA 2: Dois gráficos grandes (Evolução Diária x Composição Fila) */}
@@ -722,29 +718,8 @@ export const ReportsScreen: React.FC = () => {
             </div>
           </div>
 
-          {/* LINHA 3: Top Produtos e Clientes */}
-          <div className="print-stack" style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '24px' }}>
-            <div className="card" style={{ padding: '20px' }}>
-              <h3 style={{ marginTop: 0, marginBottom: '20px', fontSize: '1.05rem', color: 'var(--color-text-primary)' }}>Volume por Categoria (Top 10)</h3>
-              <div style={{ height: 350, width: '100%' }}>
-                <ResponsiveContainer>
-                  <BarChart data={(distributions?.byCategory?.slice(0, 10) || []).map(d => ({ ...d, name: d.name.split('|').pop().trim() }))} layout="vertical" margin={{ top: 0, right: 30, left: 10, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="var(--color-border)" />
-                    <XAxis type="number" fontSize={11} stroke="var(--color-text-secondary)" />
-                    <YAxis dataKey="name" type="category" fontSize={11} stroke="var(--color-text-secondary)" width={220} tickFormatter={(val) => val.length > 40 ? val.substring(0,40) + '...' : val} />
-                    <Tooltip cursor={{ fill: 'rgba(0,0,0,0.05)' }} contentStyle={{ borderRadius: 8, borderColor: 'var(--color-border)' }} />
-                    <Bar dataKey="count" fill="#8b5cf6" radius={[0, 4, 4, 0]} maxBarSize={30} label={{ position: 'right', fill: 'var(--color-text-primary)' }}>
-                      {
-                        [...Array(10)].map((_, index) => (
-                          <Cell key={`cell-${index}`} fill="#8b5cf6" />
-                        ))
-                      }
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-
+          {/* LINHA 3: Top Clientes e Demandas Internas */}
+          <div className="print-stack" style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '24px' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
               <div className="card" style={{ padding: '20px', flex: 1, overflowX: 'auto' }}>
                 <h3 style={{ marginTop: 0, marginBottom: '16px', fontSize: '1.05rem', color: 'var(--color-text-primary)' }}>Top Clientes da Semana</h3>
@@ -1010,6 +985,29 @@ export const ReportsScreen: React.FC = () => {
       {data?.summary && activeTab === 'produtos' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
           <h2 className="section-title">Impacto por Clientes e Produtos</h2>
+          
+          <div className="card" style={{ padding: '20px' }}>
+            <h3 style={{ marginTop: 0, marginBottom: '20px', fontSize: '1.05rem', color: 'var(--color-text-primary)' }}>Volume por Categoria (Top 10)</h3>
+            <div style={{ height: 350, width: '100%' }}>
+              <ResponsiveContainer>
+                <BarChart data={(distributions?.byCategory?.slice(0, 10) || []).map(d => ({ ...d, name: d.name.split('|').pop().trim() }))} layout="vertical" margin={{ top: 0, right: 30, left: 10, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="var(--color-border)" />
+                  <XAxis type="number" fontSize={11} stroke="var(--color-text-secondary)" />
+                  <YAxis dataKey="name" type="category" fontSize={11} stroke="var(--color-text-secondary)" width={220} tickFormatter={(val) => val.length > 40 ? val.substring(0,40) + '...' : val} />
+                  <Tooltip cursor={{ fill: 'rgba(0,0,0,0.05)' }} contentStyle={{ borderRadius: 8, borderColor: 'var(--color-border)' }} />
+                  <Bar dataKey="count" fill="#8b5cf6" radius={[0, 4, 4, 0]} maxBarSize={30} label={{ position: 'right', fill: 'var(--color-text-primary)' }}>
+                    {
+                      [...Array(10)].map((_, index) => (
+                        <Cell key={`cell-${index}`} fill="#8b5cf6" />
+                      ))
+                    }
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '24px' }}>
             <div className="card" style={{ padding: '20px' }}>
               <h3 style={{ marginTop: 0, marginBottom: '16px', fontSize: '1.05rem', color: 'var(--color-text-primary)' }}>Top Clientes Demandantes</h3>

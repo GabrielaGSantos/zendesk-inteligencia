@@ -207,9 +207,10 @@ export function registerReportRoutes(supabase: SupabaseClient) {
       let qResolvidos = applyFiltersSafe(supabase.from('tickets').select(`id, ticket_analysis${joinType}(category, product)`, { count: 'exact', head: true }).in('status', ['solved', 'closed']).gte('solved_at', currentRange.start).lte('solved_at', currentRange.end));
       let qResolvidosPrev = applyFiltersSafe(supabase.from('tickets').select(`id, ticket_analysis${joinType}(category, product)`, { count: 'exact', head: true }).in('status', ['solved', 'closed']).gte('solved_at', prevRange.start).lte('solved_at', prevRange.end));
       let qBacklog = applyFiltersSafe(supabase.from('tickets').select(`id, ticket_analysis${joinType}(category, product)`, { count: 'exact', head: true }).not('status', 'in', '("solved","closed","deleted")'));
+      let qPending = applyFiltersSafe(supabase.from('tickets').select(`id, ticket_analysis${joinType}(category, product)`, { count: 'exact', head: true }).eq('status', 'pending'));
 
-      const [entradasRes, entradasPrevRes, resolvidosRes, resolvidosPrevRes, backlogRes] = await Promise.all([
-        qEntradas, qEntradasPrev, qResolvidos, qResolvidosPrev, qBacklog
+      const [entradasRes, entradasPrevRes, resolvidosRes, resolvidosPrevRes, backlogRes, pendingRes] = await Promise.all([
+        qEntradas, qEntradasPrev, qResolvidos, qResolvidosPrev, qBacklog, qPending
       ]);
 
       const entradas = entradasRes.count || 0;
@@ -217,6 +218,7 @@ export function registerReportRoutes(supabase: SupabaseClient) {
       const resolvidos = resolvidosRes.count || 0;
       const resolvidosPrev = resolvidosPrevRes.count || 0;
       const backlog = backlogRes.count || 0;
+      const pendingCount = pendingRes.count || 0;
       const saldo = entradas - resolvidos;
       const saldoPrev = entradasPrev - resolvidosPrev;
       const backlogPrev = backlog - saldo;
@@ -639,8 +641,12 @@ export function registerReportRoutes(supabase: SupabaseClient) {
           }
         },
         summary: {
-          entradas, entradasPrev, resolvidos, resolvidosPrev, backlog, backlogPrev,
-          saldo, saldoPrev, avgResolutionTime, avgResolutionTimePrev, slaCumprido, slaVencido
+          entradas, entradasPrev,
+          resolvidos, resolvidosPrev,
+          backlog, backlogPrev, pendingCount,
+          saldo, saldoPrev,
+          avgResolutionTime, avgResolutionTimePrev,
+          slaCumprido, slaVencido
         },
         distributions: {
           byProduct: Object.entries(volumeByProduct).map(([name, count]) => ({ name, count })).sort((a,b) => b.count - a.count),
