@@ -436,7 +436,12 @@ export const ReportsScreen: React.FC = () => {
       <div className="print-only">
         <h2 style={{ margin: '0 0 16px 0', color: '#111827' }}>Relatório Gerencial de Operações</h2>
         <div style={{ display: 'flex', gap: '40px', fontSize: '0.9rem', color: '#4b5563' }}>
-          <div><strong>Período Selecionado:</strong> {period}</div>
+          <div>
+            <strong>Período Selecionado:</strong>{' '}
+            {period === 'personalizado' && customStart && customEnd
+              ? `${new Date(customStart + "T00:00:00").toLocaleDateString('pt-BR')} até ${new Date(customEnd + "T00:00:00").toLocaleDateString('pt-BR')}`
+              : period.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+          </div>
           <div><strong>Gerado em:</strong> {new Date().toLocaleString('pt-BR')}</div>
         </div>
       </div>
