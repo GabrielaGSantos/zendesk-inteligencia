@@ -725,10 +725,10 @@ export const ReportsScreen: React.FC = () => {
           {/* LINHA 3: Top Produtos e Clientes */}
           <div className="print-stack" style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '24px' }}>
             <div className="card" style={{ padding: '20px' }}>
-              <h3 style={{ marginTop: 0, marginBottom: '20px', fontSize: '1.05rem', color: 'var(--color-text-primary)' }}>Volume por Produto (Top 10)</h3>
+              <h3 style={{ marginTop: 0, marginBottom: '20px', fontSize: '1.05rem', color: 'var(--color-text-primary)' }}>Volume por Categoria (Top 10)</h3>
               <div style={{ height: 350, width: '100%' }}>
                 <ResponsiveContainer>
-                  <BarChart data={distributions?.byProduct?.slice(0, 10) || []} layout="vertical" margin={{ top: 0, right: 30, left: 10, bottom: 0 }}>
+                  <BarChart data={distributions?.byCategory?.slice(0, 10) || []} layout="vertical" margin={{ top: 0, right: 30, left: 10, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="var(--color-border)" />
                     <XAxis type="number" fontSize={11} stroke="var(--color-text-secondary)" />
                     <YAxis dataKey="name" type="category" fontSize={12} stroke="var(--color-text-secondary)" width={120} tickFormatter={(val) => val.length > 15 ? val.substring(0,15) + '...' : val} />
