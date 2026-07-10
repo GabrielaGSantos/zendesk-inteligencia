@@ -728,10 +728,10 @@ export const ReportsScreen: React.FC = () => {
               <h3 style={{ marginTop: 0, marginBottom: '20px', fontSize: '1.05rem', color: 'var(--color-text-primary)' }}>Volume por Categoria (Top 10)</h3>
               <div style={{ height: 350, width: '100%' }}>
                 <ResponsiveContainer>
-                  <BarChart data={distributions?.byCategory?.slice(0, 10) || []} layout="vertical" margin={{ top: 0, right: 30, left: 10, bottom: 0 }}>
+                  <BarChart data={(distributions?.byCategory?.slice(0, 10) || []).map(d => ({ ...d, name: d.name.split('|').pop().trim() }))} layout="vertical" margin={{ top: 0, right: 30, left: 10, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="var(--color-border)" />
                     <XAxis type="number" fontSize={11} stroke="var(--color-text-secondary)" />
-                    <YAxis dataKey="name" type="category" fontSize={12} stroke="var(--color-text-secondary)" width={120} tickFormatter={(val) => val.length > 15 ? val.substring(0,15) + '...' : val} />
+                    <YAxis dataKey="name" type="category" fontSize={11} stroke="var(--color-text-secondary)" width={220} tickFormatter={(val) => val.length > 40 ? val.substring(0,40) + '...' : val} />
                     <Tooltip cursor={{ fill: 'rgba(0,0,0,0.05)' }} contentStyle={{ borderRadius: 8, borderColor: 'var(--color-border)' }} />
                     <Bar dataKey="count" fill="#8b5cf6" radius={[0, 4, 4, 0]} maxBarSize={30} label={{ position: 'right', fill: 'var(--color-text-primary)' }}>
                       {
