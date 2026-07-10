@@ -399,8 +399,9 @@ export const ReportsScreen: React.FC = () => {
           .app-sidebar { display: none !important; }
           .app-main { margin-left: 0 !important; padding: 0 !important; }
           .print-container { background: white; color: black; }
-          .card { border: 1px solid #ddd; box-shadow: none; break-inside: avoid; margin-bottom: 16px; page-break-inside: avoid; }
-          .print-stack { display: flex !important; flex-direction: column !important; gap: 24px !important; }
+          .card { border: 1px solid #ddd; box-shadow: none; break-inside: avoid; margin-bottom: 24px !important; page-break-inside: avoid; }
+          .print-stack { display: block !important; }
+          .print-stack > * { margin-bottom: 24px !important; display: block !important; width: 100% !important; }
         }
         .insight-list {
           margin: 0; padding-left: 20px; color: var(--color-text-secondary); font-size: 0.95rem; line-height: 1.6;
@@ -624,7 +625,7 @@ export const ReportsScreen: React.FC = () => {
 
             <div className="card" style={{ padding: '20px', display: 'flex', flexDirection: 'column' }}>
               <h3 style={{ marginTop: 0, marginBottom: '16px', fontSize: '1.05rem', color: 'var(--color-text-primary)' }}>Composição da Fila (tickets abertos)</h3>
-              <div style={{ display: 'flex', flex: 1, gap: 24, alignItems: 'center' }}>
+              <div className="print-stack" style={{ display: 'flex', flex: 1, gap: 24, alignItems: 'center' }}>
                 <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
                   <div style={{ height: 180, width: '100%', position: 'relative' }}>
                     <ResponsiveContainer>
