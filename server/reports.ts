@@ -541,7 +541,7 @@ export function registerReportRoutes(supabase: SupabaseClient) {
       
       const { data: workloadTickets } = await qWorkload;
       
-      const mpxResponsibilityStatuses = ['new', 'open'];
+      const mpxResponsibilityStatuses = ['new', 'open', 'hold'];
       let workloadStats = {
         totalBacklog: 0,
         mpxResponsibility: 0,
