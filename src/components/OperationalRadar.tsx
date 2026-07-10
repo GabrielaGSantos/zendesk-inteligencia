@@ -99,6 +99,7 @@ export const OperationalRadar: React.FC<OperationalRadarProps> = ({ onTicketClic
       case 'no_assignee': return <UserX {...props} />;
       case 'many_reopens': return <RefreshCw {...props} />;
       case 'forgotten': return <Ghost {...props} />;
+      case 'pending_10_days': return <Calendar {...props} />;
       case 'escalation': return <AlertOctagon {...props} />;
       case 'first_reply_pending': return <MessageSquare {...props} />;
       case 'old_backlog': return <Calendar {...props} />;

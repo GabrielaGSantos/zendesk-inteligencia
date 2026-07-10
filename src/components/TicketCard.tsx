@@ -58,6 +58,9 @@ export const TicketCard: React.FC<TicketCardProps> = ({ ticket, onClick, onNotSp
                  (ticket.category?.toLowerCase().includes('spam') && !ticket.category?.toLowerCase().includes('análise de spam')) || 
                  ticket.status === 'suspended';
 
+  const isInternal = ticket.requester_email?.toLowerCase().includes('@mpxbrasil.com.br') || 
+                     ticket.organization_name?.toLowerCase().includes('mpx');
+
   return (
     <div className="card card--clickable ticket-card" onClick={() => onClick(ticket)}>
       {/* Header */}
@@ -76,6 +79,11 @@ export const TicketCard: React.FC<TicketCardProps> = ({ ticket, onClick, onNotSp
         </div>
         <div className="ticket-card__badges">
           <span className={getStatusBadgeClass(ticket.status)}>{getStatusLabel(ticket.status)}</span>
+          {isInternal ? (
+            <span className="badge" style={{ background: '#F3E8FF', color: '#7E22CE', border: '1px solid #D8B4FE', fontWeight: 600 }}>Interno MPX</span>
+          ) : (
+            <span className="badge" style={{ background: '#E0F2FE', color: '#0369A1', border: '1px solid #BAE6FD', fontWeight: 600 }}>Cliente</span>
+          )}
           {hasAnalysis && ticket.suggested_priority && (
             <span className={getPriorityBadgeClass(ticket.suggested_priority)}>
               {ticket.suggested_priority}

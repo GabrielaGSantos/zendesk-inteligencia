@@ -137,7 +137,7 @@ export interface AIResponse {
   };
 }
 
-export async function callGemini(apiKey: string, prompt: string, model: string = 'gemini-2.5-flash'): Promise<AIResponse> {
+export async function callGemini(apiKey: string, prompt: string, model: string = 'gemini-2.5-flash', expectJson: boolean = true): Promise<AIResponse> {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
   const options = {
     method: 'POST',
@@ -153,7 +153,7 @@ export async function callGemini(apiKey: string, prompt: string, model: string =
       generationConfig: {
         temperature: 0.3,
         maxOutputTokens: 8192,
-        responseMimeType: 'application/json',
+        responseMimeType: expectJson ? 'application/json' : 'text/plain',
       },
     }),
   };
@@ -201,28 +201,35 @@ export async function callGemini(apiKey: string, prompt: string, model: string =
   throw lastError;
 }
 
-export async function callOpenAI(apiKey: string, prompt: string, model: string = 'gpt-4o-mini'): Promise<AIResponse> {
+export async function callOpenAI(apiKey: string, prompt: string, model: string = 'gpt-4o-mini', expectJson: boolean = true): Promise<AIResponse> {
   const openai = new OpenAI({ apiKey });
   let lastError;
   
   for (let attempt = 1; attempt <= 3; attempt++) {
     try {
-      const response = await openai.chat.completions.create({
+      const payload: any = {
         model: model,
         temperature: 0.3,
         max_tokens: 2048,
-        response_format: { type: 'json_object' },
         messages: [
           {
             role: 'system',
-            content: 'Você é um assistente especialista em suporte ao cliente. Responda apenas com o JSON válido e exato solicitado nas instruções.'
+            content: expectJson 
+              ? 'Você é um assistente especialista em suporte ao cliente. Responda apenas com o JSON válido e exato solicitado nas instruções.'
+              : 'Você é um assistente especialista em suporte ao cliente.'
           },
           {
             role: 'user',
             content: prompt
           }
         ]
-      });
+      };
+      
+      if (expectJson) {
+        payload.response_format = { type: 'json_object' };
+      }
+
+      const response = await openai.chat.completions.create(payload);
       
       const usage = {
         prompt: response.usage?.prompt_tokens || 0,
@@ -1401,10 +1408,10 @@ Escreva a resposta de fechamento final em português do Brasil, mantendo as queb
   if (provider === 'openai') {
     const openaiKey = process.env.OPENAI_API_KEY;
     if (!openaiKey) throw new Error('Chave da API da OpenAI não configurada nas variáveis de ambiente');
-    aiResponseObj = await callOpenAI(openaiKey, prompt, model);
+    aiResponseObj = await callOpenAI(openaiKey, prompt, model, false);
   } else {
     const geminiKey = process.env.GEMINI_API_KEY || apiKey;
-    aiResponseObj = await callGemini(geminiKey, prompt, model);
+    aiResponseObj = await callGemini(geminiKey, prompt, model, false);
   }
 
   let finalResponseText = aiResponseObj.text.trim();

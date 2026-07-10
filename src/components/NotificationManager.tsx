@@ -1,8 +1,37 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../services/api';
 import type { CalendarEvent } from '../types';
-import { Bell, X } from 'lucide-react';
+import { Bell, X, Check } from 'lucide-react';
 import { format } from 'date-fns';
+
+const playAlertSound = () => {
+  try {
+    const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioContext) return;
+    const ctx = new AudioContext();
+
+    const osc = ctx.createOscillator();
+    const gainNode = ctx.createGain();
+
+    osc.type = 'sine';
+    
+    osc.frequency.setValueAtTime(587.33, ctx.currentTime);
+    osc.frequency.setValueAtTime(783.99, ctx.currentTime + 0.15);
+    
+    gainNode.gain.setValueAtTime(0, ctx.currentTime);
+    gainNode.gain.linearRampToValueAtTime(0.5, ctx.currentTime + 0.05);
+    gainNode.gain.setValueAtTime(0.5, ctx.currentTime + 0.15);
+    gainNode.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.3);
+
+    osc.connect(gainNode);
+    gainNode.connect(ctx.destination);
+
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.3);
+  } catch (err) {
+    console.error('Erro ao reproduzir som de notificação:', err);
+  }
+};
 
 export const NotificationManager: React.FC = () => {
   const [activeNotifications, setActiveNotifications] = useState<CalendarEvent[]>([]);
@@ -15,12 +44,18 @@ export const NotificationManager: React.FC = () => {
     return () => clearInterval(intervalId);
   }, []);
 
+  useEffect(() => {
+    if (activeNotifications.length > 0) {
+      playAlertSound();
+    }
+  }, [activeNotifications.length]);
+
   const checkEvents = async () => {
     try {
       const evs = await api.calendar.list();
       const now = new Date();
       const dateStr = format(now, 'yyyy-MM-dd');
-      const timeStr = format(now, 'HH:mm'); // e.g., '09:00'
+      const timeStr = format(now, 'HH:mm');
 
       const triggered = evs.filter(e => {
         return e.start_date === dateStr && e.start_time.substring(0, 5) === timeStr;
@@ -29,13 +64,14 @@ export const NotificationManager: React.FC = () => {
       if (triggered.length > 0) {
         setActiveNotifications(prev => {
           const newNotifs = [...prev];
+          let changed = false;
           triggered.forEach(t => {
-            // Prevent duplicate toasts for the same event
             if (!newNotifs.find(n => n.id === t.id)) {
               newNotifs.push(t);
+              changed = true;
             }
           });
-          return newNotifs;
+          return changed ? newNotifs : prev;
         });
       }
     } catch (err) {
@@ -83,13 +119,37 @@ export const NotificationManager: React.FC = () => {
                 {n.description}
               </div>
             )}
-            <div style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>
+            <div style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', marginBottom: 12 }}>
               {n.event_type === 'global' ? 'Lembrete Global' : 'Lembrete Pessoal'} • {n.start_time}
             </div>
+            
+            <button
+              onClick={() => dismissNotification(n.id!)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 6,
+                width: '100%',
+                padding: '8px 0',
+                background: 'var(--color-primary)',
+                color: '#fff',
+                border: 'none',
+                borderRadius: 6,
+                fontWeight: 600,
+                fontSize: '0.85rem',
+                cursor: 'pointer',
+                transition: 'background 0.2s'
+              }}
+            >
+              <Check size={16} />
+              Marcar como Visto
+            </button>
           </div>
           <button 
             onClick={() => dismissNotification(n.id!)}
-            style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--color-text-secondary)' }}
+            style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--color-text-tertiary)' }}
+            title="Fechar"
           >
             <X size={16} />
           </button>

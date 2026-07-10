@@ -717,25 +717,35 @@ export const ReportsScreen: React.FC = () => {
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
               <div className="card" style={{ padding: '20px', flex: 1, overflowX: 'auto' }}>
-                <h3 style={{ marginTop: 0, marginBottom: '16px', fontSize: '1.05rem', color: 'var(--color-text-primary)' }}>Tabela Gerencial de Clientes</h3>
+                <h3 style={{ marginTop: 0, marginBottom: '16px', fontSize: '1.05rem', color: 'var(--color-text-primary)' }}>Top Clientes da Semana</h3>
                 <table className="reports-table" style={{ width: '100%', minWidth: '400px' }}>
                   <thead>
                     <tr>
                       <th>Cliente</th>
                       <th style={{ textAlign: 'center' }}>Tickets</th>
-                      <th style={{ textAlign: 'center' }}>Tempo Médio</th>
                       <th style={{ textAlign: 'center' }}>Reabertura</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {distributions?.byClient && distributions.byClient.slice(0, 5).map((cli: any, idx: number) => (
-                      <tr key={idx}>
-                        <td><div style={{ fontWeight: 500, color: 'var(--color-text-primary)' }}>{cli.name}</div></td>
-                        <td style={{ textAlign: 'center' }}>{cli.entradas}</td>
-                        <td style={{ textAlign: 'center' }}>{cli.avgTime}{cli.avgTime !== '-' ? 'h' : ''}</td>
-                        <td style={{ textAlign: 'center' }}>{cli.reopenRate}%</td>
-                      </tr>
-                    ))}
+                    {distributions?.byClient && distributions.byClient.slice(0, 5).map((cli: any, idx: number) => {
+                      const isConsecutiveHigh = cli.entradas >= 3 && cli.prevEntradas >= 3;
+                      return (
+                        <tr key={idx}>
+                          <td>
+                            <div style={{ fontWeight: 500, color: 'var(--color-text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              {cli.name}
+                              {isConsecutiveHigh && (
+                                <span className="badge" style={{ background: '#fef08a', color: '#854d0e', border: '1px solid #fde047', fontSize: '10px' }} title={`Alta demanda na semana anterior também (${cli.prevEntradas} tickets)`}>
+                                  🔥 Alta Consecutiva
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                          <td style={{ textAlign: 'center' }}>{cli.entradas}</td>
+                          <td style={{ textAlign: 'center' }}>{cli.reopenRate}%</td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -748,7 +758,6 @@ export const ReportsScreen: React.FC = () => {
                   </div>
                   <div style={{ display: 'flex', gap: '24px', fontSize: '1rem', color: 'var(--color-text-secondary)' }}>
                      <span><strong style={{ color: 'var(--color-text-primary)' }}>Tickets:</strong> {distributions.internalDemand.entradas}</span>
-                     <span><strong style={{ color: 'var(--color-text-primary)' }}>Tempo Médio:</strong> {distributions.internalDemand.avgTime}{distributions.internalDemand.avgTime !== '-' ? 'h' : ''}</span>
                   </div>
                 </div>
               )}
@@ -1124,8 +1133,47 @@ export const ReportsScreen: React.FC = () => {
         </div>
       )}
 
+      {showAIModal && (
+        <div className="modal-overlay" onClick={() => setShowAIModal(false)}>
+          <div className="modal" style={{ width: '800px', maxWidth: '95%' }} onClick={e => e.stopPropagation()}>
+            <div className="modal__header">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <Brain size={20} color="var(--color-primary)" />
+                <h2 className="modal__title" style={{ margin: 0 }}>Parecer Executivo (IA)</h2>
+                {isCached && <span className="badge badge--neutral">Em cache</span>}
+              </div>
+              <button className="modal__close" onClick={() => setShowAIModal(false)}>
+                <XCircle size={20} />
+              </button>
+            </div>
+            
+            <div className="modal__body" style={{ maxHeight: '70vh', overflowY: 'auto', padding: '24px' }}>
+              {loadingAI ? (
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '40px' }}>
+                  <div className="spinner" style={{ width: 32, height: 32, marginBottom: 16 }}></div>
+                  <p style={{ color: 'var(--color-text-secondary)' }}>A Inteligência Artificial está analisando os dados e gerando o parecer...</p>
+                </div>
+              ) : (
+                renderParsedAI(aiSummary)
+              )}
+            </div>
+            
+            {!loadingAI && (
+               <div style={{ display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid var(--color-border)', padding: '16px 24px', gap: '12px' }}>
+                 <button className="btn btn--outline" onClick={() => setShowAIModal(false)}>
+                   Fechar
+                 </button>
+                 <button className="btn btn--primary" onClick={generateExecutiveSummary}>
+                   <RefreshCw size={16} style={{ marginRight: 8 }} /> Reanalisar
+                 </button>
+               </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
 
 export default ReportsScreen;
+

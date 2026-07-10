@@ -363,9 +363,13 @@ export function registerReportRoutes(supabase: SupabaseClient) {
       const { data: prevCreatedTickets } = await qAllPrevCreated;
       const prevVolumeByProduct = {};
       const prevVolumeByCategory = {};
+      const prevClientVolume = {};
       
       if (prevCreatedTickets) {
         prevCreatedTickets.forEach((t) => {
+          if (t.organization_name) {
+             prevClientVolume[t.organization_name] = (prevClientVolume[t.organization_name] || 0) + 1;
+          }
           if (t.ticket_analysis) {
             const analysisObj = Array.isArray(t.ticket_analysis) ? t.ticket_analysis[0] : t.ticket_analysis;
             if (analysisObj) {
@@ -376,6 +380,15 @@ export function registerReportRoutes(supabase: SupabaseClient) {
             }
           }
         });
+      }
+      
+      const finalClientStats = clientStats.map(c => ({
+        ...c,
+        prevEntradas: prevClientVolume[c.name] || 0
+      }));
+      
+      if (internalDemand) {
+        internalDemand.prevEntradas = prevClientVolume[internalDemand.name] || 0;
       }
       
       const calcGrowth = (current, prev) => {
@@ -634,7 +647,7 @@ export function registerReportRoutes(supabase: SupabaseClient) {
           byCategory: Object.entries(volumeByCategory).map(([name, count]) => ({ name, count })).sort((a,b) => b.count - a.count),
           byGroup: groupStats,
           byAgent: agentStats,
-          byClient: clientStats,
+          byClient: finalClientStats,
           internalDemand
         },
         trends: {

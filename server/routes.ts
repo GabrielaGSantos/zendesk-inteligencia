@@ -970,7 +970,7 @@ export function createRoutes(supabase: SupabaseClient): Router {
       const { data: tickets, error } = await supabase
         .from('tickets')
         .select(`
-          zendesk_id, subject, status, priority, created_at, updated_at, due_date, assignee_id, assignee_name, requester_name, organization_name, group_name,
+          zendesk_id, subject, status, priority, created_at, updated_at, due_date, assignee_id, assignee_name, requester_name, requester_email, organization_name, group_name,
           ticket_analysis ( needs_internal_routing, was_reopened, confidence_level, analyzed_at, identified_pattern, suggested_priority, category, product, request_type, is_manually_corrected )
         `)
         .in('status', ['new', 'open', 'pending', 'hold']);
@@ -990,6 +990,7 @@ export function createRoutes(supabase: SupabaseClient): Router {
         no_assignee: [] as any[],
         many_reopens: [] as any[],
         forgotten: [] as any[],
+        pending_10_days: [] as any[],
         escalation: [] as any[],
         first_reply_pending: [] as any[],
         old_backlog: [] as any[],
@@ -1051,9 +1052,13 @@ export function createRoutes(supabase: SupabaseClient): Router {
         if (mergedTicket.was_reopened) {
           alerts.many_reopens.push(mergedTicket);
         }
-        // 8. Tickets esquecidos: pending/hold sem atualização há mais de 7 dias
-        if (['pending', 'hold'].includes(mergedTicket.status) && daysDiff(mergedTicket.updated_at) > 7) {
+        // 8. Tickets esquecidos: hold sem atualização há mais de 7 dias
+        if (mergedTicket.status === 'hold' && daysDiff(mergedTicket.updated_at) > 7) {
           alerts.forgotten.push(mergedTicket);
+        }
+        // 8.b. Pendentes a mais de 10 dias
+        if (mergedTicket.status === 'pending' && daysDiff(mergedTicket.updated_at) > 10) {
+          alerts.pending_10_days.push(mergedTicket);
         }
         // 9. Escalação necessária: urgente ou confiança baixa (< 0.5)
         if (mergedTicket.priority?.toLowerCase() === 'urgent') {
@@ -1117,7 +1122,8 @@ export function createRoutes(supabase: SupabaseClient): Router {
         { id: 'internal_return', title: 'Aguardando retorno interno', icon: '🟠', subtitle: 'ação de outras áreas', level: 'warning', count: alerts.internal_return.length, trend: calcTrend(alerts.internal_return), tickets: alerts.internal_return },
         { id: 'no_assignee', title: 'Ticket sem responsável', icon: '🔴', subtitle: 'sem tribo designada', level: 'critical', count: alerts.no_assignee.length, trend: calcTrend(alerts.no_assignee), tickets: alerts.no_assignee },
         { id: 'many_reopens', title: 'Muitas reaberturas', icon: '🟡', subtitle: 'vai e volta', level: 'alert', count: alerts.many_reopens.length, trend: calcTrend(alerts.many_reopens), tickets: alerts.many_reopens },
-        { id: 'forgotten', title: 'Tickets esquecidos', icon: '🔴', subtitle: 'pendente > 7 dias', level: 'critical', count: alerts.forgotten.length, trend: calcTrend(alerts.forgotten), tickets: alerts.forgotten },
+        { id: 'forgotten', title: 'Tickets esquecidos', icon: '🔴', subtitle: 'hold pendente > 7 dias', level: 'critical', count: alerts.forgotten.length, trend: calcTrend(alerts.forgotten), tickets: alerts.forgotten },
+        { id: 'pending_10_days', title: 'Pendentes a mais de 10 dias', icon: '🔴', subtitle: '> 10 dias pendente', level: 'critical', count: alerts.pending_10_days.length, trend: calcTrend(alerts.pending_10_days), tickets: alerts.pending_10_days },
         { id: 'escalation', title: 'Escalação necessária', icon: '🟠', subtitle: 'urgente', level: 'warning', count: alerts.escalation.length, trend: calcTrend(alerts.escalation), tickets: alerts.escalation },
         { id: 'first_reply_pending', title: 'Primeira resposta', icon: '🟠', subtitle: '> 4 horas', level: 'warning', count: alerts.first_reply_pending.length, trend: calcTrend(alerts.first_reply_pending), tickets: alerts.first_reply_pending },
         { id: 'old_backlog', title: 'Tickets Antigos em Aberto', icon: '🔴', subtitle: '> 30 dias', level: 'critical', count: alerts.old_backlog.length, trend: calcTrend(alerts.old_backlog), tickets: alerts.old_backlog },
