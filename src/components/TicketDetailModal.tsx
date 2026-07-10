@@ -36,14 +36,17 @@ function getConfidenceClass(level: number): string {
   return 'confidence-bar__fill--low';
 }
 
-const ComboInput = ({ value, options, onChange, placeholder, isMulti = false }: any) => {
+const ComboInput = ({ value, options, onChange, placeholder, isMulti = false, strictSelect = false }: any) => {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
       <select 
         style={{ width: '100%', padding: '8px 12px', border: '1px solid var(--color-border)', borderRadius: 6, fontSize: 13, background: 'var(--color-surface)' }}
-        value=""
+        value={strictSelect && !isMulti ? (value || '') : ""}
         onChange={e => {
-          if (!e.target.value) return;
+          if (!e.target.value) {
+            if (strictSelect && !isMulti) onChange('');
+            return;
+          }
           if (isMulti) {
             const current = value ? value.split(' | ').map((s: string) => s.trim()).filter(Boolean) : [];
             if (!current.includes(e.target.value)) {
@@ -54,15 +57,30 @@ const ComboInput = ({ value, options, onChange, placeholder, isMulti = false }: 
           }
         }}
       >
-        <option value="">{isMulti ? '+ Adicionar existente...' : '-- Selecionar existente --'}</option>
+        <option value="">{isMulti ? '+ Adicionar da lista...' : '-- Selecione --'}</option>
         {options?.map((o: string) => <option key={o} value={o}>{o}</option>)}
       </select>
-      <input 
-        style={{ width: '100%', padding: '8px 12px', border: '1px solid var(--color-border)', borderRadius: 6, fontSize: 13, background: 'var(--color-surface)' }}
-        value={value || ''} 
-        onChange={e => onChange(e.target.value)}
-        placeholder={placeholder}
-      />
+      
+      {(!strictSelect || isMulti) && (
+        <div style={{ position: 'relative' }}>
+          <input 
+            style={{ width: '100%', padding: '8px 12px', border: '1px solid var(--color-border)', borderRadius: 6, fontSize: 13, background: 'var(--color-surface)' }}
+            value={value || ''} 
+            readOnly={strictSelect}
+            onChange={e => { if (!strictSelect) onChange(e.target.value); }}
+            placeholder={placeholder}
+          />
+          {strictSelect && isMulti && value && (
+            <button 
+              title="Limpar seleções"
+              onClick={() => onChange('')} 
+              style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', background: 'var(--color-bg-secondary)', border: '1px solid var(--color-border)', borderRadius: 4, cursor: 'pointer', color: 'var(--color-text-secondary)', fontSize: 10, padding: '2px 6px' }}
+            >
+              Limpar
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 };
@@ -459,7 +477,8 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({ ticket: in
                         value={editForm.product} 
                         options={filterOptions?.products || []} 
                         onChange={(v: string) => setEditForm({...editForm, product: v})} 
-                        placeholder="Digite o produto..." 
+                        placeholder="Selecione o produto..." 
+                        strictSelect={true}
                       />
                     ) : (
                       <span className="modal__info-value">{ticket.product || '—'}</span>
@@ -491,8 +510,9 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({ ticket: in
                         value={editForm.category} 
                         options={filterOptions?.categories || []} 
                         onChange={(v: string) => setEditForm({...editForm, category: v})} 
-                        placeholder="Separe múltiplas com | (Ex: Cat1 | Cat2)" 
+                        placeholder="Adicione categorias da lista..." 
                         isMulti={true}
+                        strictSelect={true}
                       />
                     ) : (
                       <span className="modal__info-value" style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
