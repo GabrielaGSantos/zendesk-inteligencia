@@ -128,8 +128,9 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({ ticket: in
     setIsSaving(true);
     try {
       await api.updateAnalysis(ticket.zendesk_id, editForm);
-      setTicket({ ...ticket, ...editForm, is_manually_corrected: true });
-      if (onUpdate) onUpdate({ ...ticket, ...editForm, is_manually_corrected: true });
+      const updatedTicket = { ...ticket, ...editForm, is_manually_corrected: true, analyzed_at: ticket.analyzed_at || new Date().toISOString() };
+      setTicket(updatedTicket);
+      if (onUpdate) onUpdate(updatedTicket);
       setIsEditing(false);
     } catch (err) {
       console.error('Error saving edit:', err);
@@ -316,6 +317,19 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({ ticket: in
                     <><Sparkles size={14} style={{ marginRight: 6 }} /> {hasAnalysis ? 'Analisar Novamente' : 'Analisar com IA'}</>
                   )}
                 </button>
+                {!hasAnalysis && (
+                  <button 
+                    className="btn btn--outline"
+                    style={{ padding: '4px 12px', fontSize: 12, display: 'flex', alignItems: 'center', gap: '4px' }}
+                    onClick={() => {
+                      setEditForm({});
+                      setIsEditing(true);
+                    }}
+                    disabled={isAnalyzing || isEditing || isSaving}
+                  >
+                    <FileText size={14} /> Adicionar Manualmente
+                  </button>
+                )}
                 {hasAnalysis && ticket.category?.toLowerCase().includes('spam') && !ticket.category?.toLowerCase().includes('análise de spam') && (
                   <button 
                     className="btn btn--outline"
@@ -411,12 +425,12 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({ ticket: in
           </div>
 
           {/* AI Analysis */}
-          {hasAnalysis && (
+          {(hasAnalysis || isEditing) && (
             <>
               <div className="modal__section">
                 <div className="modal__section-title">
                   <Sparkles size={14} />
-                  Análise da IA
+                  {hasAnalysis && !ticket.is_manually_corrected ? 'Análise da IA' : 'Análise do Ticket'}
                   {ticket.confidence_level !== null && (
                     <span className="confidence-bar" style={{ marginLeft: 'auto' }}>
                       <span className="confidence-bar__track">

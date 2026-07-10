@@ -467,11 +467,11 @@ export function createRoutes(supabase: SupabaseClient): Router {
       
       const { error } = await supabase
         .from('ticket_analysis')
-        .update({
+        .upsert({
+          ticket_zendesk_id: zendesk_id,
           ...updates,
           is_manually_corrected: true
-        })
-        .eq('ticket_zendesk_id', zendesk_id);
+        }, { onConflict: 'ticket_zendesk_id' });
 
       if (error) throw error;
       
