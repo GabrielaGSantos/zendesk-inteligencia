@@ -575,7 +575,7 @@ export const ReportsScreen: React.FC = () => {
       {data?.summary && activeTab === 'overview' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '32px', marginBottom: '32px' }}>
           {/* Insights + Demanda Block */}
-          <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap' }}>
+          <div className="print-stack" style={{ display: 'flex', gap: '20px', flexWrap: 'wrap' }}>
             <div className="card" style={{ flex: 2, padding: '20px', background: 'var(--color-bg-primary)', borderLeft: '4px solid #8b5cf6' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
                 <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: 0, fontSize: '1.2rem', color: 'var(--color-text-primary)' }}>

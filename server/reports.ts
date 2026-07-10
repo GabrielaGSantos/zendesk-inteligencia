@@ -496,10 +496,10 @@ export function registerReportRoutes(supabase: SupabaseClient) {
       }
       
       // SLA
-      if (slaVencido > 0) {
-        const slaPct = ((slaVencido / (slaCumprido + slaVencido)) * 100);
-        if (slaPct > 10) insights.push(`🔴 Alerta: ${slaPct.toFixed(1)}% dos tickets resolvidos romperam o SLA estabelecido.`);
-      }
+      // if (slaVencido > 0) {
+      //   const slaPct = ((slaVencido / (slaCumprido + slaVencido)) * 100);
+      //   if (slaPct > 10) insights.push(`🔴 Alerta: ${slaPct.toFixed(1)}% dos tickets resolvidos romperam o SLA estabelecido.`);
+      // }
       
       if (insights.length === 0) {
         insights.push('🟢 A operação está estável, sem anomalias significativas de volume ou fila de tickets.');
