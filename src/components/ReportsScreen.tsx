@@ -267,6 +267,32 @@ export const ReportsScreen: React.FC = () => {
     }
   };
 
+  const handlePrintAgentTable = async () => {
+    const html2pdf = (await import('html2pdf.js')).default;
+    const container = document.getElementById('agent-productivity-table');
+    if (!container) return;
+    
+    // Backup da classe para não perder os estilos css
+    const originalClass = container.className;
+    container.className = originalClass + ' is-exporting print-container';
+
+    const opt = {
+      margin:       [10, 10, 10, 10],
+      filename:     `produtividade_equipe_${period}.pdf`,
+      image:        { type: 'jpeg', quality: 0.98 },
+      html2canvas:  { scale: 2, useCORS: true }, 
+      jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+    };
+
+    try {
+      await html2pdf().set(opt).from(container).save();
+    } catch (err) {
+      console.error('Erro ao gerar PDF da tabela', err);
+    } finally {
+      container.className = originalClass;
+    }
+  };
+
   const renderTrend = (value: number) => {
     if (value === 0 || !isFinite(value)) return <span style={{ color: 'var(--color-text-secondary)', fontSize: '0.8rem' }}>Sem alteração</span>;
     if (value > 0) return <span style={{ color: 'var(--color-success)', fontSize: '0.8rem', display: 'flex', alignItems: 'center' }}><TrendingUp size={14} style={{ marginRight: 4 }}/> +{value.toFixed(1)}%</span>;
@@ -945,8 +971,13 @@ export const ReportsScreen: React.FC = () => {
             </table>
           </div>
           
-          <div className="card" style={{ padding: '24px' }}>
-             <h3 style={{ marginTop: 0, marginBottom: '20px', fontSize: '1.05rem', color: 'var(--color-text-primary)' }}>Produtividade (Tickets Resolvidos)</h3>
+          <div id="agent-productivity-table" className="card" style={{ padding: '24px' }}>
+             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+               <h3 style={{ margin: 0, fontSize: '1.05rem', color: 'var(--color-text-primary)' }}>Produtividade (Tickets Resolvidos)</h3>
+               <button className="btn btn--outline no-print" onClick={handlePrintAgentTable} style={{ padding: '4px 8px', fontSize: '0.8rem' }}>
+                 <Printer size={14} style={{ marginRight: 6 }} /> Imprimir Tabela
+               </button>
+             </div>
              <table className="reports-table">
                 <thead>
                   <tr>
