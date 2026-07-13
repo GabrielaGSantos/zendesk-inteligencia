@@ -414,12 +414,12 @@ ${filteredSimilar.map((st, i) => {
   let filteredRules = knowledgeRules || [];
   
   if (filteredRules.length > 0) {
-    const ticketKeywords = (ticket.subject + " " + ticket.description).toLowerCase();
+    const ticketKeywords = ((ticket.subject || '') + " " + (ticket.description || '')).toLowerCase();
     filteredRules = filteredRules.filter(r => {
-      const titleLower = r.title.toLowerCase();
-      const catLower = r.category.toLowerCase();
+      const titleLower = (r.title || '').toLowerCase();
+      const catLower = (r.category || '').toLowerCase();
       
-      const isCritical = r.priority?.toLowerCase() === 'urgente' || 
+      const isCritical = (r.priority || '').toLowerCase() === 'urgente' || 
                          titleLower.includes('lgpd') || titleLower.includes('ofício') || 
                          titleLower.includes('mpx') || titleLower.includes('renan') ||
                          catLower.includes('atendimento') || catLower.includes('segurança') ||
@@ -486,9 +486,9 @@ Este ticket já teve sua Carga Operacional calculada anteriormente. Para não co
   let filteredAgents: any[] = [];
   let discardedAgents: any[] = [];
   if (agentExpertise && agentExpertise.length > 0) {
-    const ticketKeywords = (ticket.subject + " " + ticket.description).toLowerCase();
+    const ticketKeywords = ((ticket.subject || '') + " " + (ticket.description || '')).toLowerCase();
     agentExpertise.forEach(agent => {
-      if (filteredAgents.length < 5 && (ticketKeywords.includes(agent.category.toLowerCase()) || filteredAgents.length < 2)) {
+      if (filteredAgents.length < 5 && (ticketKeywords.includes((agent.category || '').toLowerCase()) || filteredAgents.length < 2)) {
         filteredAgents.push(agent);
       } else {
         discardedAgents.push(agent);
@@ -703,9 +703,9 @@ Responda APENAS com um JSON válido contendo exatamente esses campos. Não inclu
   // ──── KNOWLEDGE BASE (Regras avaliadas) ────
   console.log('───── REGRAS AVALIADAS ─────\n');
   (knowledgeRules || []).forEach(r => {
-    const titleLower = r.title.toLowerCase();
-    const catLower = r.category.toLowerCase();
-    const isCritical = r.priority?.toLowerCase() === 'urgente' || 
+    const titleLower = (r.title || '').toLowerCase();
+    const catLower = (r.category || '').toLowerCase();
+    const isCritical = (r.priority || '').toLowerCase() === 'urgente' || 
                        titleLower.includes('lgpd') || titleLower.includes('ofício') || 
                        titleLower.includes('mpx') || titleLower.includes('renan') ||
                        catLower.includes('atendimento') || catLower.includes('segurança') ||
@@ -720,7 +720,7 @@ Responda APENAS com um JSON válido contendo exatamente esses campos. Não inclu
       isSent = true;
       reason = 'Regra crítica fixa';
     } else {
-      const ticketKeywords = (ticket.subject + " " + ticket.description).toLowerCase();
+      const ticketKeywords = ((ticket.subject || '') + " " + (ticket.description || '')).toLowerCase();
       const ruleKeywords = catLower.split(' ').filter((w: string) => w.length > 4);
       if (ruleKeywords.some((w: string) => ticketKeywords.includes(w))) {
         isSent = true;

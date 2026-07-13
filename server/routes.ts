@@ -827,7 +827,8 @@ export function createRoutes(supabase: SupabaseClient): Router {
         return res.status(400).json({ error: 'ID inválido' });
       }
 
-      await analyzeSingleTicket(supabase, ticketId);
+      const apiKey = process.env.GEMINI_API_KEY || process.env.OPENAI_API_KEY || '';
+      await analyzeSingleTicket(apiKey, supabase, ticketId);
 
       const { data: ticket } = await supabase.from('tickets').select('*').eq('zendesk_id', ticketId).single();
       if (!ticket) return res.status(404).json({ error: 'Ticket não encontrado' });
