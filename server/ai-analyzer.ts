@@ -486,21 +486,27 @@ Este ticket já teve sua Carga Operacional calculada anteriormente. Para não co
   let filteredAgents: any[] = [];
   let discardedAgents: any[] = [];
   if (agentExpertise && agentExpertise.length > 0) {
-    const ticketKeywords = ((ticket.subject || '') + " " + (ticket.description || '')).toLowerCase();
+    // Agrupar por categoria e pegar top 3 por categoria para diversidade
+    const byCategory: Record<string, any[]> = {};
     agentExpertise.forEach(agent => {
-      if (filteredAgents.length < 5 && (ticketKeywords.includes((agent.category || '').toLowerCase()) || filteredAgents.length < 2)) {
-        filteredAgents.push(agent);
-      } else {
-        discardedAgents.push(agent);
-      }
+      const cat = agent.category || 'Sem Categoria';
+      if (!byCategory[cat]) byCategory[cat] = [];
+      byCategory[cat].push(agent);
+    });
+
+    // Pegar top 3 de cada categoria (já vem ordenado por tickets_resolved DESC)
+    Object.values(byCategory).forEach(agents => {
+      agents.slice(0, 3).forEach(a => filteredAgents.push(a));
+      agents.slice(3).forEach(a => discardedAgents.push(a));
     });
 
     if (filteredAgents.length > 0) {
       agentText = `
 ## Base de Especialistas (Histórico Real de Atendimento)
-Aqui está o ranking atual dos agentes que mais resolveram tickets, agrupado por categoria.
-Baseie a sua recomendação EXCLUSIVAMENTE nesta lista para sugerir o especialista mais adequado.
-Justifique a sua escolha citando as métricas apresentadas abaixo (quantidade, taxa de resolução, tempo médio, etc).
+Aqui está o ranking COMPLETO dos agentes que mais resolveram tickets, agrupado por categoria.
+Você DEVE escolher o especialista cuja CATEGORIA mais se aproxima do tipo de problema deste ticket.
+NÃO escolha um agente apenas porque ele tem mais tickets resolvidos no geral — o que importa é a RELEVÂNCIA da categoria dele para este ticket específico.
+Justifique a sua escolha citando as métricas E a correspondência de categoria.
 
 ${filteredAgents.map(e => `- Agente: ${e.assignee_name} (${e.cargo}) | Categoria: ${e.category} | Resolvidos: ${e.tickets_resolved} | Taxa de Resolução: ${Number(e.resolution_rate).toFixed(1)}% | Tempo Médio: ${Number(e.avg_resolution_time).toFixed(1)}h | Reaberturas: ${Number(e.reopen_rate).toFixed(1)}%`).join('\n')}
 `;
@@ -551,7 +557,7 @@ Com base em TODAS as informações acima (assunto, descrição, comentários pú
 5. **problem_summary**: Resumo claro do problema em 1-2 frases
 6. **detailed_requirements**: Liste detalhadamente e minuciosamente TODOS os requisitos, solicitações e detalhes técnicos que o cliente mencionou nas mensagens dele. Use bullet points se necessário. Este campo serve para que o programador/especialista saiba EXATAMENTE tudo o que precisa ser feito sem precisar ler o ticket original inteiro.
 7. **identified_pattern**: Nome do padrão operacional que este ticket representa (ex: "Erro Portal Transparência - Licitações", "Reset de Senha - Portal", etc.)
-8. **suggested_response**: O rascunho do e-mail INICIAL de resposta ao cliente. Nele, você deve informar o recebimento do pedido, dizer a complexidade percebida, estimar um tempo e informar quem vai resolver (baseado nas suas escolhas nos demais campos). NÃO DÊ a solução aqui, pois este é apenas o aviso de que vamos trabalhar no caso. Lendo apenas a descrição inicial.
+8. **suggested_response**: O rascunho do e-mail INICIAL de resposta ao cliente (aviso de recebimento). Siga as regras da Base de Conhecimento para o formato de resposta padrão, se houver. REGRAS OBRIGATÓRIAS: (a) NUNCA mencione o nome de nenhum especialista ou agente interno no corpo do e-mail — o cliente não precisa saber quem vai resolver. Use apenas "nossa equipe" ou "nosso time". (b) NUNCA use placeholders como "[Seu Nome]", "[Equipe de Suporte]", "[Nome do Responsável]" — se não souber o que colocar, simplesmente omita. (c) Termine o e-mail com "Atenciosamente,\nEquipe de Suporte" sem colchetes nem placeholders. (d) NÃO DÊ a solução técnica aqui, pois este é apenas o aviso de que vamos trabalhar no caso.
 9. **missing_info**: Informações que ainda precisam ser solicitadas ao cliente para resolver o problema (ex: "URL do erro, navegador utilizado, print da tela")
 10. **recommended_procedure**: Procedimento interno recomendado para a equipe resolver o ticket. Se houver casos similares, baseie-se neles.
 11. **suggested_priority**: Prioridade sugerida (urgente, alta, normal, baixa)
@@ -739,7 +745,7 @@ Responda APENAS com um JSON válido contendo exatamente esses campos. Não inclu
   // ──── ESPECIALISTAS ────
   console.log('\n───── ESPECIALISTAS ─────\n');
   filteredAgents.forEach(a => {
-    console.log(`✅ ${a.assignee_name} (${a.category}) — Top 5`);
+    console.log(`✅ ${a.assignee_name} (${a.category}) — Top 3/categoria`);
   });
   discardedAgents.slice(0, 3).forEach(a => {
     console.log(`❌ ${a.assignee_name} — Descartado`);
