@@ -105,6 +105,7 @@ export interface Stats {
   categoryDistribution: Array<{ category: string; count: number }>;
   productDistribution: Array<{ product: string; count: number }>;
   priorityDistribution: Array<{ suggested_priority: string; count: number }>;
+  weeklyClients?: Array<{ name: string; tickets: number }>;
 }
 
 export interface SyncProgress {

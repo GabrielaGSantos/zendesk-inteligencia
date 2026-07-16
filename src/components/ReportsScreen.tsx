@@ -752,7 +752,7 @@ export const ReportsScreen: React.FC = () => {
           <div className="print-stack" style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '24px' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
               <div className="card" style={{ padding: '20px', flex: 1, overflowX: 'auto' }}>
-                <h3 style={{ marginTop: 0, marginBottom: '16px', fontSize: '1.05rem', color: 'var(--color-text-primary)' }}>Top Clientes da Semana</h3>
+                <h3 style={{ marginTop: 0, marginBottom: '16px', fontSize: '1.05rem', color: 'var(--color-text-primary)' }}>Clientes da Semana</h3>
                 <table className="reports-table" style={{ width: '100%', minWidth: '400px' }}>
                   <thead>
                     <tr>
@@ -762,7 +762,7 @@ export const ReportsScreen: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {distributions?.byClient && distributions.byClient.slice(0, 5).map((cli: any, idx: number) => {
+                    {distributions?.byClient && distributions.byClient.map((cli: any, idx: number) => {
                       const isConsecutiveHigh = cli.entradas >= 3 && cli.prevEntradas >= 3;
                       return (
                         <tr key={idx}>

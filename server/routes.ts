@@ -560,6 +560,30 @@ export function createRoutes(supabase: SupabaseClient): Router {
       }, {});
       const priorityDist = Object.entries(prioCounts).map(([suggested_priority, count]) => ({ suggested_priority, count })).sort((a: any, b: any) => b.count - a.count);
 
+      // Weekly clients breakdown
+      const now = new Date();
+      const dayOfWeek = now.getDay();
+      const mondayOffset = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+      const weekStart = new Date(now);
+      weekStart.setDate(now.getDate() - mondayOffset);
+      weekStart.setHours(0, 0, 0, 0);
+
+      const { data: weekTickets } = await supabase
+        .from('tickets')
+        .select('organization_name')
+        .gte('created_at', weekStart.toISOString())
+        .not('organization_name', 'is', null);
+
+      const clientWeekCounts: Record<string, number> = {};
+      (weekTickets || []).forEach((t: any) => {
+        if (t.organization_name && t.organization_name.trim()) {
+          clientWeekCounts[t.organization_name] = (clientWeekCounts[t.organization_name] || 0) + 1;
+        }
+      });
+      const weeklyClients = Object.entries(clientWeekCounts)
+        .map(([name, tickets]) => ({ name, tickets }))
+        .sort((a, b) => b.tickets - a.tickets);
+
       res.json({
         totalTickets: totalTickets || 0,
         analyzedTickets: analyzedTickets || 0,
@@ -569,6 +593,7 @@ export function createRoutes(supabase: SupabaseClient): Router {
         categoryDistribution: categoryDist,
         productDistribution: productDist,
         priorityDistribution: priorityDist,
+        weeklyClients,
       });
     } catch (err: any) {
       res.status(500).json({ error: err.message });
