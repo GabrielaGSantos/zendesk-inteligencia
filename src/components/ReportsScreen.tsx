@@ -665,10 +665,10 @@ export const ReportsScreen: React.FC = () => {
 
           {/* LINHA 2: Dois gráficos grandes (Evolução Diária x Composição Fila) */}
           <div className="print-stack" style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '24px' }}>
-            <div className="card" style={{ padding: '20px', display: 'flex', flexDirection: 'column' }}>
+            <div className="card" style={{ padding: '20px', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
               <h3 style={{ marginTop: 0, marginBottom: '20px', fontSize: '1.05rem', color: 'var(--color-text-primary)' }}>Evolução Diária (Entradas x Resolvidos x Fila)</h3>
               <div style={{ height: 260, width: '100%' }}>
-                <ResponsiveContainer>
+                <ResponsiveContainer width="99%" height="100%">
                   <ComposedChart data={evolution} margin={{ top: 5, right: 20, left: -20, bottom: 5 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
                     <XAxis dataKey="date" stroke="var(--color-text-secondary)" fontSize={12} tickMargin={10} />
@@ -683,12 +683,12 @@ export const ReportsScreen: React.FC = () => {
               </div>
             </div>
 
-            <div className="card pdf-page-break-before" style={{ padding: '20px', display: 'flex', flexDirection: 'column' }}>
+            <div className="card pdf-page-break-before" style={{ padding: '20px', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
               <h3 style={{ marginTop: 0, marginBottom: '16px', fontSize: '1.05rem', color: 'var(--color-text-primary)' }}>Composição da Fila (tickets abertos)</h3>
               <div style={{ display: 'flex', flex: 1, gap: 24, alignItems: 'center' }}>
                 <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
                   <div style={{ height: 180, width: '100%', position: 'relative' }}>
-                    <ResponsiveContainer>
+                    <ResponsiveContainer width="99%" height="100%">
                       <PieChart>
                         <Pie
                           data={[
