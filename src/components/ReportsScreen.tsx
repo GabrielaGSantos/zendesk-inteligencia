@@ -760,29 +760,17 @@ export const ReportsScreen: React.FC = () => {
                       <th style={{ textAlign: 'center' }}>Atribuídos</th>
                       <th style={{ textAlign: 'center' }}>Resolvidos</th>
                       <th style={{ textAlign: 'center' }}>Pendentes</th>
-                      <th style={{ textAlign: 'center' }}>Taxa Resolução</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {distributions.byAgent.map((ag: any, idx: number) => {
-                      const taxa = ag.entradas > 0 ? Math.round((ag.resolvidos / ag.entradas) * 100) : 0;
-                      return (
+                    {distributions.byAgent.map((ag: any, idx: number) => (
                         <tr key={idx}>
                           <td style={{ fontWeight: 500, color: 'var(--color-text-primary)' }}>{ag.name}</td>
                           <td style={{ textAlign: 'center' }}>{ag.entradas}</td>
                           <td style={{ textAlign: 'center' }}>{ag.resolvidos}</td>
                           <td style={{ textAlign: 'center' }}>{ag.pendentes}</td>
-                          <td style={{ textAlign: 'center' }}>
-                            <span style={{ 
-                              color: taxa >= 80 ? 'var(--color-success)' : taxa >= 50 ? '#f59e0b' : 'var(--color-danger)',
-                              fontWeight: 600 
-                            }}>
-                              {taxa}%
-                            </span>
-                          </td>
                         </tr>
-                      );
-                    })}
+                    ))}
                   </tbody>
                 </table>
               </div>
