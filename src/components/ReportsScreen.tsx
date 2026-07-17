@@ -249,6 +249,11 @@ export const ReportsScreen: React.FC = () => {
     // Adiciona classe para esconder elementos no-print durante a exportação
     container.classList.add('is-exporting');
     
+    // Força a largura para algo próximo à página A4 (~719px) DURANTE o delay 
+    // para que o Recharts tenha tempo de encolher o SVG e caber no PDF sem vazar.
+    const originalWidth = container.style.width;
+    container.style.width = '710px';
+    
     // Aguarda 500ms para que os gráficos (Recharts) tenham tempo de recalcular
     await new Promise(r => setTimeout(r, 500));
 
@@ -267,6 +272,7 @@ export const ReportsScreen: React.FC = () => {
       console.error('Erro ao gerar PDF', err);
     } finally {
       container.classList.remove('is-exporting');
+      container.style.width = originalWidth;
     }
   };
 
