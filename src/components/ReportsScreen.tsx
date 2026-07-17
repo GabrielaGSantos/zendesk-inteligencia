@@ -748,6 +748,47 @@ export const ReportsScreen: React.FC = () => {
             </div>
           </div>
 
+          {/* Atribuídos x Resolvidos por Agente */}
+          {distributions?.byAgent && distributions.byAgent.length > 0 && (
+            <div className="print-stack" style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '24px' }}>
+              <div className="card" style={{ padding: '20px', overflowX: 'auto' }}>
+                <h3 style={{ marginTop: 0, marginBottom: '16px', fontSize: '1.05rem', color: 'var(--color-text-primary)' }}>Atribuídos x Resolvidos por Agente</h3>
+                <table className="reports-table" style={{ width: '100%', minWidth: '500px' }}>
+                  <thead>
+                    <tr>
+                      <th>Agente</th>
+                      <th style={{ textAlign: 'center' }}>Atribuídos</th>
+                      <th style={{ textAlign: 'center' }}>Resolvidos</th>
+                      <th style={{ textAlign: 'center' }}>Pendentes</th>
+                      <th style={{ textAlign: 'center' }}>Taxa Resolução</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {distributions.byAgent.map((ag: any, idx: number) => {
+                      const taxa = ag.entradas > 0 ? Math.round((ag.resolvidos / ag.entradas) * 100) : 0;
+                      return (
+                        <tr key={idx}>
+                          <td style={{ fontWeight: 500, color: 'var(--color-text-primary)' }}>{ag.name}</td>
+                          <td style={{ textAlign: 'center' }}>{ag.entradas}</td>
+                          <td style={{ textAlign: 'center' }}>{ag.resolvidos}</td>
+                          <td style={{ textAlign: 'center' }}>{ag.pendentes}</td>
+                          <td style={{ textAlign: 'center' }}>
+                            <span style={{ 
+                              color: taxa >= 80 ? 'var(--color-success)' : taxa >= 50 ? '#f59e0b' : 'var(--color-danger)',
+                              fontWeight: 600 
+                            }}>
+                              {taxa}%
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
           {/* LINHA 3: Top Clientes e Demandas Internas */}
           <div className="print-stack" style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '24px' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
