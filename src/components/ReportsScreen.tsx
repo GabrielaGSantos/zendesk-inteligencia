@@ -249,9 +249,11 @@ export const ReportsScreen: React.FC = () => {
     // Adiciona classe para esconder elementos no-print durante a exportação
     container.classList.add('is-exporting');
     
-    // Força a largura do container para casar com o windowWidth do html2canvas
+    // Força a largura do container e do body para evitar cortes no html2canvas em telas menores
     const originalWidth = container.style.width;
+    const originalBodyMinWidth = document.body.style.minWidth;
     container.style.width = '1200px';
+    document.body.style.minWidth = '1200px';
     
     // Aguarda 500ms para que os gráficos (Recharts) tenham tempo de recalcular 
     // a largura do ResponsiveContainer (que usa ResizeObserver assíncrono).
@@ -273,6 +275,7 @@ export const ReportsScreen: React.FC = () => {
     } finally {
       container.classList.remove('is-exporting');
       container.style.width = originalWidth;
+      document.body.style.minWidth = originalBodyMinWidth;
     }
   };
 
@@ -286,7 +289,9 @@ export const ReportsScreen: React.FC = () => {
     container.className = originalClass + ' is-exporting print-container';
     
     const originalWidth = container.style.width;
+    const originalBodyMinWidth = document.body.style.minWidth;
     container.style.width = '1200px';
+    document.body.style.minWidth = '1200px';
     await new Promise(r => setTimeout(r, 500));
 
     const opt = {
@@ -304,6 +309,7 @@ export const ReportsScreen: React.FC = () => {
     } finally {
       container.className = originalClass;
       container.style.width = originalWidth;
+      document.body.style.minWidth = originalBodyMinWidth;
     }
   };
 
@@ -455,7 +461,7 @@ export const ReportsScreen: React.FC = () => {
         .print-only { display: none; }
         .is-exporting .no-print { display: none !important; }
         .is-exporting .print-only { display: block !important; margin-bottom: 20px; border-bottom: 2px solid #ddd; padding-bottom: 10px; }
-        .is-exporting { background: white; color: black; padding: 20px !important; max-width: 1100px; margin: 0 auto; }
+        .is-exporting { background: white; color: black; padding: 20px !important; margin: 0; }
         .is-exporting .card { border: 1px solid #ddd; box-shadow: none; break-inside: avoid; margin-bottom: 24px !important; page-break-inside: avoid; }
         .is-exporting .print-stack { display: block !important; }
         .is-exporting .print-stack > * { margin-bottom: 24px !important; display: block !important; }
