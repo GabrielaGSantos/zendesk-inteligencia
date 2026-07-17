@@ -458,7 +458,7 @@ export const ReportsScreen: React.FC = () => {
         .is-exporting { background: white; color: black; padding: 20px !important; max-width: 1100px; margin: 0 auto; }
         .is-exporting .card { border: 1px solid #ddd; box-shadow: none; break-inside: avoid; margin-bottom: 24px !important; page-break-inside: avoid; }
         .is-exporting .print-stack { display: block !important; }
-        .is-exporting .print-stack > * { margin-bottom: 24px !important; display: block !important; width: 100% !important; }
+        .is-exporting .print-stack > * { margin-bottom: 24px !important; display: block !important; }
         .is-exporting .pdf-page-break-before { page-break-before: always; break-before: page; }
         .is-exporting .print-grid-3 { display: grid !important; grid-template-columns: repeat(3, 1fr) !important; gap: 20px !important; }
         
