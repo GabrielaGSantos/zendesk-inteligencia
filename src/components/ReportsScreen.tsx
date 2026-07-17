@@ -461,7 +461,7 @@ export const ReportsScreen: React.FC = () => {
         .print-only { display: none; }
         .is-exporting .no-print { display: none !important; }
         .is-exporting .print-only { display: block !important; margin-bottom: 20px; border-bottom: 2px solid #ddd; padding-bottom: 10px; }
-        .is-exporting { background: white; color: black; padding: 20px !important; margin: 0; }
+        .is-exporting { position: absolute !important; top: 0 !important; left: 0 !important; width: 1200px !important; background: white !important; color: black !important; padding: 20px !important; margin: 0 !important; z-index: 99999 !important; }
         .is-exporting .card { border: 1px solid #ddd; box-shadow: none; break-inside: avoid; margin-bottom: 24px !important; page-break-inside: avoid; }
         .is-exporting .print-stack { display: block !important; }
         .is-exporting .print-stack > * { margin-bottom: 24px !important; display: block !important; }
