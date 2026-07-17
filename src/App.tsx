@@ -407,30 +407,7 @@ function App() {
           {/* KPI Stats */}
           <StatsCards stats={stats} loading={statsLoading} />
 
-          {/* Weekly Clients Table - only on principal tab */}
-          {currentTab === 'principal' && stats?.weeklyClients && stats.weeklyClients.length > 0 && (
-            <div className="card" style={{ padding: '20px', marginBottom: '24px', overflowX: 'auto' }}>
-              <h3 style={{ marginTop: 0, marginBottom: '16px', fontSize: '1.05rem', color: 'var(--color-text-primary)' }}>
-                Clientes da Semana
-              </h3>
-              <table className="reports-table" style={{ width: '100%', minWidth: '400px' }}>
-                <thead>
-                  <tr>
-                    <th>Cliente</th>
-                    <th style={{ textAlign: 'center' }}>Tickets</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {stats.weeklyClients.map((cli: any, idx: number) => (
-                    <tr key={idx}>
-                      <td style={{ fontWeight: 500, color: 'var(--color-text-primary)' }}>{cli.name}</td>
-                      <td style={{ textAlign: 'center' }}>{cli.tickets}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+
 
       {/* Filters */}
       <FilterBar
