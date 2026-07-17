@@ -249,25 +249,7 @@ export const ReportsScreen: React.FC = () => {
     // Adiciona classe para esconder elementos no-print durante a exportação
     container.classList.add('is-exporting');
     
-    // Para evitar que pais cortem o layout (overflow) ou a tela branca do position absolute (top: 0)
-    // Extraímos o container do fluxo e posicionamos onde o scroll está atualmente.
-    const scrollY = window.scrollY;
-    const originalStyles = {
-      position: container.style.position,
-      top: container.style.top,
-      left: container.style.left,
-      zIndex: container.style.zIndex,
-      width: container.style.width,
-    };
-    
-    container.style.position = 'absolute';
-    container.style.top = `${scrollY}px`;
-    container.style.left = '0px';
-    container.style.zIndex = '99999';
-    container.style.width = '1200px';
-    
-    // Aguarda 500ms para que os gráficos (Recharts) tenham tempo de recalcular 
-    // a largura do ResponsiveContainer (que usa ResizeObserver assíncrono).
+    // Aguarda 500ms para que os gráficos (Recharts) tenham tempo de recalcular
     await new Promise(r => setTimeout(r, 500));
 
     const opt = {
@@ -285,7 +267,6 @@ export const ReportsScreen: React.FC = () => {
       console.error('Erro ao gerar PDF', err);
     } finally {
       container.classList.remove('is-exporting');
-      Object.assign(container.style, originalStyles);
     }
   };
 
@@ -298,23 +279,6 @@ export const ReportsScreen: React.FC = () => {
     const originalClass = container.className;
     container.className = originalClass + ' is-exporting print-container';
     
-    const scrollY = window.scrollY;
-    const originalStyles = {
-      position: container.style.position,
-      top: container.style.top,
-      left: container.style.left,
-      zIndex: container.style.zIndex,
-      width: container.style.width,
-    };
-    
-    const originalBodyMinWidth = document.body.style.minWidth;
-    
-    container.style.position = 'absolute';
-    container.style.top = `${scrollY}px`;
-    container.style.left = '0px';
-    container.style.zIndex = '99999';
-    container.style.width = '1200px';
-    document.body.style.minWidth = '1200px';
     await new Promise(r => setTimeout(r, 500));
 
     const opt = {
@@ -331,7 +295,6 @@ export const ReportsScreen: React.FC = () => {
       console.error('Erro ao gerar PDF da tabela', err);
     } finally {
       container.className = originalClass;
-      Object.assign(container.style, originalStyles);
     }
   };
 
@@ -343,8 +306,6 @@ export const ReportsScreen: React.FC = () => {
     const originalClass = container.className;
     container.className = originalClass + ' is-exporting print-container';
     
-    const originalWidth = container.style.width;
-    container.style.width = '1200px';
     await new Promise(r => setTimeout(r, 500));
 
     const opt = {
@@ -483,10 +444,10 @@ export const ReportsScreen: React.FC = () => {
         .print-only { display: none; }
         .is-exporting .no-print { display: none !important; }
         .is-exporting .print-only { display: block !important; margin-bottom: 20px; border-bottom: 2px solid #ddd; padding-bottom: 10px; }
-        .is-exporting { background: white !important; color: black !important; padding: 20px !important; margin: 0 !important; }
+        .is-exporting { background: white; color: black; padding: 20px !important; }
         .is-exporting .card { border: 1px solid #ddd; box-shadow: none; break-inside: avoid; margin-bottom: 24px !important; page-break-inside: avoid; }
         .is-exporting .print-stack { display: block !important; }
-        .is-exporting .print-stack > * { margin-bottom: 24px !important; display: block !important; }
+        .is-exporting .print-stack > * { margin-bottom: 24px !important; display: block !important; width: 100% !important; }
         .is-exporting .pdf-page-break-before { page-break-before: always; break-before: page; }
         .is-exporting .print-grid-3 { display: grid !important; grid-template-columns: repeat(3, 1fr) !important; gap: 20px !important; }
         
