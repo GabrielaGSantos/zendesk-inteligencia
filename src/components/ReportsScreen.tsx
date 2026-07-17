@@ -463,7 +463,7 @@ export const ReportsScreen: React.FC = () => {
       `}} />
 
       <div className="print-only">
-        <h2 style={{ margin: '0 0 16px 0', color: '#111827' }}>Relatório Gerencial de Operações</h2>
+        <h2 style={{ margin: '0 0 16px 0', color: '#111827' }}>Relatório Gerencial de Suporte</h2>
         <div style={{ display: 'flex', gap: '40px', fontSize: '0.9rem', color: '#4b5563' }}>
           <div>
             <strong>Período Selecionado:</strong>{' '}
@@ -477,7 +477,7 @@ export const ReportsScreen: React.FC = () => {
         </div>
       </div>
 
-      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
+      <div className="page-header no-print" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
         <div>
           <h1 className="page-header__title">
             Relatórios Gerenciais
