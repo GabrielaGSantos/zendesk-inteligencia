@@ -771,7 +771,7 @@ export const ReportsScreen: React.FC = () => {
                       <th>Agente</th>
                       <th style={{ textAlign: 'center' }}>Atribuídos</th>
                       <th style={{ textAlign: 'center' }}>Resolvidos</th>
-                      <th style={{ textAlign: 'center' }}>Pendentes</th>
+                      <th style={{ textAlign: 'center' }}>Fila</th>
                     </tr>
                   </thead>
                   <tbody>
