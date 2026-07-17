@@ -252,8 +252,8 @@ export const ReportsScreen: React.FC = () => {
     const opt = {
       margin:       [10, 10, 10, 10],
       filename:     `relatorio_gerencial_${period}.pdf`,
-      image:        { type: 'jpeg', quality: 0.98 },
-      html2canvas:  { scale: 2, useCORS: true, windowWidth: 1200 }, // Força renderização desktop
+      image:        { type: 'jpeg', quality: 1 },
+      html2canvas:  { scale: 4, useCORS: true, windowWidth: 1200 }, // Força renderização desktop
       jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' },
       pagebreak:    { mode: ['avoid-all', 'css'] }
     };
@@ -279,8 +279,8 @@ export const ReportsScreen: React.FC = () => {
     const opt = {
       margin:       [10, 10, 10, 10],
       filename:     `produtividade_equipe_${period}.pdf`,
-      image:        { type: 'jpeg', quality: 0.98 },
-      html2canvas:  { scale: 2, useCORS: true }, 
+      image:        { type: 'jpeg', quality: 1 },
+      html2canvas:  { scale: 4, useCORS: true }, 
       jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
     };
 
@@ -304,8 +304,8 @@ export const ReportsScreen: React.FC = () => {
     const opt = {
       margin:       [10, 10, 10, 10],
       filename:     `atribuidos_resolvidos_equipe_${period}.pdf`,
-      image:        { type: 'jpeg', quality: 0.98 },
-      html2canvas:  { scale: 2, useCORS: true }, 
+      image:        { type: 'jpeg', quality: 1 },
+      html2canvas:  { scale: 4, useCORS: true }, 
       jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
     };
 
@@ -442,6 +442,7 @@ export const ReportsScreen: React.FC = () => {
         .is-exporting .print-stack { display: block !important; }
         .is-exporting .print-stack > * { margin-bottom: 24px !important; display: block !important; width: 100% !important; }
         .is-exporting .pdf-page-break-before { page-break-before: always; break-before: page; }
+        .is-exporting .print-grid-3 { display: grid !important; grid-template-columns: repeat(3, 1fr) !important; gap: 20px !important; }
         
         @media print {
           .no-print { display: none !important; }
@@ -453,6 +454,7 @@ export const ReportsScreen: React.FC = () => {
           .print-stack { display: block !important; }
           .print-stack > * { margin-bottom: 24px !important; display: block !important; width: 100% !important; }
           .pdf-page-break-before { page-break-before: always; break-before: page; }
+          .print-grid-3 { display: grid !important; grid-template-columns: repeat(3, 1fr) !important; gap: 20px !important; }
         }
         .insight-list {
           margin: 0; padding-left: 20px; color: var(--color-text-secondary); font-size: 0.95rem; line-height: 1.6;
@@ -655,7 +657,7 @@ export const ReportsScreen: React.FC = () => {
           </div>
 
           {/* LINHA 1: Saúde da Operação (3 Cards) */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '20px' }}>
+          <div className="print-grid-3" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '20px' }}>
             {data.comparison && renderComparativeCard("Entradas", <TrendingDown size={18} />, "#ef4444", "rgba(239, 68, 68, 0.1)", summary.entradas, summary.entradasPrev, summary.entradas - summary.entradasPrev, entradasTrend, "down")}
             {data.comparison && renderComparativeCard("Resolvidos", <CheckCircle size={18} />, "#22c55e", "rgba(34, 197, 94, 0.1)", summary.resolvidos, summary.resolvidosPrev, summary.resolvidos - summary.resolvidosPrev, resolvidosTrend, "up")}
             {data.comparison && renderComparativeCard("Tickets em Aberto/Pendente", <AlertTriangle size={18} />, "#f59e0b", "rgba(245, 158, 11, 0.1)", summary.backlog, summary.backlogPrev, summary.backlog - summary.backlogPrev, backlogTrend, "down", false, summary.pendingCount > 0 ? `(sendo ${summary.pendingCount} pendentes)` : undefined)}
