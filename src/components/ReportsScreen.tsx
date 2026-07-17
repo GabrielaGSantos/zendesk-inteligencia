@@ -252,8 +252,12 @@ export const ReportsScreen: React.FC = () => {
     // Força a largura do container e do body para evitar cortes no html2canvas em telas menores
     const originalWidth = container.style.width;
     const originalBodyMinWidth = document.body.style.minWidth;
+    const originalBodyOverflow = document.body.style.overflow;
+    
     container.style.width = '1200px';
     document.body.style.minWidth = '1200px';
+    document.body.style.overflow = 'visible';
+    document.documentElement.style.overflow = 'visible';
     
     // Aguarda 500ms para que os gráficos (Recharts) tenham tempo de recalcular 
     // a largura do ResponsiveContainer (que usa ResizeObserver assíncrono).
@@ -276,6 +280,8 @@ export const ReportsScreen: React.FC = () => {
       container.classList.remove('is-exporting');
       container.style.width = originalWidth;
       document.body.style.minWidth = originalBodyMinWidth;
+      document.body.style.overflow = originalBodyOverflow;
+      document.documentElement.style.overflow = '';
     }
   };
 
@@ -310,6 +316,8 @@ export const ReportsScreen: React.FC = () => {
       container.className = originalClass;
       container.style.width = originalWidth;
       document.body.style.minWidth = originalBodyMinWidth;
+      document.body.style.overflow = originalBodyOverflow;
+      document.documentElement.style.overflow = '';
     }
   };
 
@@ -461,7 +469,8 @@ export const ReportsScreen: React.FC = () => {
         .print-only { display: none; }
         .is-exporting .no-print { display: none !important; }
         .is-exporting .print-only { display: block !important; margin-bottom: 20px; border-bottom: 2px solid #ddd; padding-bottom: 10px; }
-        .is-exporting { position: absolute !important; top: 0 !important; left: 0 !important; width: 1200px !important; background: white !important; color: black !important; padding: 20px !important; margin: 0 !important; z-index: 99999 !important; }
+        .is-exporting { background: white; color: black; padding: 20px !important; margin: 0 auto; width: 1200px !important; max-width: 1200px !important; overflow: visible !important; }
+        .is-exporting * { overflow: visible !important; }
         .is-exporting .card { border: 1px solid #ddd; box-shadow: none; break-inside: avoid; margin-bottom: 24px !important; page-break-inside: avoid; }
         .is-exporting .print-stack { display: block !important; }
         .is-exporting .print-stack > * { margin-bottom: 24px !important; display: block !important; }
