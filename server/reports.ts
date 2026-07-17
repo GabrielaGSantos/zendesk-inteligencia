@@ -476,20 +476,20 @@ export function registerReportRoutes(supabase: SupabaseClient) {
       
       // Volume e Backlog
       if (entradasGrowth > 0) {
-        insights.push(`📈 Volume de entradas subiu ${entradasGrowth.toFixed(1)}% em relação ao período anterior.`);
+        insights.push(`Volume de entradas subiu ${entradasGrowth.toFixed(1)}% em relação ao período anterior.`);
       } else if (entradasGrowth < 0) {
-        insights.push(`📉 Volume de entradas caiu ${Math.abs(entradasGrowth).toFixed(1)}% em relação ao período anterior.`);
+        insights.push(`Volume de entradas caiu ${Math.abs(entradasGrowth).toFixed(1)}% em relação ao período anterior.`);
       }
       
       if (backlogGrowth > 5) {
-        insights.push(`🟡 Atenção: Os tickets em aberto aumentaram ${backlogGrowth.toFixed(1)}% e requerem monitoramento.`);
+        insights.push(`Atenção: Os tickets em aberto aumentaram ${backlogGrowth.toFixed(1)}% e requerem monitoramento.`);
       } else if (backlogGrowth < -5) {
-        insights.push(`🟢 Positivo: Os tickets em aberto foram reduzidos em ${Math.abs(backlogGrowth).toFixed(1)}%.`);
+        insights.push(`Positivo: Os tickets em aberto foram reduzidos em ${Math.abs(backlogGrowth).toFixed(1)}%.`);
       }
 
       // Cliente com maior demanda
       if (clientStats.length > 0) {
-        insights.push(`🏛 Cliente "${clientStats[0].name}" foi o que mais solicitou no período, com ${clientStats[0].entradas} tickets.`);
+        insights.push(`Cliente "${clientStats[0].name}" foi o que mais solicitou no período, com ${clientStats[0].entradas} tickets.`);
       }
       
       // SLA
@@ -499,7 +499,7 @@ export function registerReportRoutes(supabase: SupabaseClient) {
       // }
       
       if (insights.length === 0) {
-        insights.push('🟢 A operação está estável, sem anomalias significativas de volume ou fila de tickets.');
+        insights.push('A operação está estável, sem anomalias significativas de volume ou fila de tickets.');
       }
 
       // ─────────────────────────────────────────────────────────────
