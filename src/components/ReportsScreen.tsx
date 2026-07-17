@@ -481,7 +481,7 @@ export const ReportsScreen: React.FC = () => {
           <div>
             <strong>Período Selecionado:</strong>{' '}
             {data?.comparison?.current?.start && data?.comparison?.current?.end
-              ? `${new Date(data.comparison.current.start).toLocaleDateString('pt-BR')} até ${new Date(data.comparison.current.end).toLocaleDateString('pt-BR')}`
+              ? `${new Date(data.comparison.current.start).toLocaleDateString('pt-BR', {timeZone: 'UTC'})} até ${new Date(data.comparison.current.end).toLocaleDateString('pt-BR', {timeZone: 'UTC'})}`
               : period === 'personalizado' && customStart && customEnd
                 ? `${new Date(customStart + "T00:00:00").toLocaleDateString('pt-BR')} até ${new Date(customEnd + "T00:00:00").toLocaleDateString('pt-BR')}`
                 : period.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
