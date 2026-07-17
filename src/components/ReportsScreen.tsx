@@ -249,10 +249,11 @@ export const ReportsScreen: React.FC = () => {
     // Adiciona classe para esconder elementos no-print durante a exportação
     container.classList.add('is-exporting');
     
-    // Força a largura para algo próximo à página A4 (~719px) DURANTE o delay 
-    // para que o Recharts tenha tempo de encolher o SVG e caber no PDF sem vazar.
+    // Força a largura para algo um pouco maior (820px) DURANTE o delay 
+    // para que o html2pdf reduza a escala geral ao encolher para A4 (~719px).
+    // Isso reduz a altura total proporcionalmente, fazendo os dois gráficos caberem na mesma página.
     const originalWidth = container.style.width;
-    container.style.width = '710px';
+    container.style.width = '820px';
     
     // Aguarda 500ms para que os gráficos (Recharts) tenham tempo de recalcular
     await new Promise(r => setTimeout(r, 500));
@@ -452,6 +453,8 @@ export const ReportsScreen: React.FC = () => {
         .is-exporting .print-only { display: block !important; margin-bottom: 20px; border-bottom: 2px solid #ddd; padding-bottom: 10px; }
         .is-exporting { background: white; color: black; padding: 20px !important; }
         .is-exporting .card { border: 1px solid #ddd; box-shadow: none; break-inside: avoid; margin-bottom: 24px !important; page-break-inside: avoid; }
+        .is-exporting .print-stack { display: block !important; }
+        .is-exporting .print-stack > * { margin-bottom: 24px !important; display: block !important; width: 100% !important; }
         .is-exporting .pdf-page-break-before { page-break-before: always; break-before: page; }
         .is-exporting .print-grid-3 { display: grid !important; grid-template-columns: repeat(3, 1fr) !important; gap: 20px !important; }
         
@@ -462,6 +465,8 @@ export const ReportsScreen: React.FC = () => {
           .app-main { margin-left: 0 !important; padding: 0 !important; }
           .print-container { background: white; color: black; }
           .card { border: 1px solid #ddd; box-shadow: none; break-inside: avoid; margin-bottom: 24px !important; page-break-inside: avoid; }
+          .print-stack { display: block !important; }
+          .print-stack > * { margin-bottom: 24px !important; display: block !important; width: 100% !important; }
           .pdf-page-break-before { page-break-before: always; break-before: page; }
           .print-grid-3 { display: grid !important; grid-template-columns: repeat(3, 1fr) !important; gap: 20px !important; }
         }
