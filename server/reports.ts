@@ -487,12 +487,9 @@ export function registerReportRoutes(supabase: SupabaseClient) {
         insights.push(`🟢 Positivo: Os tickets em aberto foram reduzidos em ${Math.abs(backlogGrowth).toFixed(1)}%.`);
       }
 
-      // Produto/Cliente
-      if (productGrowth.length > 0 && productGrowth[0].growth > 20) {
-        insights.push(`⚠ Produto "${productGrowth[0].name}" apresentou crescimento de ${productGrowth[0].growth.toFixed(0)}% nos chamados.`);
-      }
-      if (clientStats.length > 0 && clientStats[0].entradas > 5) {
-        insights.push(`🏛 Cliente "${clientStats[0].name}" concentra a maior demanda do período.`);
+      // Cliente com maior demanda
+      if (clientStats.length > 0) {
+        insights.push(`🏛 Cliente "${clientStats[0].name}" foi o que mais solicitou no período, com ${clientStats[0].entradas} tickets.`);
       }
       
       // SLA
