@@ -636,7 +636,7 @@ export const ReportsScreen: React.FC = () => {
                     <XCircle size={36} color="#ef4444" />
                     <div style={{ display: 'flex', flexDirection: 'column' }}>
                       <span style={{ fontSize: '1.2rem', fontWeight: 700, color: '#ef4444' }}>🔴 Operação em Déficit</span>
-                      <span style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)' }}>Entraram: {summary.entradas} | Resolvidos: {summary.resolvidos} | Saldo: +{summary.saldo}</span>
+                      <span style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)' }}>Entraram: {summary.entradas} | Resolvidos: {summary.resolvidos} | <span style={{color: '#ef4444', fontWeight: 600}}>Fila Acumulada: +{summary.saldo}</span></span>
                       <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#ef4444', marginTop: 4 }}>Resolução: {summary.entradas > 0 ? ((summary.resolvidos / summary.entradas) * 100).toFixed(1) : 0}%</span>
                     </div>
                   </>
@@ -645,7 +645,7 @@ export const ReportsScreen: React.FC = () => {
                     <CheckCircle size={36} color="#22c55e" />
                     <div style={{ display: 'flex', flexDirection: 'column' }}>
                       <span style={{ fontSize: '1.2rem', fontWeight: 700, color: '#22c55e' }}>🟢 Operação Equilibrada</span>
-                      <span style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)' }}>Entraram: {summary.entradas} | Resolvidos: {summary.resolvidos} | Saldo: {summary.saldo}</span>
+                      <span style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)' }}>Entraram: {summary.entradas} | Resolvidos: {summary.resolvidos} | <span style={{color: '#22c55e', fontWeight: 600}}>Fila Reduzida: +{Math.abs(summary.saldo)}</span></span>
                       <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#22c55e', marginTop: 4 }}>Resolução: {summary.entradas > 0 ? ((summary.resolvidos / summary.entradas) * 100).toFixed(1) : 0}%</span>
                     </div>
                   </>
