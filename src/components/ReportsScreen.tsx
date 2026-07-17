@@ -683,7 +683,7 @@ export const ReportsScreen: React.FC = () => {
 
             <div className="card pdf-page-break-before" style={{ padding: '20px', display: 'flex', flexDirection: 'column' }}>
               <h3 style={{ marginTop: 0, marginBottom: '16px', fontSize: '1.05rem', color: 'var(--color-text-primary)' }}>Composição da Fila (tickets abertos)</h3>
-              <div className="print-stack" style={{ display: 'flex', flex: 1, gap: 24, alignItems: 'center' }}>
+              <div style={{ display: 'flex', flex: 1, gap: 24, alignItems: 'center' }}>
                 <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
                   <div style={{ height: 180, width: '100%', position: 'relative' }}>
                     <ResponsiveContainer>
