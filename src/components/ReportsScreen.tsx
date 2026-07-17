@@ -249,11 +249,10 @@ export const ReportsScreen: React.FC = () => {
     // Adiciona classe para esconder elementos no-print durante a exportação
     container.classList.add('is-exporting');
     
-    // Força a largura para algo um pouco maior (820px) DURANTE o delay 
-    // para que o html2pdf reduza a escala geral ao encolher para A4 (~719px).
-    // Isso reduz a altura total proporcionalmente, fazendo os dois gráficos caberem na mesma página.
+    // Força a largura para algo próximo à página A4 (~719px) DURANTE o delay 
+    // para que o Recharts tenha tempo de encolher o SVG e caber no PDF sem vazar.
     const originalWidth = container.style.width;
-    container.style.width = '820px';
+    container.style.width = '710px';
     
     // Aguarda 500ms para que os gráficos (Recharts) tenham tempo de recalcular
     await new Promise(r => setTimeout(r, 500));
@@ -697,7 +696,7 @@ export const ReportsScreen: React.FC = () => {
               </div>
             </div>
 
-            <div className="card" style={{ padding: '20px', display: 'flex', flexDirection: 'column' }}>
+            <div className="card pdf-page-break-before" style={{ padding: '20px', display: 'flex', flexDirection: 'column' }}>
               <h3 style={{ marginTop: 0, marginBottom: '16px', fontSize: '1.05rem', color: 'var(--color-text-primary)' }}>Composição da Fila (tickets abertos)</h3>
               <div style={{ display: 'flex', flex: 1, gap: 24, alignItems: 'center' }}>
                 <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
