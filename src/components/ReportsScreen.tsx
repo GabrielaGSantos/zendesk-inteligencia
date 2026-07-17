@@ -441,6 +441,7 @@ export const ReportsScreen: React.FC = () => {
         .is-exporting .card { border: 1px solid #ddd; box-shadow: none; break-inside: avoid; margin-bottom: 24px !important; page-break-inside: avoid; }
         .is-exporting .print-stack { display: block !important; }
         .is-exporting .print-stack > * { margin-bottom: 24px !important; display: block !important; width: 100% !important; }
+        .is-exporting .pdf-page-break-before { page-break-before: always; break-before: page; }
         
         @media print {
           .no-print { display: none !important; }
@@ -451,6 +452,7 @@ export const ReportsScreen: React.FC = () => {
           .card { border: 1px solid #ddd; box-shadow: none; break-inside: avoid; margin-bottom: 24px !important; page-break-inside: avoid; }
           .print-stack { display: block !important; }
           .print-stack > * { margin-bottom: 24px !important; display: block !important; width: 100% !important; }
+          .pdf-page-break-before { page-break-before: always; break-before: page; }
         }
         .insight-list {
           margin: 0; padding-left: 20px; color: var(--color-text-secondary); font-size: 0.95rem; line-height: 1.6;
@@ -677,7 +679,7 @@ export const ReportsScreen: React.FC = () => {
               </div>
             </div>
 
-            <div className="card" style={{ padding: '20px', display: 'flex', flexDirection: 'column' }}>
+            <div className="card pdf-page-break-before" style={{ padding: '20px', display: 'flex', flexDirection: 'column' }}>
               <h3 style={{ marginTop: 0, marginBottom: '16px', fontSize: '1.05rem', color: 'var(--color-text-primary)' }}>Composição da Fila (tickets abertos)</h3>
               <div className="print-stack" style={{ display: 'flex', flex: 1, gap: 24, alignItems: 'center' }}>
                 <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
@@ -750,7 +752,7 @@ export const ReportsScreen: React.FC = () => {
 
           {/* Atribuídos x Resolvidos por Agente */}
           {distributions?.byAgent && distributions.byAgent.length > 0 && (
-            <div className="print-stack" style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '24px' }}>
+            <div className="print-stack pdf-page-break-before" style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '24px' }}>
               <div className="card" style={{ padding: '20px', overflowX: 'auto' }}>
                 <h3 style={{ marginTop: 0, marginBottom: '16px', fontSize: '1.05rem', color: 'var(--color-text-primary)' }}>Atribuídos x Resolvidos por Agente</h3>
                 <table className="reports-table" style={{ width: '100%', minWidth: '500px' }}>
