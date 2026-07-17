@@ -452,8 +452,6 @@ export const ReportsScreen: React.FC = () => {
         .is-exporting .print-only { display: block !important; margin-bottom: 20px; border-bottom: 2px solid #ddd; padding-bottom: 10px; }
         .is-exporting { background: white; color: black; padding: 20px !important; }
         .is-exporting .card { border: 1px solid #ddd; box-shadow: none; break-inside: avoid; margin-bottom: 24px !important; page-break-inside: avoid; }
-        .is-exporting .print-stack { display: block !important; }
-        .is-exporting .print-stack > * { margin-bottom: 24px !important; display: block !important; width: 100% !important; }
         .is-exporting .pdf-page-break-before { page-break-before: always; break-before: page; }
         .is-exporting .print-grid-3 { display: grid !important; grid-template-columns: repeat(3, 1fr) !important; gap: 20px !important; }
         
@@ -464,8 +462,6 @@ export const ReportsScreen: React.FC = () => {
           .app-main { margin-left: 0 !important; padding: 0 !important; }
           .print-container { background: white; color: black; }
           .card { border: 1px solid #ddd; box-shadow: none; break-inside: avoid; margin-bottom: 24px !important; page-break-inside: avoid; }
-          .print-stack { display: block !important; }
-          .print-stack > * { margin-bottom: 24px !important; display: block !important; width: 100% !important; }
           .pdf-page-break-before { page-break-before: always; break-before: page; }
           .print-grid-3 { display: grid !important; grid-template-columns: repeat(3, 1fr) !important; gap: 20px !important; }
         }
@@ -696,7 +692,7 @@ export const ReportsScreen: React.FC = () => {
               </div>
             </div>
 
-            <div className="card pdf-page-break-before" style={{ padding: '20px', display: 'flex', flexDirection: 'column' }}>
+            <div className="card" style={{ padding: '20px', display: 'flex', flexDirection: 'column' }}>
               <h3 style={{ marginTop: 0, marginBottom: '16px', fontSize: '1.05rem', color: 'var(--color-text-primary)' }}>Composição da Fila (tickets abertos)</h3>
               <div style={{ display: 'flex', flex: 1, gap: 24, alignItems: 'center' }}>
                 <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
