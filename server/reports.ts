@@ -11,6 +11,7 @@ export function registerReportRoutes(supabase: SupabaseClient) {
   const applyBaseFilters = (query: any) => {
     return query.neq('status', 'deleted')
                 .neq('status', 'suspended')
+                .neq('status', 'hold')
                 .not('subject', 'ilike', '\\*\\*\\*SPAM%');
   };
 
