@@ -249,15 +249,22 @@ export const ReportsScreen: React.FC = () => {
     // Adiciona classe para esconder elementos no-print durante a exportação
     container.classList.add('is-exporting');
     
-    // Força a largura do container e do body para evitar cortes no html2canvas em telas menores
-    const originalWidth = container.style.width;
-    const originalBodyMinWidth = document.body.style.minWidth;
-    const originalBodyOverflow = document.body.style.overflow;
+    // Para evitar que pais cortem o layout (overflow) ou a tela branca do position absolute (top: 0)
+    // Extraímos o container do fluxo e posicionamos onde o scroll está atualmente.
+    const scrollY = window.scrollY;
+    const originalStyles = {
+      position: container.style.position,
+      top: container.style.top,
+      left: container.style.left,
+      zIndex: container.style.zIndex,
+      width: container.style.width,
+    };
     
+    container.style.position = 'absolute';
+    container.style.top = `${scrollY}px`;
+    container.style.left = '0px';
+    container.style.zIndex = '99999';
     container.style.width = '1200px';
-    document.body.style.minWidth = '1200px';
-    document.body.style.overflow = 'visible';
-    document.documentElement.style.overflow = 'visible';
     
     // Aguarda 500ms para que os gráficos (Recharts) tenham tempo de recalcular 
     // a largura do ResponsiveContainer (que usa ResizeObserver assíncrono).
@@ -278,10 +285,7 @@ export const ReportsScreen: React.FC = () => {
       console.error('Erro ao gerar PDF', err);
     } finally {
       container.classList.remove('is-exporting');
-      container.style.width = originalWidth;
-      document.body.style.minWidth = originalBodyMinWidth;
-      document.body.style.overflow = originalBodyOverflow;
-      document.documentElement.style.overflow = '';
+      Object.assign(container.style, originalStyles);
     }
   };
 
@@ -294,8 +298,21 @@ export const ReportsScreen: React.FC = () => {
     const originalClass = container.className;
     container.className = originalClass + ' is-exporting print-container';
     
-    const originalWidth = container.style.width;
+    const scrollY = window.scrollY;
+    const originalStyles = {
+      position: container.style.position,
+      top: container.style.top,
+      left: container.style.left,
+      zIndex: container.style.zIndex,
+      width: container.style.width,
+    };
+    
     const originalBodyMinWidth = document.body.style.minWidth;
+    
+    container.style.position = 'absolute';
+    container.style.top = `${scrollY}px`;
+    container.style.left = '0px';
+    container.style.zIndex = '99999';
     container.style.width = '1200px';
     document.body.style.minWidth = '1200px';
     await new Promise(r => setTimeout(r, 500));
@@ -314,10 +331,7 @@ export const ReportsScreen: React.FC = () => {
       console.error('Erro ao gerar PDF da tabela', err);
     } finally {
       container.className = originalClass;
-      container.style.width = originalWidth;
-      document.body.style.minWidth = originalBodyMinWidth;
-      document.body.style.overflow = originalBodyOverflow;
-      document.documentElement.style.overflow = '';
+      Object.assign(container.style, originalStyles);
     }
   };
 
@@ -469,8 +483,7 @@ export const ReportsScreen: React.FC = () => {
         .print-only { display: none; }
         .is-exporting .no-print { display: none !important; }
         .is-exporting .print-only { display: block !important; margin-bottom: 20px; border-bottom: 2px solid #ddd; padding-bottom: 10px; }
-        .is-exporting { background: white; color: black; padding: 20px !important; margin: 0 auto; width: 1200px !important; max-width: 1200px !important; overflow: visible !important; }
-        .is-exporting * { overflow: visible !important; }
+        .is-exporting { background: white !important; color: black !important; padding: 20px !important; margin: 0 !important; }
         .is-exporting .card { border: 1px solid #ddd; box-shadow: none; break-inside: avoid; margin-bottom: 24px !important; page-break-inside: avoid; }
         .is-exporting .print-stack { display: block !important; }
         .is-exporting .print-stack > * { margin-bottom: 24px !important; display: block !important; }
