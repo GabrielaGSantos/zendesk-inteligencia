@@ -249,6 +249,10 @@ export const ReportsScreen: React.FC = () => {
     // Adiciona classe para esconder elementos no-print durante a exportação
     container.classList.add('is-exporting');
     
+    // Força a largura do container para casar com o windowWidth do html2canvas
+    const originalWidth = container.style.width;
+    container.style.width = '1200px';
+    
     // Aguarda 500ms para que os gráficos (Recharts) tenham tempo de recalcular 
     // a largura do ResponsiveContainer (que usa ResizeObserver assíncrono).
     await new Promise(r => setTimeout(r, 500));
@@ -268,6 +272,7 @@ export const ReportsScreen: React.FC = () => {
       console.error('Erro ao gerar PDF', err);
     } finally {
       container.classList.remove('is-exporting');
+      container.style.width = originalWidth;
     }
   };
 
@@ -279,6 +284,9 @@ export const ReportsScreen: React.FC = () => {
     // Backup da classe para não perder os estilos css
     const originalClass = container.className;
     container.className = originalClass + ' is-exporting print-container';
+    
+    const originalWidth = container.style.width;
+    container.style.width = '1200px';
     await new Promise(r => setTimeout(r, 500));
 
     const opt = {
@@ -295,6 +303,7 @@ export const ReportsScreen: React.FC = () => {
       console.error('Erro ao gerar PDF da tabela', err);
     } finally {
       container.className = originalClass;
+      container.style.width = originalWidth;
     }
   };
 
@@ -305,6 +314,9 @@ export const ReportsScreen: React.FC = () => {
     
     const originalClass = container.className;
     container.className = originalClass + ' is-exporting print-container';
+    
+    const originalWidth = container.style.width;
+    container.style.width = '1200px';
     await new Promise(r => setTimeout(r, 500));
 
     const opt = {
@@ -793,7 +805,7 @@ export const ReportsScreen: React.FC = () => {
           <div className="print-stack" style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '24px' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
               <div className="card" style={{ padding: '20px', flex: 1, overflowX: 'auto' }}>
-                <h3 style={{ marginTop: 0, marginBottom: '16px', fontSize: '1.05rem', color: 'var(--color-text-primary)' }}>Top 10 Clientes</h3>
+                <h3 style={{ marginTop: 0, marginBottom: '16px', fontSize: '1.05rem', color: 'var(--color-text-primary)' }}>Top 10 Clientes da Semana</h3>
                 <table className="reports-table" style={{ width: '100%', minWidth: '400px' }}>
                   <thead>
                     <tr>
