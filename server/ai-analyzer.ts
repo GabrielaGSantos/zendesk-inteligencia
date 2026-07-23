@@ -126,6 +126,77 @@ interface AnalysisResult {
   criticality?: string | null;
   expected_completion_effort?: string | null;
   effort_reason?: string | null;
+  detailed_requirements?: string | null;
+}
+
+// ─────────────────────────────────────────────────────────────
+// Validação de Categoria — força match com lista oficial
+// ─────────────────────────────────────────────────────────────
+function levenshtein(a: string, b: string): number {
+  const matrix: number[][] = [];
+  for (let i = 0; i <= b.length; i++) matrix[i] = [i];
+  for (let j = 0; j <= a.length; j++) matrix[0][j] = j;
+  for (let i = 1; i <= b.length; i++) {
+    for (let j = 1; j <= a.length; j++) {
+      if (b.charAt(i - 1) === a.charAt(j - 1)) {
+        matrix[i][j] = matrix[i - 1][j - 1];
+      } else {
+        matrix[i][j] = Math.min(
+          matrix[i - 1][j - 1] + 1,
+          matrix[i][j - 1] + 1,
+          matrix[i - 1][j] + 1
+        );
+      }
+    }
+  }
+  return matrix[b.length][a.length];
+}
+
+function findClosestCategory(aiCategory: string, officialCategories: string[]): string {
+  if (!aiCategory || officialCategories.length === 0) return aiCategory;
+  const normalized = aiCategory.trim().toLowerCase();
+  
+  // Exact match (case insensitive)
+  const exact = officialCategories.find(c => c.toLowerCase() === normalized);
+  if (exact) return exact;
+  
+  // Fuzzy match — find closest by Levenshtein distance
+  let bestMatch = officialCategories[0];
+  let bestDistance = Infinity;
+  for (const official of officialCategories) {
+    const dist = levenshtein(normalized, official.toLowerCase());
+    // Also check if one contains the other
+    if (official.toLowerCase().includes(normalized) || normalized.includes(official.toLowerCase())) {
+      return official; // substring match is a strong signal
+    }
+    if (dist < bestDistance) {
+      bestDistance = dist;
+      bestMatch = official;
+    }
+  }
+  
+  // Only accept fuzzy match if distance is less than 40% of the string length
+  const threshold = Math.max(normalized.length, bestMatch.length) * 0.4;
+  if (bestDistance <= threshold) return bestMatch;
+  
+  return aiCategory; // keep original if no reasonable match found
+}
+
+function validateCategory(parsed: AnalysisResult, taxonomy?: {products: string[], categories: string[]}) {
+  if (!taxonomy || !taxonomy.categories || taxonomy.categories.length === 0) return;
+  
+  const aiCategory = parsed.category || '';
+  if (!aiCategory) return;
+  
+  // Handle composite categories (separated by |)
+  const parts = aiCategory.split('|').map(p => p.trim()).filter(Boolean);
+  const validatedParts = parts.map(part => findClosestCategory(part, taxonomy.categories));
+  parsed.category = validatedParts.join(' | ');
+  
+  // Also validate product
+  if (parsed.product && taxonomy.products && taxonomy.products.length > 0) {
+    parsed.product = findClosestCategory(parsed.product, taxonomy.products);
+  }
 }
 
 export interface AIResponse {
@@ -358,7 +429,8 @@ function buildAnalysisPrompt(
   agentExpertise?: any[],
   existingAnalysis?: any,
   taxonomy?: {products: string[], categories: string[]},
-  activePatterns?: string[]
+  activePatterns?: string[],
+  userInstructions?: string
 ): string {
   // 1. Filtragem de Comentários (Otimização)
   const allComments = ticket.comments || [];
@@ -506,15 +578,32 @@ Este ticket já teve sua Carga Operacional calculada anteriormente. Para não co
 Aqui está o ranking COMPLETO dos agentes que mais resolveram tickets, agrupado por categoria.
 Você DEVE escolher o especialista cuja CATEGORIA mais se aproxima do tipo de problema deste ticket.
 NÃO escolha um agente apenas porque ele tem mais tickets resolvidos no geral — o que importa é a RELEVÂNCIA da categoria dele para este ticket específico.
-Justifique a sua escolha citando as métricas E a correspondência de categoria.
+
+REGRA PARA CATEGORIAS COMPOSTAS (com "|"):
+Se a categoria deste ticket for composta (ex: "Gestão de Conteúdo | Alteração de Ferramenta Existente"), priorize o agente que atua na SUBCATEGORIA MAIS ESPECÍFICA (ex: "Alteração de Ferramenta Existente"), não na genérica. A parte mais específica é SEMPRE a que vem DEPOIS do "|".
+Se nenhum agente atuar na subcategoria específica, aí sim use a categoria genérica.
+
+Justifique a sua escolha citando as métricas E a correspondência EXATA de categoria (genérica ou específica).
 
 ${filteredAgents.map(e => `- Agente: ${e.assignee_name} (${e.cargo}) | Categoria: ${e.category} | Resolvidos: ${e.tickets_resolved} | Taxa de Resolução: ${Number(e.resolution_rate).toFixed(1)}% | Tempo Médio: ${Number(e.avg_resolution_time).toFixed(1)}h | Reaberturas: ${Number(e.reopen_rate).toFixed(1)}%`).join('\n')}
 `;
     }
   }
 
-  let promptBody = `Você é um analista de suporte técnico especializado. Analise o ticket de atendimento abaixo e forneça uma classificação detalhada.
+  let userInstructionsBlock = '';
+  if (userInstructions && userInstructions.trim()) {
+    userInstructionsBlock = `
+## 🎯 INSTRUÇÕES PRIORITÁRIAS DO COORDENADOR
+O coordenador da equipe deixou as seguintes observações/instruções que você DEVE seguir com PRIORIDADE MÁXIMA ao elaborar sua análise e resposta. Estas instruções têm precedência sobre qualquer outra diretriz:
 
+"${userInstructions.trim()}"
+
+Leve estas instruções em conta ao preencher TODOS os campos relevantes do JSON, especialmente "suggested_response", "recommended_procedure" e "problem_summary".
+`;
+  }
+
+  let promptBody = `Você é um analista de suporte técnico especializado. Analise o ticket de atendimento abaixo e forneça uma classificação detalhada.
+${userInstructionsBlock}
 ## Dados do Ticket
 
 **Assunto:** ${ticket.subject}
@@ -886,7 +975,7 @@ export async function startAnalysis(apiKey: string, supabase: SupabaseClient): P
           const ticketData: TicketForAnalysis = { ...ticket, comments: comments || [] };
           try {
             const similarContext = await findSimilarResolvedTickets(supabase, ticketData.subject, ticketData.zendesk_id);
-            const prompt = buildAnalysisPrompt(ticketData, similarContext, knowledgeRules, agentExpertise, undefined, taxonomy, taxonomy.activePatterns);
+            const prompt = buildAnalysisPrompt(ticketData, similarContext, knowledgeRules, agentExpertise, undefined, taxonomy, taxonomy.activePatterns, undefined);
 
             let responseObj: AIResponse;
             if (provider === 'openai') {
@@ -906,6 +995,7 @@ export async function startAnalysis(apiKey: string, supabase: SupabaseClient): P
             let cleanText = responseObj.text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
             const parsed: AnalysisResult = JSON.parse(cleanText);
 
+            validateCategory(parsed, taxonomy);
             applyDeterministicLogic(parsed, ticketData, undefined); // Batch não usa existingAnalysis pois são tickets não analisados
 
             let patternGroupId = null;
@@ -1120,7 +1210,7 @@ function calculateCost(provider: string, model: string, usage: { prompt: number,
   return cost;
 }
 
-export async function analyzeSingleTicket(apiKey: string, supabase: SupabaseClient, zendeskId: number): Promise<any> {
+export async function analyzeSingleTicket(apiKey: string, supabase: SupabaseClient, zendeskId: number, userInstructions?: string): Promise<any> {
   const { data: ticket, error: ticketError } = await supabase
     .from('tickets')
     .select('*')
@@ -1181,7 +1271,7 @@ export async function analyzeSingleTicket(apiKey: string, supabase: SupabaseClie
   const provider = settings?.ai_provider || 'gemini';
   const model = settings?.ai_model || 'gemini-2.5-flash';
 
-  const prompt = buildAnalysisPrompt(ticketData, similarContext, knowledgeRules, agentExpertise, existingAnalysis, taxonomy, taxonomy.activePatterns);
+  const prompt = buildAnalysisPrompt(ticketData, similarContext, knowledgeRules, agentExpertise, existingAnalysis, taxonomy, taxonomy.activePatterns, userInstructions);
 
   let responseObj: AIResponse;
 
@@ -1198,6 +1288,7 @@ export async function analyzeSingleTicket(apiKey: string, supabase: SupabaseClie
   try {
     let cleanText = responseObj.text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
     parsed = JSON.parse(cleanText);
+    validateCategory(parsed, taxonomy);
     applyDeterministicLogic(parsed, ticketData, existingAnalysis);
   } catch (e: any) {
     throw new Error(`JSON parse error: ${e.message} in response: ${responseObj.text}`);
@@ -1345,7 +1436,7 @@ Não use formatação markdown, apenas o JSON array puro.`;
   return parsedInsights;
 }
 
-export async function generateFinalResponse(apiKey: string, supabase: SupabaseClient, zendeskId: number): Promise<string> {
+export async function generateFinalResponse(apiKey: string, supabase: SupabaseClient, zendeskId: number, userInstructions?: string): Promise<string> {
   const { data: ticket, error: ticketError } = await supabase
     .from('tickets')
     .select('subject, requester_name, description')
@@ -1366,20 +1457,30 @@ export async function generateFinalResponse(apiKey: string, supabase: SupabaseCl
   const provider = settings?.ai_provider || 'gemini';
   const model = settings?.ai_model || 'gemini-2.5-flash';
 
+  // FIX: Usar knowledge_rules (mesma tabela do restante do sistema)
   const { data: rules } = await supabase
-    .from('knowledge_base')
-    .select('title, description')
+    .from('knowledge_rules')
+    .select('title, description, category, priority')
     .eq('is_active', true)
     .order('created_at', { ascending: false });
 
   let rulesContext = '';
   if (rules && rules.length > 0) {
     rulesContext = `
-Abaixo está a Base de Conhecimento (Padrões de Resposta e Exceções) da empresa. 
-Considere estas regras ao detalhar a resolução no e-mail, aplicando exceções ou jargões da empresa se a situação do ticket bater com a regra:
-=== BASE DE CONHECIMENTO / EXCEÇÕES ===
-${rules.map(r => `Regra/Exceção: ${r.title}\nDescrição: ${r.description}`).join('\n\n')}
-=======================================
+## REGRAS OBRIGATÓRIAS — Base de Conhecimento
+Abaixo estão as Regras de Ouro e Padrões de Resposta da empresa. Você DEVE aplicar estas regras ao escrever o e-mail. Em caso de conflito, priorize as regras de maior Prioridade.
+
+${rules.map(r => `--- Regra: ${r.title} (Prioridade: ${r.priority || 'Normal'}) ---\nCategoria: ${r.category || 'Geral'}\nDescrição: ${r.description}`).join('\n\n')}
+`;
+  }
+
+  let userInstructionsBlock = '';
+  if (userInstructions && userInstructions.trim()) {
+    userInstructionsBlock = `
+## 🎯 INSTRUÇÕES DO COORDENADOR (PRIORIDADE MÁXIMA)
+O coordenador deixou as seguintes instruções que DEVEM ser seguidas ao escrever este e-mail:
+
+"${userInstructions.trim()}"
 `;
   }
 
@@ -1389,15 +1490,16 @@ Baseie-se ESTRITAMENTE no assunto, na descrição original e, principalmente, no
 NÃO use o nome do cliente. Inicie SEMPRE apenas com "Olá,".
 NÃO coloque sua resposta entre aspas. Não use formatação JSON. Retorne apenas o texto puro com quebras de linha reais.
 NUNCA adicione sua própria assinatura ao final do e-mail, pois o Zendesk já insere a assinatura automaticamente.
-
+${rulesContext}
+${userInstructionsBlock}
 Siga EXATAMENTE esta estrutura de resposta:
 Olá,
 
 Sua solicitação foi concluída!
-[Detalhes do que foi feito baseados nos comentários da equipe. Pode incluir links se fornecidos, e explicações da resolução. Respeite a Base de Conhecimento abaixo se for o caso.]
+[Detalhes do que foi feito baseados nos comentários da equipe. Pode incluir links se fornecidos, e explicações da resolução. Respeite a Base de Conhecimento acima se for o caso.]
 
 Qualquer dúvida, estamos à disposição!
-${rulesContext}
+
 Dados do Ticket:
 Cliente: ${ticket.requester_name}
 Assunto: ${ticket.subject}
@@ -1437,4 +1539,95 @@ Escreva a resposta de fechamento final em português do Brasil, mantendo as queb
     .eq('ticket_zendesk_id', zendeskId);
 
   return finalResponseText;
+}
+
+// ─────────────────────────────────────────────────────────────
+// Refinar resposta com instrução do coordenador
+// ─────────────────────────────────────────────────────────────
+export async function refineAIResponse(
+  apiKey: string, 
+  supabase: SupabaseClient, 
+  zendeskId: number, 
+  field: 'suggested_response' | 'suggested_final_response', 
+  instruction: string
+): Promise<string> {
+  // Buscar o texto atual
+  const { data: analysis, error } = await supabase
+    .from('ticket_analysis')
+    .select(field)
+    .eq('ticket_zendesk_id', zendeskId)
+    .single();
+
+  if (error || !analysis) {
+    throw new Error(`Análise do ticket ${zendeskId} não encontrada.`);
+  }
+
+  const currentText = (analysis as any)[field] || '';
+  if (!currentText) {
+    throw new Error(`O campo ${field} está vazio. Gere a resposta primeiro antes de refinar.`);
+  }
+
+  const { data: ticket } = await supabase
+    .from('tickets')
+    .select('subject, requester_name')
+    .eq('zendesk_id', zendeskId)
+    .single();
+
+  // Buscar regras para contexto
+  const { data: rules } = await supabase
+    .from('knowledge_rules')
+    .select('title, description')
+    .eq('is_active', true);
+
+  let rulesHint = '';
+  if (rules && rules.length > 0) {
+    rulesHint = `\nRegras de resposta da empresa (siga se aplicável):\n${rules.slice(0, 10).map(r => `- ${r.title}: ${r.description}`).join('\n')}\n`;
+  }
+
+  const { data: settings } = await supabase.from('system_settings').select('ai_provider, ai_model').eq('id', 1).single();
+  const provider = settings?.ai_provider || 'gemini';
+  const model = settings?.ai_model || 'gemini-2.5-flash';
+
+  const fieldLabel = field === 'suggested_response' ? 'E-mail Inicial (Aviso de Recebimento)' : 'E-mail Final (Resolução)';
+
+  const prompt = `Você é um agente de suporte ao cliente experiente.
+
+Você já escreveu o seguinte ${fieldLabel} para o ticket "${ticket?.subject || 'N/A'}" do cliente ${ticket?.requester_name || 'N/A'}:
+
+--- TEXTO ATUAL ---
+${currentText}
+--- FIM DO TEXTO ATUAL ---
+${rulesHint}
+O coordenador revisou o texto e pediu o seguinte ajuste:
+
+"${instruction}"
+
+Reescreva o e-mail completo aplicando o ajuste solicitado. Mantenha o tom profissional e a estrutura geral, alterando APENAS o que foi pedido.
+NÃO use formatação JSON. Retorne APENAS o texto puro do e-mail com quebras de linha reais.
+NÃO coloque aspas em volta da resposta.
+NUNCA adicione assinatura ao final.`;
+
+  let aiResponseObj: AIResponse;
+  if (provider === 'openai') {
+    const openaiKey = process.env.OPENAI_API_KEY;
+    if (!openaiKey) throw new Error('Chave da API da OpenAI não configurada');
+    aiResponseObj = await callOpenAI(openaiKey, prompt, model, false);
+  } else {
+    const geminiKey = process.env.GEMINI_API_KEY || apiKey;
+    aiResponseObj = await callGemini(geminiKey, prompt, model, false);
+  }
+
+  let refinedText = aiResponseObj.text.trim();
+  refinedText = refinedText.replace(/\\n/g, '\n');
+  if (refinedText.startsWith('"') && refinedText.endsWith('"')) {
+    refinedText = refinedText.substring(1, refinedText.length - 1);
+  }
+
+  // Salvar no banco
+  await supabase
+    .from('ticket_analysis')
+    .update({ [field]: refinedText })
+    .eq('ticket_zendesk_id', zendeskId);
+
+  return refinedText;
 }

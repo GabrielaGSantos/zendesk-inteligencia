@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
   X, ExternalLink, Copy, Check, User, Building2, UserCheck,
   Calendar, Tag, Target, MessageSquare, FileText, AlertCircle,
-  ArrowRight, Shield, Lightbulb, Clock, Sparkles, BookOpen, Activity
+  ArrowRight, Shield, Lightbulb, Clock, Sparkles, BookOpen, Activity, Send, ChevronDown, ChevronUp
 } from 'lucide-react';
 import type { Ticket, TicketComment } from '../types';
 import { api } from '../services/api';
@@ -96,6 +96,14 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({ ticket: in
   const [isSaving, setIsSaving] = useState(false);
   const [editForm, setEditForm] = useState<Partial<any>>({});
   const [newSimilarId, setNewSimilarId] = useState('');
+  const [userInstructions, setUserInstructions] = useState('');
+  const [showInstructions, setShowInstructions] = useState(false);
+  const [refineInitialInput, setRefineInitialInput] = useState('');
+  const [refineFinalInput, setRefineFinalInput] = useState('');
+  const [isRefiningInitial, setIsRefiningInitial] = useState(false);
+  const [isRefiningFinal, setIsRefiningFinal] = useState(false);
+  const [finalEmailInstructions, setFinalEmailInstructions] = useState('');
+  const [showFinalEmailInstructions, setShowFinalEmailInstructions] = useState(false);
 
   useEffect(() => {
     setTicket(initialTicket);
@@ -132,9 +140,11 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({ ticket: in
     }
     try {
       setIsAnalyzing(true);
-      const updatedTicket = await api.analyzeTicket(ticket.zendesk_id);
+      const updatedTicket = await api.analyzeTicket(ticket.zendesk_id, userInstructions || undefined);
       setTicket(updatedTicket);
       if (onUpdate) onUpdate(updatedTicket);
+      setUserInstructions('');
+      setShowInstructions(false);
     } catch (err) {
       alert(`Erro ao analisar ticket: ${err instanceof Error ? err.message : 'Erro desconhecido'}`);
     } finally {
@@ -183,16 +193,38 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({ ticket: in
   const generateFinalEmail = async () => {
     try {
       setIsGeneratingFinalEmail(true);
-      const data = await api.generateFinalEmail(ticket.zendesk_id);
+      const data = await api.generateFinalEmail(ticket.zendesk_id, finalEmailInstructions || undefined);
       
       const updatedTicket = { ...ticket, suggested_final_response: data.suggested_final_response };
       setTicket(updatedTicket);
       if (onUpdate) onUpdate(updatedTicket);
+      setFinalEmailInstructions('');
+      setShowFinalEmailInstructions(false);
     } catch (err: any) {
       console.error('Error generating final email:', err);
       alert(err.message || 'Erro ao gerar e-mail final com a IA.');
     } finally {
       setIsGeneratingFinalEmail(false);
+    }
+  };
+
+  const handleRefine = async (field: 'suggested_response' | 'suggested_final_response', instruction: string) => {
+    if (!instruction.trim()) return;
+    const setRefining = field === 'suggested_response' ? setIsRefiningInitial : setIsRefiningFinal;
+    const setInput = field === 'suggested_response' ? setRefineInitialInput : setRefineFinalInput;
+    
+    try {
+      setRefining(true);
+      const data = await api.refineResponse(ticket.zendesk_id, field, instruction);
+      const updatedTicket = { ...ticket, [field]: data.text };
+      setTicket(updatedTicket);
+      if (onUpdate) onUpdate(updatedTicket);
+      setInput('');
+    } catch (err: any) {
+      console.error(`Error refining ${field}:`, err);
+      alert(err.message || 'Erro ao refinar resposta.');
+    } finally {
+      setRefining(false);
     }
   };
 
@@ -335,6 +367,14 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({ ticket: in
                     <><Sparkles size={14} style={{ marginRight: 6 }} /> {hasAnalysis ? 'Analisar Novamente' : 'Analisar com IA'}</>
                   )}
                 </button>
+                <button
+                  className="btn btn--ghost"
+                  style={{ padding: '4px 8px', fontSize: 11 }}
+                  onClick={() => setShowInstructions(!showInstructions)}
+                  title="Adicionar observação para a IA"
+                >
+                  {showInstructions ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                </button>
                 {!hasAnalysis && (
                   <button 
                     className="btn btn--outline"
@@ -360,6 +400,25 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({ ticket: in
                 )}
               </div>
             </div>
+
+            {/* Observação Inicial para IA */}
+            {showInstructions && (
+              <div className="ai-instructions-box" style={{ margin: '0 24px 0', padding: '12px 16px', background: 'var(--color-bg-secondary)', border: '1px dashed var(--color-primary)', borderRadius: 8 }}>
+                <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--color-primary)', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <Sparkles size={12} />
+                  Observação para a IA (pré-análise)
+                </div>
+                <textarea
+                  style={{ width: '100%', minHeight: '60px', padding: '10px 12px', resize: 'vertical', border: '1px solid var(--color-border)', borderRadius: 6, fontSize: 12, background: 'var(--color-surface)', fontFamily: 'inherit' }}
+                  placeholder="Ex: Foque na parte de configuração do portal, ignore a menção ao PLDO..."
+                  value={userInstructions}
+                  onChange={e => setUserInstructions(e.target.value)}
+                />
+                <div style={{ fontSize: 10, color: 'var(--color-text-tertiary)', marginTop: 4 }}>
+                  Esta observação será considerada com prioridade máxima na análise e na geração das respostas.
+                </div>
+              </div>
+            )}
           </div>
           <button className="modal__close" onClick={onClose} disabled={isSaving}>
             <X size={18} />
@@ -674,6 +733,30 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({ ticket: in
                               <Copy size={14} />
                             </button>
                           </div>
+                          {/* Chat de Refinamento - Email Inicial */}
+                          <div className="refine-chat" style={{ marginTop: 8, display: 'flex', gap: 6, alignItems: 'flex-end' }}>
+                            <input
+                              type="text"
+                              value={refineInitialInput}
+                              onChange={e => setRefineInitialInput(e.target.value)}
+                              onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleRefine('suggested_response', refineInitialInput); } }}
+                              placeholder="Peça um ajuste... Ex: Mencione o prazo de 3 dias"
+                              disabled={isRefiningInitial}
+                              style={{ flex: 1, padding: '8px 12px', border: '1px solid var(--color-border)', borderRadius: 20, fontSize: 12, background: 'var(--color-surface)', fontFamily: 'inherit', outline: 'none' }}
+                            />
+                            <button
+                              className="btn btn--primary"
+                              style={{ padding: '6px 12px', borderRadius: 20, fontSize: 12, display: 'flex', alignItems: 'center', gap: 4, minWidth: 'auto' }}
+                              onClick={() => handleRefine('suggested_response', refineInitialInput)}
+                              disabled={isRefiningInitial || !refineInitialInput.trim()}
+                            >
+                              {isRefiningInitial ? (
+                                <div className="spinner" style={{ width: 12, height: 12, borderWidth: 2 }}></div>
+                              ) : (
+                                <Send size={12} />
+                              )}
+                            </button>
+                          </div>
                         </div>
                       )}
                       {ticket.suggested_final_response ? (
@@ -689,10 +772,53 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({ ticket: in
                               <Copy size={14} />
                             </button>
                           </div>
+                          {/* Chat de Refinamento - Email Final */}
+                          <div className="refine-chat" style={{ marginTop: 8, display: 'flex', gap: 6, alignItems: 'flex-end' }}>
+                            <input
+                              type="text"
+                              value={refineFinalInput}
+                              onChange={e => setRefineFinalInput(e.target.value)}
+                              onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleRefine('suggested_final_response', refineFinalInput); } }}
+                              placeholder="Peça um ajuste... Ex: Remova menção à homologação"
+                              disabled={isRefiningFinal}
+                              style={{ flex: 1, padding: '8px 12px', border: '1px solid var(--color-border)', borderRadius: 20, fontSize: 12, background: 'var(--color-surface)', fontFamily: 'inherit', outline: 'none' }}
+                            />
+                            <button
+                              className="btn btn--primary"
+                              style={{ padding: '6px 12px', borderRadius: 20, fontSize: 12, display: 'flex', alignItems: 'center', gap: 4, minWidth: 'auto' }}
+                              onClick={() => handleRefine('suggested_final_response', refineFinalInput)}
+                              disabled={isRefiningFinal || !refineFinalInput.trim()}
+                            >
+                              {isRefiningFinal ? (
+                                <div className="spinner" style={{ width: 12, height: 12, borderWidth: 2 }}></div>
+                              ) : (
+                                <Send size={12} />
+                              )}
+                            </button>
+                          </div>
                         </div>
                       ) : (
                         <div>
                           <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--color-text-secondary)', marginBottom: 6 }}>E-mail Final (Resolução)</div>
+                          {/* Observação para gerar email final */}
+                          <div style={{ marginBottom: 8 }}>
+                            <button
+                              className="btn btn--ghost"
+                              style={{ padding: '2px 8px', fontSize: 10, marginBottom: 4 }}
+                              onClick={() => setShowFinalEmailInstructions(!showFinalEmailInstructions)}
+                            >
+                              {showFinalEmailInstructions ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
+                              <span style={{ marginLeft: 4 }}>Observação para a IA</span>
+                            </button>
+                            {showFinalEmailInstructions && (
+                              <textarea
+                                style={{ width: '100%', minHeight: '50px', padding: '8px 10px', resize: 'vertical', border: '1px dashed var(--color-primary)', borderRadius: 6, fontSize: 11, background: 'var(--color-bg-secondary)', fontFamily: 'inherit', marginBottom: 6 }}
+                                placeholder="Ex: Mencione que a funcionalidade está disponível em homologação para teste..."
+                                value={finalEmailInstructions}
+                                onChange={e => setFinalEmailInstructions(e.target.value)}
+                              />
+                            )}
+                          </div>
                           <button
                             className="btn btn--outline"
                             onClick={generateFinalEmail}

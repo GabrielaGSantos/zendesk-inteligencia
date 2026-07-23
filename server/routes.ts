@@ -2,7 +2,7 @@ import { Router, Request, Response, NextFunction } from 'express';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { getAdminDatabase } from './database.js';
 import { startSync, getSyncProgress, syncSingleTicket } from './zendesk-sync.js';
-import { startAnalysis, getAnalysisStatus, pauseAnalysis, analyzeSingleTicket, generateRadarInsights, generateFinalResponse } from './ai-analyzer.js';
+import { startAnalysis, getAnalysisStatus, pauseAnalysis, analyzeSingleTicket, generateRadarInsights, generateFinalResponse, refineAIResponse } from './ai-analyzer.js';
 
 export function createRoutes(supabase: SupabaseClient): Router {
   const router = Router();
@@ -788,8 +788,9 @@ export function createRoutes(supabase: SupabaseClient): Router {
     try {
       const ticketId = parseInt(req.params.id);
       const apiKey = process.env.GEMINI_API_KEY || ''; // In reality, we could pass this via req.body if not stored in env
+      const userInstructions = req.body?.user_instructions || undefined;
       
-      await analyzeSingleTicket(apiKey, supabase, ticketId);
+      await analyzeSingleTicket(apiKey, supabase, ticketId, userInstructions);
       
       const { data: ticketData, error: ticketError } = await supabase
         .from('tickets')
@@ -853,7 +854,8 @@ export function createRoutes(supabase: SupabaseClient): Router {
       }
 
       const apiKey = process.env.GEMINI_API_KEY || process.env.OPENAI_API_KEY || '';
-      await analyzeSingleTicket(apiKey, supabase, ticketId);
+      const userInstructions = req.body?.user_instructions || undefined;
+      await analyzeSingleTicket(apiKey, supabase, ticketId, userInstructions);
 
       const { data: ticket } = await supabase.from('tickets').select('*').eq('zendesk_id', ticketId).single();
       if (!ticket) return res.status(404).json({ error: 'Ticket não encontrado' });
@@ -1342,11 +1344,37 @@ export function createRoutes(supabase: SupabaseClient): Router {
       if (isNaN(zendeskId)) return res.status(400).json({ error: 'ID inválido' });
       
       const apiKey = process.env.GEMINI_API_KEY || '';
-      const finalResponse = await generateFinalResponse(apiKey, supabase, zendeskId);
+      const userInstructions = req.body?.user_instructions || undefined;
+      const finalResponse = await generateFinalResponse(apiKey, supabase, zendeskId, userInstructions);
       
       res.json({ suggested_final_response: finalResponse });
     } catch (err: any) {
       console.error('[AI Final Response API] Error:', err);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ─── AI Refine Response ────────────────────────────────────────
+  router.post('/api/ai/refine-response/:id', async (req, res) => {
+    try {
+      const zendeskId = parseInt(req.params.id);
+      if (isNaN(zendeskId)) return res.status(400).json({ error: 'ID inválido' });
+      
+      const { field, instruction } = req.body || {};
+      if (!field || !instruction) {
+        return res.status(400).json({ error: 'Campos "field" e "instruction" são obrigatórios' });
+      }
+      
+      if (field !== 'suggested_response' && field !== 'suggested_final_response') {
+        return res.status(400).json({ error: 'Campo "field" deve ser "suggested_response" ou "suggested_final_response"' });
+      }
+      
+      const apiKey = process.env.GEMINI_API_KEY || '';
+      const refinedText = await refineAIResponse(apiKey, supabase, zendeskId, field, instruction);
+      
+      res.json({ text: refinedText, field });
+    } catch (err: any) {
+      console.error('[AI Refine Response API] Error:', err);
       res.status(500).json({ error: err.message });
     }
   });

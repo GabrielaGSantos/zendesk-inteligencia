@@ -90,9 +90,10 @@ export const api = {  // Tickets
     });
   },
 
-  analyzeTicket: (zendeskId: number): Promise<TicketDetail> => {
+  analyzeTicket: (zendeskId: number, userInstructions?: string): Promise<TicketDetail> => {
     return request(`/api/tickets/${zendeskId}/analyze`, {
-      method: 'POST'
+      method: 'POST',
+      body: JSON.stringify({ user_instructions: userInstructions || undefined })
     });
   },
 
@@ -131,8 +132,18 @@ export const api = {  // Tickets
     return request<AnalysisProgress>('/api/analyze/status');
   },
 
-  generateFinalEmail: (id: number) => {
-    return request<{ suggested_final_response: string }>(`/api/ai/generate-final-response/${id}`, { method: 'POST' });
+  generateFinalEmail: (id: number, userInstructions?: string) => {
+    return request<{ suggested_final_response: string }>(`/api/ai/generate-final-response/${id}`, { 
+      method: 'POST',
+      body: JSON.stringify({ user_instructions: userInstructions || undefined })
+    });
+  },
+
+  refineResponse: (id: number, field: 'suggested_response' | 'suggested_final_response', instruction: string) => {
+    return request<{ text: string; field: string }>(`/api/ai/refine-response/${id}`, {
+      method: 'POST',
+      body: JSON.stringify({ field, instruction })
+    });
   },
 
   // Knowledge Base
